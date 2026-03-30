@@ -7,19 +7,19 @@ Execution defaults for humans and AI agents. Use this file for day-to-day implem
 ## 1) Edit Boundaries (Default)
 
 - Prefer editing only files directly relevant to the task.
-- Prefer `sources/rng-utopia/apps/platform/` for frontend runtime work.
-- Do not edit unrelated game scaffold apps unless the task explicitly asks for it.
+- Solana programs: `solana/` submodule
+- Backend services + shared TS packages: `backend/` submodule
+- Docs, scripts, e2e: root repo
 - Do not edit generated/build outputs (`dist/`, compiled artifacts, coverage outputs).
-- If a task requires crossing boundaries, state why in the final report.
+- If a task requires crossing submodule boundaries, state why in the final report.
 
 ---
 
 ## 2) Build Policy (Default)
 
-- Completion gate: `./scripts/verify` (includes `apps/platform` build via `pnpm build`).
-- `pnpm build:all` is a health/readiness check, not a blocking completion gate in the current baseline.
-- Non-platform app folders are platform-only scaffolds and may not be standalone-buildable.
-- Do not "fix" scaffold app standalone builds unless the task explicitly requires standalone app support.
+- Completion gate: `./scripts/verify` (runs lint + typecheck + test on backend, builds + tests solana programs).
+- Backend: `cd backend && pnpm lint && pnpm typecheck && pnpm test`
+- Solana: `cd solana && anchor build && mocha tests`
 
 ---
 
@@ -86,8 +86,8 @@ When writing code that integrates with any external dependency — SDK, API, on-
 
 ## 9) Devnet E2E Verification (Default)
 
-- Run `./scripts/verify --devnet` before PRs that touch chain-facing code (`solana/`, `packages/anchor-client/`, `packages/vrf/`, `packages/game-engine/` winner/payout logic, `packages/wallet/src/treasury/`).
-- NOT required every iteration — IS automated in `spec-loop.sh` for specs that reference VRF, coinflip, or Lord of the RNGs.
+- Run `./scripts/verify --devnet` before PRs that touch chain-facing code (`solana/`, `backend/packages/anchor-client/`, `backend/packages/game-engine/` winner/payout logic).
+- NOT required every iteration — IS automated in `spec-loop.sh` for specs that reference coinflip, Lord of the RNGs, or Close Call.
 - Requires `VITE_COINFLIP_PROGRAM_ID` env var to be set; skips gracefully without it.
 - Devnet E2E failures are non-blocking (exit 0 with WARN) — they surface regressions without halting the workflow.
 - For large UI-impacting changes, run visual/e2e checks through user-facing interactions (click/type/navigate) so the flow is validated as a human would use it.

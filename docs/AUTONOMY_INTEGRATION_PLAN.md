@@ -8,7 +8,7 @@ Plan to merge RNG Utopia governance with autonomous execution while preserving e
 
 Enable a reliable autonomous loop from workspace root that can modify both:
 - Root repo files (`docs/`, `scripts/`, agent prompts/commands)
-- Submodule code (`sources/rng-utopia/`)
+- Submodule code (the code submodules (`solana/`, `backend/`))
 
 ...without replacing RNG Utopia's current governance model.
 
@@ -28,7 +28,7 @@ Enable a reliable autonomous loop from workspace root that can modify both:
 
 ### Loop Runtime
 - Run loop scripts from root workspace.
-- Allow edits in both root and `sources/rng-utopia/`.
+- Allow edits in both root and the code submodules (`solana/`, `backend/`).
 
 ### Ownership Boundaries
 - Root: governance, planning, specs, workflow scripts, progress/debt/lessons.
@@ -74,7 +74,7 @@ Use 2-phase loading:
 - `docs/TECH_DEBT.md`
 - `docs/LESSONS.md`
 - `docs/FOUNDATIONS.md`
-- Relevant contract files under `sources/rng-utopia/`
+- Relevant contract files under the code submodules (`solana/`, `backend/`)
 
 Rule:
 - Scope must still be checked for each new spec and for spec updates.

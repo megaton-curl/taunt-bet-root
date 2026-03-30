@@ -1,4 +1,4 @@
-# RNG Utopia - Capability Baseline
+# Taunt Bet - Capability Baseline
 
 Non-custodial P2P gaming platform on Solana. This document captures current implementation boundaries, architectural constraints, and planning direction without release labels.
 

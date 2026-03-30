@@ -1,34 +1,35 @@
 ---
 name: push-sub
-description: Commit changes in the submodule and parent repo, then push the submodule.
-argument-hint: [commit message] (optional — auto-generates if omitted)
+description: Commit and push changes in submodules (backend/solana), then update root pointers.
+argument-hint: [backend|solana|both] [commit message] (optional — auto-generates if omitted)
 ---
 
-# /push-sub — Commit & Push Submodule
+# /push-sub — Commit & Push Submodules
 
-Commit staged/unstaged changes in the `sources/rng-utopia/` submodule, update the
-submodule pointer in the parent repo, and push.
+Commit changes in one or both submodules (`backend/`, `solana/`), push them,
+update the submodule pointers in the root repo, and commit the root.
 
 ## Steps
 
-1. **Submodule commit** (`sources/rng-utopia/`):
-   - `cd sources/rng-utopia && git status` — show changes
-   - If no changes, stop early with "nothing to commit"
-   - Stage all modified/untracked files relevant to the changes
-   - Commit with the provided message, or auto-generate one from the diff
+1. **Detect which submodules have changes**:
+   - `cd backend && git status` — check for changes
+   - `cd solana && git status` — check for changes
+   - If an argument specifies `backend` or `solana`, only process that one
+   - If `both` or no argument, process all with changes
 
-2. **Push submodule**:
-   - `cd sources/rng-utopia && git push`
+2. **For each changed submodule** (backend first, then solana):
+   - Stage relevant files (not `git add -A` — be specific)
+   - Commit with the provided message, or auto-generate from the diff
+   - Push to origin
 
-3. **Parent repo commit** (`/workspaces/rng-utopia/`):
-   - The submodule pointer (`sources/rng-utopia`) will show as modified
-   - Stage it: `git add sources/rng-utopia`
-   - If there are other changed files in the parent repo, show them and ask
-     whether to include them in this commit or leave them unstaged
-   - Commit with message: `chore: update submodule ref` (or a more descriptive
-     message if other files are included)
+3. **Root repo commit** (`/workspaces/rng-utopia/`):
+   - The submodule pointers will show as modified
+   - Stage them: `git add backend solana`
+   - If there are other changed files in root (docs/, scripts/), show them
+     and ask whether to include
+   - Commit with message: `chore: update submodule refs`
 
-4. **Done** — print summary of both commits and the push result.
+4. **Done** — print summary of commits and push results.
 
 ## Rules
 
@@ -36,5 +37,5 @@ submodule pointer in the parent repo, and push.
 - Follow the commit message style from recent git log
 - Never force-push
 - Never use `git add -A` — stage specific files
-- If the submodule push fails (e.g., upstream rejected), report the error and stop
-- Do NOT push the parent repo unless explicitly asked
+- If a push fails, report the error and stop
+- Do NOT push the root repo unless explicitly asked

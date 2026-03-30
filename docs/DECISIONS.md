@@ -27,23 +27,23 @@ Track key architectural and product decisions as they're made.
 
 ### Decision: Two-Repo Structure
 **Date**: 2026-02-09
-**Decision**: Root repo for project management/docs, `sources/rng-utopia/` as git submodule pointing to code repo
-**Rationale**: Clean separation of project context vs codebase. Allows independent versioning.
+**Decision**: Root repo for project management/docs, the code submodules (`solana/`, `backend/`) as git submodule pointing to code repo
+**Status**: ❌ Superseded by Multi-Repo Structure (2026-03-30)
+
+### Decision: Multi-Repo Structure
+**Date**: 2026-03-30
+**Decision**: Split monorepo into independent repos with root orchestration:
+- `solana/` — submodule → `taunt-bet/solana.git` (Anchor programs + shared Rust crate)
+- `backend/` — submodule → `taunt-bet/backend.git` (Hono API + shared TS packages)
+- Root repo → `megaton-curl/taunt-bet-root.git` (docs, scripts, e2e tests, submodule orchestration)
+- Frontend and waitlist — separate repos (being reworked independently)
+**Rationale**: Independent deploy cycles per domain. Backend deploys without touching programs. Solana builds without Node backend. Eliminates monorepo install bloat. Each repo is self-contained and deployable.
 **Status**: ✅ Implemented
 
-### Decision: FE Entrypoint Is apps/platform
-**Date**: 2026-02-11
-**Decision**: Treat `sources/rng-utopia/apps/platform/` as the authoritative frontend runtime entrypoint.
-**Rationale**: This is the currently deployed shell containing active feature mocks; other app folders are scaffolds and not required for FE runtime verification.
-**Alternatives considered**: Building all app scaffolds as hard requirement (`build:all`).
-**Status**: ✅ Locked
-
-### Decision: Non-Platform Apps Are Platform-Only Scaffolds
-**Date**: 2026-02-11
-**Decision**: Keep non-platform app folders under `sources/rng-utopia/apps/` as platform-only scaffolds, not standalone deployment targets.
-**Rationale**: Runtime game flows are embedded in `apps/platform` and this preserves structure without forcing standalone Vite app parity for each scaffold.
-**Alternatives considered**: Making each app independently buildable and deployable in the current baseline.
-**Status**: ✅ Locked
+### Decision: FE Entrypoint
+**Date**: 2026-02-11 (updated 2026-03-30)
+**Decision**: Frontend is being reworked in a separate repo. Not part of this workspace currently.
+**Status**: 🟡 In Transition
 
 ---
 

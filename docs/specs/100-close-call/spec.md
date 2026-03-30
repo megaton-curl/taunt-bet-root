@@ -34,8 +34,8 @@ Close Call is a pari-mutuel prediction game where players bet on whether a one-m
 
 ## Required Context Files
 
-- `sources/rng-utopia/docs/CLOSE_CALL.md` (game concept source)
-- `sources/rng-utopia/docs/PLATFORM.md` (flexible betting, platform fee)
+- `backend/docs/CLOSE_CALL.md` (game concept source)
+- `backend/docs/PLATFORM.md` (flexible betting, platform fee)
 
 ## Contract Files
 

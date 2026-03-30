@@ -39,8 +39,8 @@ The target V1 architecture is the backend-assisted hybrid fairness model used by
 
 ## Required Context Files
 
-- `sources/rng-utopia/docs/LORD_OF_THE_RNGS.md` (game concept source)
-- `sources/rng-utopia/docs/PLATFORM.md` (custom-amount betting, platform fee, fairness UX)
+- `backend/docs/LORD_OF_THE_RNGS.md` (game concept source)
+- `backend/docs/PLATFORM.md` (custom-amount betting, platform fee, fairness UX)
 - `docs/specs/005-hybrid-fairness/spec.md` (shared fairness contract)
 - `docs/specs/006-fairness-backend/spec.md` (backend create / settle / verify contract)
 

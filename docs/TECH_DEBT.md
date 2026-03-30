@@ -29,7 +29,7 @@ Track temporary hacks, relaxed rules, and shortcuts here.
 
 ### [Scaffolds] Standalone Build Script Mismatch
 - **Date**: 2026-02-11
-- **Location**: `sources/rng-utopia/package.json` (`build:all`) and non-platform app folders under `sources/rng-utopia/apps/`
+- **Location**: `backend/package.json` (`build:all`) and non-platform app folders under `apps/ (frontend repo)`
 - **What**: `build:all` attempts standalone builds for scaffold apps that are currently platform-only and missing standalone Vite entry setup.
 - **Why**: Preserve existing app folder structure during takeover while treating `apps/platform` as the only runtime target.
 - **Fix Criteria**: After scope/planning finalization, either (a) make selected apps truly standalone buildable, or (b) align scripts to exclude platform-only scaffolds from standalone build expectations.

@@ -162,7 +162,7 @@ handle_blocker() {
     # Commit whatever partial work exists
     cd "$ROOT_DIR"
     if ! git diff --quiet -- . 2>/dev/null || ! git diff --cached --quiet -- . 2>/dev/null; then
-        git add docs/specs/"$SPEC_ID"/ sources/rng-utopia 2>/dev/null || true
+        git add docs/specs/"$SPEC_ID"/ backend solana 2>/dev/null || true
         git commit -m "spec($SPEC_ID): iteration $iteration — blocked
 
 Blocker: $reason
@@ -227,9 +227,8 @@ user input. Do NOT use interactive tools. Work autonomously.
 2. Pick the FIRST unchecked `- [ ]` item from the **Implementation Checklist** section.
 3. Implement ONLY that one item — small, focused changes.
 4. Run the relevant targeted check:
-   - Rust/Anchor changes: `cd sources/rng-utopia/solana && anchor build -p coinflip && anchor test --skip-local-validator --skip-deploy`
-   - TypeScript changes: `cd sources/rng-utopia && pnpm lint && pnpm typecheck`
-   - Frontend changes: `cd sources/rng-utopia && pnpm build`
+   - Rust/Anchor changes: `cd solana && anchor build -p coinflip && anchor test --skip-local-validator --skip-deploy`
+   - TypeScript changes: `cd backend && pnpm lint && pnpm typecheck`
 5. If the targeted check FAILS and you cannot fix it within this iteration:
    - Output `<blocker>DESCRIPTION OF WHAT FAILED AND WHY</blocker>`
    - Do NOT check off the item
@@ -421,7 +420,7 @@ if [ "$(count_remaining)" -eq 0 ]; then
     # Commit any gap-analysis/history updates (plus submodule pointer if needed)
     cd "$ROOT_DIR"
     if ! git diff --quiet -- . || ! git diff --cached --quiet -- .; then
-        git add docs/specs/"$SPEC_ID"/ sources/rng-utopia 2>/dev/null || true
+        git add docs/specs/"$SPEC_ID"/ backend solana 2>/dev/null || true
         git commit -m "spec($SPEC_ID): post-completion gap analysis
 
 Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>" || true
@@ -540,7 +539,7 @@ while true; do
         # Final commit (implementation + gap analysis + FR updates)
         cd "$ROOT_DIR"
         if ! git diff --quiet -- . || ! git diff --cached --quiet -- .; then
-            git add docs/specs/"$SPEC_ID"/ sources/rng-utopia
+            git add docs/specs/"$SPEC_ID"/ backend solana
             git commit -m "spec($SPEC_ID): complete — all checklist items done
 
 Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>"
@@ -563,8 +562,8 @@ Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>"
 
     # Check both parent repo and submodule for changes
     SUBMODULE_CHANGES=false
-    if [ -d "sources/rng-utopia" ]; then
-        cd sources/rng-utopia
+    if [ -d "backend" ]; then
+        cd backend
         if ! git diff --quiet || ! git diff --cached --quiet || [ -n "$(git ls-files --others --exclude-standard)" ]; then
             SUBMODULE_CHANGES=true
         fi
@@ -589,7 +588,7 @@ Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>"
 
     # Commit in submodule first if changed
     if [ "$SUBMODULE_CHANGES" = true ]; then
-        cd sources/rng-utopia
+        cd backend
         git add -A
         git commit -m "spec($SPEC_ID): iteration $ITERATION
 
@@ -598,7 +597,7 @@ Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>" || true
     fi
 
     # Commit in parent repo (spec updates + submodule pointer)
-    git add docs/specs/"$SPEC_ID"/ sources/rng-utopia
+    git add docs/specs/"$SPEC_ID"/ backend solana
     git commit -m "spec($SPEC_ID): iteration $ITERATION
 
 Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>" || true

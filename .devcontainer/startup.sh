@@ -297,12 +297,12 @@ fi
 # ── Git hooks ──
 echo ""
 echo "Git hooks:"
-SUBMODULE_DIR="/workspaces/rng-utopia/sources/rng-utopia"
-if [ -d "$SUBMODULE_DIR/.githooks" ]; then
-    git -C "$SUBMODULE_DIR" config core.hooksPath .githooks 2>/dev/null && \
-        echo "  ✓ Pre-commit typecheck hook active" || true
+BACKEND_DIR="/workspaces/rng-utopia/backend"
+if [ -d "$BACKEND_DIR/.githooks" ]; then
+    git -C "$BACKEND_DIR" config core.hooksPath .githooks 2>/dev/null && \
+        echo "  ✓ Backend pre-commit typecheck hook active" || true
 else
-    echo "  ⚠ .githooks not found in submodule"
+    echo "  ⚠ .githooks not found in backend submodule"
 fi
 
 echo "----------------------------------------------------------------"

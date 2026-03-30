@@ -292,7 +292,7 @@ Verified the new IDL reflects the rewrite:
 
 Removed all MagicBlock/ephemeral-vrf references from the codebase:
 
-- `sources/rng-utopia/CLAUDE.md`: Updated locked decisions table — "MagicBlock Ephemeral VRF" → "Orao VRF (`orao-solana-vrf`)"
+- `backend/CLAUDE.md`: Updated locked decisions table — "MagicBlock Ephemeral VRF" → "Orao VRF (`orao-solana-vrf`)"
 - `solana/scripts/test-devnet-lifecycle.ts`: Updated "MagicBlock VRF" → "Orao VRF" in error message
 - `solana/scripts/join-devnet-match.ts`: Updated "MagicBlock Ephemeral VRF" comment → "Orao VRF"
 - `solana/scripts/init-devnet-config.ts`: Updated "MagicBlock VRF" comment → "Legacy VRF" (oracle_authority removed)
@@ -307,7 +307,7 @@ Removed all MagicBlock/ephemeral-vrf references from the codebase:
   - Winner now derived on-chain from VRF randomness (no frontend `winner` param needed)
 - `apps/platform/src/features/coinflip/context/CoinflipContext.tsx`: Updated `claimPayout` caller to match new API
 
-**Verification**: `grep -r "MagicBlock\|ephemeral.vrf" sources/rng-utopia/solana/ sources/rng-utopia/CLAUDE.md` returns zero matches. Lint, typecheck, build, unit tests, and Anchor tests all pass. Playwright visual tests fail due to pre-existing missing browser installation (unrelated to changes).
+**Verification**: `grep -r "MagicBlock\|ephemeral.vrf" solana/ backend/CLAUDE.md` returns zero matches. Lint, typecheck, build, unit tests, and Anchor tests all pass. Playwright visual tests fail due to pre-existing missing browser installation (unrelated to changes).
 
 All 16 checklist items complete. Spec status updated to Done.
 

@@ -34,8 +34,8 @@ A Hyperliquid-style referral system where any player can set a custom referral c
 ## Required Context Files
 
 - `docs/DECISIONS.md` — fee structure (500 bps flat fee, single treasury via PlatformConfig)
-- `sources/rng-utopia/apps/platform/` — frontend entrypoint
-- `sources/rng-utopia/packages/anchor-client/` — on-chain fee constants (for reference, not modified)
+- `apps/platform/ (frontend repo)` — frontend entrypoint
+- `backend/packages/anchor-client/` — on-chain fee constants (for reference, not modified)
 - Backend settlement logic (settlement worker, DB schema)
 
 ## Contract Files

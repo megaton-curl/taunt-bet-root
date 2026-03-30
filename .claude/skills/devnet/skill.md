@@ -10,9 +10,9 @@ Multi-purpose skill for interacting with the devnet deployment.
 
 ## Environment
 
-- **Solana directory**: `sources/rng-utopia/solana/`
-- **IDL location**: `sources/rng-utopia/solana/target/idl/`
-- **RPC**: `https://devnet.helius-rpc.com/?api-key=98130cf8-96dc-4314-afcf-a72607bb85f3`
+- **Solana directory**: `solana/` (submodule)
+- **IDL location**: `solana/target/idl/`
+- **RPC**: `https://lb.drpc.live/solana-devnet/AvfNVeH0_E7ajvkIaZ0OS6QiksDa5ZMR76q4qi5fk9AX`
 - **Wallet**: `~/.config/solana/id.json`
 - **Backend**: `http://localhost:3100`
 - **DB**: `postgresql://vscode@localhost:5432/rng_utopia_dev`
@@ -27,13 +27,13 @@ is given, default to `health`.
 List all open coinflip matches on devnet.
 
 ```bash
-cd sources/rng-utopia/solana && node --input-type=module -e "
+cd solana && node --input-type=module -e "
 import { Connection, PublicKey, Keypair } from '@solana/web3.js';
 import { AnchorProvider, Program, Wallet } from '@coral-xyz/anchor';
 import { readFileSync } from 'fs';
 
 const idl = JSON.parse(readFileSync('target/idl/coinflip.json', 'utf8'));
-const conn = new Connection('https://devnet.helius-rpc.com/?api-key=98130cf8-96dc-4314-afcf-a72607bb85f3', 'confirmed');
+const conn = new Connection('https://lb.drpc.live/solana-devnet/AvfNVeH0_E7ajvkIaZ0OS6QiksDa5ZMR76q4qi5fk9AX', 'confirmed');
 const kp = Keypair.fromSecretKey(Uint8Array.from(JSON.parse(readFileSync(process.env.HOME + '/.config/solana/id.json', 'utf8'))));
 const provider = new AnchorProvider(conn, new Wallet(kp), { commitment: 'confirmed' });
 const program = new Program(idl, provider);
@@ -60,7 +60,7 @@ Join a coinflip match on devnet.
 - If a PDA argument is given, first check if it's a prefix (< 32 chars). If so,
   list all open matches and find the one whose base58 address contains the prefix.
 - If no PDA given, list open matches and ask the user which one to join.
-- Use the existing script: `cd sources/rng-utopia/solana && npx tsx scripts/join-devnet-match.ts [FULL_PDA]`
+- Use the existing script: `cd solana && npx tsx scripts/join-devnet-match.ts [FULL_PDA]`
 - The script needs `dangerouslyDisableSandbox: true` for network access.
 
 ### `settle`
@@ -69,7 +69,7 @@ Check the settlement status of active matches.
 
 1. `curl -s http://localhost:3100/health` — check backend is running + unsettled count
 2. If backend is not running, tell the user to start it:
-   `cd sources/rng-utopia/services/backend && pnpm run dev`
+   `cd backend/services/backend && pnpm run dev`
 3. List any rounds in non-settled phases from the DB:
    ```bash
    node --input-type=module -e "
@@ -94,19 +94,15 @@ Also show the backend server wallet balance from the health endpoint.
 
 ### `deploy [program]`
 
-Deploy a program to devnet. Valid program names: `coinflip`, `lordofrngs`, `platform`.
+Deploy a program to devnet using the root deploy script.
 
 ```bash
-cd sources/rng-utopia/solana && anchor deploy \
-  --provider.cluster "https://devnet.helius-rpc.com/?api-key=98130cf8-96dc-4314-afcf-a72607bb85f3" \
-  -p <program>
+./scripts/deploy-devnet.sh <program>
 ```
 
-Requires `dangerouslyDisableSandbox: true`.
+Valid program names: `coinflip`, `lordofrngs`, `closecall`, `platform`.
 
-After deploying, remind the user to:
-- Copy IDLs: `cp target/idl/<program>.json ../packages/anchor-client/src/`
-- Copy types: `cp target/types/<program>.ts ../packages/anchor-client/src/`
+Requires `dangerouslyDisableSandbox: true`.
 
 ### `cleanup`
 
@@ -137,6 +133,6 @@ Display a summary table.
 
 - All `node --input-type=module -e` commands need `dangerouslyDisableSandbox: true`
 - All network-touching commands (`anchor deploy`, `npx tsx scripts/`, `solana`, `curl`) need `dangerouslyDisableSandbox: true`
-- Always `cd sources/rng-utopia/solana` before running anchor/program commands
+- Always `cd solana` before running anchor/program commands
 - Format output clearly — use tables or aligned columns
 - If a command fails, diagnose (common issues: backend not running, wallet unfunded, RPC rate limit)

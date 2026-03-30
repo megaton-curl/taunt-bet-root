@@ -267,7 +267,7 @@ Phases A-C below capture the historical shared-crate and VRF-era delivery that o
 
 - [x] [engine] Re-run `scripts/sync-idl` to update `packages/anchor-client/` with new coinflip IDL (new CoinflipMatch shape with RoundPhase + vrf_request_key, removed resolve_match instruction, updated claim_payout accounts to include Orao randomness). Verify: `anchor build && pnpm lint` in anchor-client package. (done: iteration 15)
 
-- [x] [docs] Drop all MagicBlock VRF references from codebase: update `sources/rng-utopia/CLAUDE.md` locked decisions table (MagicBlock → Orao), remove MagicBlock comments from coinflip source files, clean up any remaining `ephemeral-vrf-sdk` references. Verify: `grep -r "MagicBlock\|ephemeral.vrf" sources/rng-utopia/solana/ sources/rng-utopia/CLAUDE.md` returns zero matches. (done: iteration 16)
+- [x] [docs] Drop all MagicBlock VRF references from codebase: update `backend/CLAUDE.md` locked decisions table (MagicBlock → Orao), remove MagicBlock comments from coinflip source files, clean up any remaining `ephemeral-vrf-sdk` references. Verify: `grep -r "MagicBlock\|ephemeral.vrf" solana/ backend/CLAUDE.md` returns zero matches. (done: iteration 16)
 
 ### Phase D: Hybrid Fairness Realignment (required for active contract)
 

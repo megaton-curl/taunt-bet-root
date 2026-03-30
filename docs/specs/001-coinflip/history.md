@@ -84,15 +84,15 @@ of every iteration to understand prior context.
 ## Iteration 1 (engine phase) — 2026-02-18 — DONE
 - **Item**: Create anchor-client package with typed IDL exports + sync-idl script
 - **Changes**:
-  - `sources/rng-utopia/packages/anchor-client/package.json` — New package `@rng-utopia/anchor-client` with `@coral-xyz/anchor` + `@solana/web3.js` deps
-  - `sources/rng-utopia/packages/anchor-client/tsconfig.json` — Extends base tsconfig
-  - `sources/rng-utopia/packages/anchor-client/eslint.config.js` — Uses base eslint config
-  - `sources/rng-utopia/packages/anchor-client/src/index.ts` — Re-exports Coinflip/Platform IDL JSON + types
-  - `sources/rng-utopia/packages/anchor-client/src/coinflip.json` — Coinflip IDL (copied by sync-idl)
-  - `sources/rng-utopia/packages/anchor-client/src/platform.json` — Platform IDL (copied by sync-idl)
-  - `sources/rng-utopia/packages/anchor-client/src/coinflip.ts` — Coinflip type definitions (copied by sync-idl)
-  - `sources/rng-utopia/packages/anchor-client/src/platform.ts` — Platform type definitions (copied by sync-idl)
-  - `sources/rng-utopia/scripts/sync-idl` — Shell script to copy IDL + types from `solana/target/` into anchor-client package
+  - `backend/packages/anchor-client/package.json` — New package `@rng-utopia/anchor-client` with `@coral-xyz/anchor` + `@solana/web3.js` deps
+  - `backend/packages/anchor-client/tsconfig.json` — Extends base tsconfig
+  - `backend/packages/anchor-client/eslint.config.js` — Uses base eslint config
+  - `backend/packages/anchor-client/src/index.ts` — Re-exports Coinflip/Platform IDL JSON + types
+  - `backend/packages/anchor-client/src/coinflip.json` — Coinflip IDL (copied by sync-idl)
+  - `backend/packages/anchor-client/src/platform.json` — Platform IDL (copied by sync-idl)
+  - `backend/packages/anchor-client/src/coinflip.ts` — Coinflip type definitions (copied by sync-idl)
+  - `backend/packages/anchor-client/src/platform.ts` — Platform type definitions (copied by sync-idl)
+  - `backend/scripts/sync-idl` — Shell script to copy IDL + types from `solana/target/` into anchor-client package
 - **Verification**: `pnpm lint` (17 packages) + `pnpm typecheck` (17 packages) — all pass. No regressions.
 
 ## Iteration 1 — 2026-02-18T06:40:45Z — COMPLETE

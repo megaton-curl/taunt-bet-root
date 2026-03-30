@@ -41,7 +41,7 @@ of every iteration to understand prior context.
 ## Iteration 5
 **Item**: Add Playwright artifact dirs to `.gitignore` (`test-results/`, `playwright-report/`, `playwright/.cache/`)
 **Result**: ✅ Success
-**Notes**: Added three Playwright artifact patterns (`test-results/`, `playwright-report/`, `playwright/.cache/`) to `sources/rng-utopia/.gitignore` under a new `# Playwright` section. Verified with `git check-ignore -v` that all three patterns match paths under `apps/platform/`. Note: `playwright/.cache/` was already implicitly covered by the existing `.cache/` pattern, but explicit Playwright entries are clearer. Lint passes (17/17 tasks).
+**Notes**: Added three Playwright artifact patterns (`test-results/`, `playwright-report/`, `playwright/.cache/`) to `backend/.gitignore` under a new `# Playwright` section. Verified with `git check-ignore -v` that all three patterns match paths under `apps/platform/`. Note: `playwright/.cache/` was already implicitly covered by the existing `.cache/` pattern, but explicit Playwright entries are clearer. Lint passes (17/17 tasks).
 
 ## Iteration 5 — 2026-02-18T14:07:59Z — OK
 - **Log**: iteration-005.log
@@ -153,7 +153,7 @@ of every iteration to understand prior context.
 ## Iteration 19
 **Item**: Verify `pnpm test:visual` passes from monorepo root via turbo
 **Result**: ✅ Success
-**Notes**: Ran `pnpm test:visual` from monorepo root (`sources/rng-utopia/`). Turbo discovered and executed the `test:visual` task in `@rng-utopia/platform`. All 17 tests passed (1.3m, 1 worker). Turbo output: "Tasks: 1 successful, 1 total". No issues with turbo passthrough — the `test:visual` script in root `package.json` maps to `turbo run test:visual`, which correctly delegates to `apps/platform`'s `playwright test` command.
+**Notes**: Ran `pnpm test:visual` from monorepo root (the code submodules (`solana/`, `backend/`)). Turbo discovered and executed the `test:visual` task in `@rng-utopia/platform`. All 17 tests passed (1.3m, 1 worker). Turbo output: "Tasks: 1 successful, 1 total". No issues with turbo passthrough — the `test:visual` script in root `package.json` maps to `turbo run test:visual`, which correctly delegates to `apps/platform`'s `playwright test` command.
 
 Also checked off all Testing Requirements items (Code Quality, Functional Verification, Visual Verification, Console/Network Check) — all verified through work done in iterations 1-18 plus this iteration's monorepo root verification.
 

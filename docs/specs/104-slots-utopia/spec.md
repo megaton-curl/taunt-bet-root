@@ -32,8 +32,8 @@ A peer-to-peer slot game with high RTP. Players contribute to a shared pot via c
 
 ## Required Context Files
 
-- `sources/rng-utopia/docs/SLOTS_UTOPIA.md` (game concept source - minimal)
-- `sources/rng-utopia/docs/PLATFORM.md` (custom-amount betting, platform fee, loyalty/XP)
+- `backend/docs/SLOTS_UTOPIA.md` (game concept source - minimal)
+- `backend/docs/PLATFORM.md` (custom-amount betting, platform fee, loyalty/XP)
 
 ## Contract Files
 

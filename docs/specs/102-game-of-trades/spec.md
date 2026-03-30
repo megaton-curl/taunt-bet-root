@@ -31,8 +31,8 @@ A multiplayer trading competition where players pay an entry fee and compete on 
 
 ## Required Context Files
 
-- `sources/rng-utopia/docs/GAME_OF_TRADES.md` (game concept source - minimal)
-- `sources/rng-utopia/docs/PLATFORM.md` (custom-amount betting, platform fee)
+- `backend/docs/GAME_OF_TRADES.md` (game concept source - minimal)
+- `backend/docs/PLATFORM.md` (custom-amount betting, platform fee)
 
 ## Contract Files
 

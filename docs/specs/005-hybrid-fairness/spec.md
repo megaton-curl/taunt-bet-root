@@ -47,13 +47,13 @@ costs ~0.000005 SOL (one settlement tx fee).
 
 - `docs/FOUNDATIONS.md` — Architecture patterns, fairness strategy
 - `docs/DECISIONS.md` — VRF provider decision (to be updated)
-- `sources/rng-utopia/solana/shared/src/vrf_orao.rs` — Current VRF integration (to be replaced/feature-gated)
-- `sources/rng-utopia/solana/shared/src/commit_reveal.rs` — Existing commit-reveal primitives
-- `sources/rng-utopia/solana/shared/src/timeout.rs` — Existing timeout infrastructure
+- `solana/shared/src/vrf_orao.rs` — Current VRF integration (to be replaced/feature-gated)
+- `solana/shared/src/commit_reveal.rs` — Existing commit-reveal primitives
+- `solana/shared/src/timeout.rs` — Existing timeout infrastructure
 
 ## Contract Files
 
-- `sources/rng-utopia/solana/shared/src/lib.rs` — Shared crate public API
+- `solana/shared/src/lib.rs` — Shared crate public API
 
 ---
 

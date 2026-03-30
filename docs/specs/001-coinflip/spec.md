@@ -35,8 +35,8 @@ Coinflip is the simplest game on the platform and the first end-to-end delivery 
 
 ## Required Context Files
 
-- `sources/rng-utopia/docs/COINFLIP.md` (game concept source)
-- `sources/rng-utopia/docs/PLATFORM.md` (custom-amount betting, platform fee, provably fair system)
+- `backend/docs/COINFLIP.md` (game concept source)
+- `backend/docs/PLATFORM.md` (custom-amount betting, platform fee, provably fair system)
 - `docs/SCOPE.md` (scope boundary and shared game requirements)
 - `docs/specs/005-hybrid-fairness/spec.md` (commit-reveal + slot hash fairness contract)
 - `docs/specs/006-fairness-backend/spec.md` (coinflip backend service contract)

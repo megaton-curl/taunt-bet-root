@@ -40,9 +40,9 @@ Systematically inventory what exists. Use Glob/Grep/Read — do NOT guess.
 Build tables for each layer:
 - **On-chain instructions**: grep for `pub fn` in `solana/programs/{name}/src/`
 - **Shared crate exports**: check `solana/shared/src/lib.rs` and submodules
-- **Game engine exports**: check `packages/game-engine/src/` and `packages/anchor-client/`
-- **Frontend components**: check `apps/platform/src/features/{game}/`
-- **Tests**: check `solana/tests/`, vitest files, playwright files
+- **Game engine exports**: check `backend/packages/game-engine/src/` and `backend/packages/anchor-client/`
+- **Backend routes**: check `backend/services/backend/src/routes/`
+- **Tests**: check `solana/tests/`, backend vitest files, `e2e/` playwright files
 
 Record file paths and line numbers for everything found.
 

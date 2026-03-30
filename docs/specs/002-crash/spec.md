@@ -35,8 +35,8 @@ Crash is a competitive P2P multiplayer game where players watch a multiplier cli
 
 ## Required Context Files
 
-- `sources/rng-utopia/docs/CRASH.md` (game concept source)
-- `sources/rng-utopia/docs/PLATFORM.md` (custom-amount betting, platform fee, provably fair system)
+- `backend/docs/CRASH.md` (game concept source)
+- `backend/docs/PLATFORM.md` (custom-amount betting, platform fee, provably fair system)
 - `docs/SCOPE.md` (scope boundary, shared game requirements)
 
 ## Contract Files

@@ -32,8 +32,8 @@ A prediction game where players draw expected price trajectories on historical c
 
 ## Required Context Files
 
-- `sources/rng-utopia/docs/CHART_THE_COURSE.md` (game concept source - minimal)
-- `sources/rng-utopia/docs/PLATFORM.md` (custom-amount betting, platform fee)
+- `backend/docs/CHART_THE_COURSE.md` (game concept source - minimal)
+- `backend/docs/PLATFORM.md` (custom-amount betting, platform fee)
 
 ## Contract Files
 

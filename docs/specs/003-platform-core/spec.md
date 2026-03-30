@@ -37,7 +37,7 @@ Platform Core covers the shared systems that all V1 games depend on: wallet conn
 
 ## Required Context Files
 
-- `sources/rng-utopia/docs/PLATFORM.md` (all platform-wide systems)
+- `backend/docs/PLATFORM.md` (all platform-wide systems)
 - `docs/SCOPE.md` (scope boundaries)
 
 ## Contract Files

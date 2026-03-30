@@ -50,16 +50,16 @@ submits one settlement tx after the precomputed entropy slot.
 - `docs/specs/005-hybrid-fairness/spec.md` — On-chain commit-reveal + slot hash model
 - `docs/FOUNDATIONS.md` — Architecture patterns, testing strategy
 - `docs/DECISIONS.md` — VRF provider decision, fee structure
-- `sources/rng-utopia/solana/programs/coinflip/src/instructions/create_match.rs` — Account layout, signer requirements
-- `sources/rng-utopia/solana/programs/coinflip/src/instructions/settle.rs` — Permissionless settlement, account layout, event shape
-- `sources/rng-utopia/solana/programs/coinflip/src/state.rs` — `CoinflipMatch` fields, phases, `MatchSettled` event
-- `sources/rng-utopia/solana/shared/src/fairness.rs` — `verify_commitment()`, `derive_result()`, `ALGORITHM_VERSION`
-- `sources/rng-utopia/solana/shared/src/fees.rs` — `calculate_net_payout()` (fee_bps read from PlatformConfig)
+- `solana/programs/coinflip/src/instructions/create_match.rs` — Account layout, signer requirements
+- `solana/programs/coinflip/src/instructions/settle.rs` — Permissionless settlement, account layout, event shape
+- `solana/programs/coinflip/src/state.rs` — `CoinflipMatch` fields, phases, `MatchSettled` event
+- `solana/shared/src/fairness.rs` — `verify_commitment()`, `derive_result()`, `ALGORITHM_VERSION`
+- `solana/shared/src/fees.rs` — `calculate_net_payout()` (fee_bps read from PlatformConfig)
 
 ## Contract Files
 
-- `sources/rng-utopia/packages/fairness/src/commitment.ts` — `computeCommitment()`, `verifyCommitment()` (reuse in backend)
-- `sources/rng-utopia/packages/anchor-client/src/coinflip.json` — Typed IDL for tx building
+- `backend/packages/fairness/src/commitment.ts` — `computeCommitment()`, `verifyCommitment()` (reuse in backend)
+- `backend/packages/anchor-client/src/coinflip.json` — Typed IDL for tx building
 
 ---
 

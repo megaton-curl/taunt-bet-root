@@ -500,7 +500,7 @@ of every iteration to understand prior context.
 
 **Resolution required**:
 - Rebuild the devcontainer (or start a new devcontainer session) so Docker applies `--security-opt=seccomp=unconfined`
-- Once io_uring is available, run: `cd sources/rng-utopia && pnpm test:e2e` three times consecutively
+- Once io_uring is available, run: `cd backend cd backend &&cd backend && pnpm test:e2e` three times consecutively
 - All three runs must pass with stable assertions to check off this item
 
 **Status**: BLOCKED — infrastructure limitation (Docker seccomp policy)

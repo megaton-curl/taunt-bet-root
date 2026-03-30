@@ -5,14 +5,14 @@ Linear steps for adding a new deployable Anchor program to the workspace.
 ## Prerequisites
 
 - Anchor CLI 0.32.1+, Solana CLI 3.0.15+, Rust 1.93.1+
-- Existing workspace at `sources/rng-utopia/solana/`
+- Existing workspace at `solana/`
 
 ## Steps
 
 ### 1. Create the program crate
 
 ```bash
-cd sources/rng-utopia/solana
+cd backend/solana
 mkdir -p programs/<name>/src/instructions
 ```
 
@@ -66,7 +66,7 @@ In `solana/Anchor.toml`, add under `[programs.localnet]`:
 ### 5. Generate keypair and get program ID
 
 ```bash
-cd sources/rng-utopia/solana
+cd backend/solana
 mkdir -p target/deploy
 solana-keygen new -o target/deploy/<name>-keypair.json --no-bip39-passphrase --force
 # Note the pubkey from output

@@ -116,7 +116,7 @@ Instruction builders: `buildCreateMatchTx`, `buildJoinMatchTx`, `buildClaimPayou
 | 8 | Timeout path permissionless when VRF not fulfilled | **SATISFIED** | `timeout_cancel.rs:11-14` — `caller: Signer` (any signer). `:57-62` checks deadline, `:67-70` checks VRF NOT fulfilled. Test: "permissionless refund after deadline when VRF unfulfilled" (coinflip.ts:855). |
 | 9 | `mock-vrf` feature flag | **SATISFIED** | `shared/Cargo.toml` has `mock-vrf` feature. `vrf_orao.rs:81-91` (no-op request), `:96-105` (raw bytes read). Coinflip test profile enables `mock-vrf`. |
 | 10 | Reference implementation: Coinflip (001) | **SATISFIED** | Coinflip program fully rewritten using shared crate + Orao VRF. 26 bankrun tests pass (+ 5 platform = 31 total). |
-| 11 | Drop all MagicBlock VRF references | **SATISFIED** | Verified: `grep -r "MagicBlock\|ephemeral.vrf" sources/rng-utopia/solana/ sources/rng-utopia/CLAUDE.md` returns zero matches. Confirmed in iteration 16. |
+| 11 | Drop all MagicBlock VRF references | **SATISFIED** | Verified: `grep -r "MagicBlock\|ephemeral.vrf" solana/ backend/CLAUDE.md` returns zero matches. Confirmed in iteration 16. |
 
 ### FR-5: On-Chain Lifecycle State Machine
 

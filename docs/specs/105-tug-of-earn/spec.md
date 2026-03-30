@@ -32,8 +32,8 @@ A team-based tap game where players are assigned to either Surfers (bulls) or An
 
 ## Required Context Files
 
-- `sources/rng-utopia/docs/TUG_OF_EARN.md` (game concept source - minimal)
-- `sources/rng-utopia/docs/PLATFORM.md` (custom-amount betting, platform fee)
+- `backend/docs/TUG_OF_EARN.md` (game concept source - minimal)
+- `backend/docs/PLATFORM.md` (custom-amount betting, platform fee)
 
 ## Contract Files
 

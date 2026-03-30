@@ -43,23 +43,7 @@ Check for:
 
 #### Visual Regression Assessment
 
-`./scripts/verify` runs `pnpm test:visual` (baseline screenshots). Every spec must pass visual regression or explicitly update the affected baselines.
-
-Determine which category this spec falls into:
-1. **No visual changes** (backend-only, engine logic, test infra): visual tests pass as-is — no extra checklist items needed.
-2. **Incidental visual changes** (e.g., wallet swap changes a small icon): identify which specific screenshots will break, add a baseline update checklist item.
-3. **Intentional redesign** (new page, layout overhaul, theme change): identify all affected screenshots, add a baseline update checklist item, note which are new vs updated.
-
-Ask the user during Phase 3 if unclear which pages will be visually affected.
-
-When adding a baseline update checklist item, use this template (adapt the screenshot list):
-
-```markdown
-- [ ] [test] Update visual baselines for [list pages]. Run `pnpm test:visual` to identify failures, then `pnpm test:visual:update` to regenerate. **Before committing**: read old baseline and new screenshot for each changed page (use Read tool on PNG files). Evaluate:
-  - **PASS** (changes clearly match spec intent, only expected areas changed) → commit updated baselines
-  - **REVIEW** (changes look plausible but unexpected areas also changed, or uncertain) → do NOT commit baselines. Save the diff images from `test-results/` to `docs/specs/{id}/visual-review/`, describe concerns in `history.md`, output `<blocker>Visual review needed: [describe what looks off]</blocker>`
-  - **FAIL** (layout broken, elements missing, clearly wrong) → fix the code, do NOT update baselines
-```
+Visual regression testing is deferred until the frontend repo is established. For now, skip visual regression checklist items for backend/solana specs. When the frontend repo is ready, revisit this section.
 
 ### Phase 3: Interview the User
 
