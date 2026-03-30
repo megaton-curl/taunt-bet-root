@@ -1,0 +1,145 @@
+#!/bin/bash
+set -e
+export CI=true
+
+# =============================================================================
+# verify — End-to-end verification for Taunt Bet
+#
+# Usage:
+#   ./scripts/verify              Full verification (all steps)
+#   ./scripts/verify --anchor     Anchor programs only (build + test)
+#   ./scripts/verify --ts         TypeScript only (lint + typecheck + test)
+#   ./scripts/verify --devnet     Devnet E2E tests (non-blocking, skips if env vars missing)
+# =============================================================================
+
+# Color codes
+GREEN='\033[0;32m'
+RED='\033[0;31m'
+YELLOW='\033[0;33m'
+NC='\033[0m'
+
+MODE="${1:-full}"
+
+# Normalize flags
+case "$MODE" in
+    --anchor|--anchor-only|anchor) MODE="anchor" ;;
+    --ts|--ts-only|ts) MODE="ts" ;;
+    --devnet|devnet) MODE="devnet" ;;
+    --full|full|"") MODE="full" ;;
+    *)
+        echo "Usage: ./scripts/verify [--anchor|--ts|--devnet|--full]"
+        exit 1
+        ;;
+esac
+
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+
+echo -e "${GREEN}=== Taunt Bet Verification ($MODE) ===${NC}"
+
+# Check for submodules
+if [ ! -f "$ROOT/backend/package.json" ]; then
+    echo -e "${RED}[FAIL] Backend submodule not initialized.${NC}"
+    echo "Run: git submodule update --init --recursive"
+    exit 1
+fi
+
+# ---------------------------------------------------------------------------
+# TypeScript steps (lint, typecheck, test)
+# ---------------------------------------------------------------------------
+run_ts() {
+    cd "$ROOT/backend"
+
+    # Install dependencies if missing
+    if [ ! -d "node_modules" ]; then
+        echo -e "${GREEN}[INFO] Installing dependencies...${NC}"
+        pnpm install
+    fi
+
+    echo -e "${GREEN}[STEP] Linting...${NC}"
+    pnpm lint
+
+    echo -e "${GREEN}[STEP] Typechecking...${NC}"
+    pnpm typecheck
+
+    echo -e "${GREEN}[STEP] Testing (TS packages)...${NC}"
+    pnpm test
+
+    cd "$ROOT"
+}
+
+# ---------------------------------------------------------------------------
+# Anchor steps (build + test)
+# ---------------------------------------------------------------------------
+run_anchor() {
+    if ! command -v anchor &>/dev/null; then
+        echo -e "${YELLOW}[SKIP] Anchor tests (anchor CLI not found)${NC}"
+        return 0
+    fi
+
+    cd "$ROOT/solana"
+
+    if [ ! -d "node_modules" ]; then
+        pnpm install --ignore-workspace
+    fi
+
+    echo -e "${GREEN}[STEP] Building Anchor programs...${NC}"
+    anchor build
+
+    echo -e "${GREEN}[STEP] Testing (Anchor programs)...${NC}"
+    pnpm exec mocha --require tsx/cjs -t 1000000 --exit tests/closecall.ts tests/coinflip.ts tests/lordofrngs.ts tests/platform.ts
+
+    cd "$ROOT"
+}
+
+# ---------------------------------------------------------------------------
+# Devnet E2E tests (non-blocking)
+# ---------------------------------------------------------------------------
+run_devnet_e2e() {
+    if [ -z "${VITE_COINFLIP_PROGRAM_ID:-}" ]; then
+        echo -e "${YELLOW}[SKIP] Devnet E2E (VITE_COINFLIP_PROGRAM_ID not set)${NC}"
+        return 0
+    fi
+
+    if [ ! -d "$ROOT/e2e/node_modules" ]; then
+        echo -e "${GREEN}[INFO] Installing E2E dependencies...${NC}"
+        cd "$ROOT/e2e" && pnpm install && cd "$ROOT"
+    fi
+
+    echo -e "${GREEN}[STEP] Running devnet E2E tests...${NC}"
+    if cd "$ROOT/e2e" && pnpm exec playwright test; then
+        echo -e "${GREEN}[PASS] Devnet E2E tests passed${NC}"
+    else
+        echo -e "${YELLOW}[WARN] Devnet E2E tests failed (non-blocking)${NC}"
+    fi
+
+    cd "$ROOT"
+    return 0
+}
+
+# ---------------------------------------------------------------------------
+# Fee constant consistency check (always runs)
+# ---------------------------------------------------------------------------
+echo -e "${GREEN}[STEP] Checking fee constant consistency...${NC}"
+"$ROOT/scripts/check-fees.sh"
+
+# ---------------------------------------------------------------------------
+# Run based on mode
+# ---------------------------------------------------------------------------
+case "$MODE" in
+    full)
+        run_ts
+        run_anchor
+        ;;
+    ts)
+        run_ts
+        ;;
+    anchor)
+        run_anchor
+        ;;
+    devnet)
+        run_devnet_e2e
+        ;;
+esac
+
+echo -e "${GREEN}=== VERIFICATION PASSED ($MODE) ===${NC}"
+exit 0

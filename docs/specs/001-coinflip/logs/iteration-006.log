@@ -1,0 +1,13 @@
+## Iteration 6 Summary
+
+**Item completed**: Platform program scaffold — PlatformConfig PDA + PlayerProfile PDA + `initialize_platform` + `create_player_profile` instructions.
+
+**Changes**:
+- `solana/programs/platform/src/state.rs` — Renamed `GameConfig` → `PlatformConfig`, added `treasury` field, changed seeds to `[b"platform_config"]`. Added `PlayerProfile` account.
+- `solana/programs/platform/src/error.rs` — Simplified to use `= 100` offset pattern.
+- `solana/programs/platform/src/instructions/initialize_platform.rs` — Renamed from `initialize_config.rs`, takes `treasury` Pubkey arg.
+- `solana/programs/platform/src/instructions/create_player_profile.rs` — New instruction, creates profile PDA with zeroed stats.
+- `solana/programs/platform/src/lib.rs` — Two instructions: `initialize_platform` + `create_player_profile`.
+- `solana/tests/platform.ts` — 5 bankrun tests all passing.
+
+**Verification**: `anchor build` succeeds, all 28 tests passing (23 coinflip + 5 platform). More checklist items remain.

@@ -1,0 +1,9 @@
+**Iteration 2 complete.** Implemented `join_match` instruction with:
+- Phase validation (`WAITING` required, else `InvalidPhase`)
+- Self-join prevention (`opponent != creator`, else `CannotJoinOwnMatch`)
+- Escrow transfer (`entry_amount` from opponent to match PDA via system program CPI)
+- State update (set `opponent` pubkey, transition `phase` to `LOCKED`)
+
+Also fixed a test bug: funded the `secondOpponent` keypair in the "rejects if not in WAITING phase" test so the transaction could execute and reach the program logic.
+
+**Verification**: `anchor build -p coinflip` succeeds. All 3 join_match bankrun tests pass. 9 total passing (up from 5+), 14 remaining failures are all pre-existing TDD stubs for future instructions.

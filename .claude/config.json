@@ -1,0 +1,10 @@
+{
+  "hooks": {
+    "TaskCompleted": [
+      {
+        "type": "command",
+        "command": "./scripts/verify"
+      }
+    ]
+  }
+}

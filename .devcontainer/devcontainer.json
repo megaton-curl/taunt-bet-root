@@ -1,0 +1,53 @@
+{
+  "name": "rng-utopia",
+  "build": {
+    "dockerfile": "Dockerfile",
+    "args": {
+      "BUILDPLATFORM": "linux/amd64"
+    }
+  },
+  "runArgs": ["--platform=linux/amd64", "--security-opt=seccomp=unconfined", "--env-file=.env.devnet"],
+  "containerEnv": {
+    // Avoid persisting/mounting the Cursor IDE's ~/.cursor directory; keep Agent CLI config separate.
+    "CURSOR_CONFIG_DIR": "/home/vscode/.cursor-agent-cli",
+    // Do not inherit host SSH agent socket inside this container.
+    "SSH_AUTH_SOCK": "",
+    // Use a custom, persisted Git config file for global settings.
+    // This ignores ~/.gitconfig (where host settings are copied) and persists user.name/email across rebuilds.
+    "GIT_CONFIG_GLOBAL": "/home/vscode/.git-persistence/.gitconfig"
+  },
+  // Force remote session env to blank out forwarded SSH agent sockets.
+  "remoteEnv": {
+    "SSH_AUTH_SOCK": ""
+  },
+  "mounts": [
+    // PERSISTENCE: Named volumes for authentication (vscode user home to avoid permission errors)
+    "source=rng_utopia_gh_config,target=/home/vscode/.config/gh,type=volume",
+    "source=rng_utopia_claude_config,target=/home/vscode/.claude,type=volume",
+    // Minimal Codex persistence: mount a small dir and symlink only auth/config into ~/.codex
+    "source=rng_utopia_codex_config,target=/home/vscode/.codex-persist,type=volume",
+    "source=rng_utopia_cursor_agent_cli_config,target=/home/vscode/.cursor-agent-cli,type=volume",
+    "source=rng_utopia_git_config,target=/home/vscode/.git-persistence,type=volume"
+  ],
+  // AUTO-CHECK: Run the auth check script on startup
+  "postStartCommand": "bash .devcontainer/startup.sh",
+
+  "customizations": {
+    "vscode": {
+      "settings": {
+        // Prevent host Git identity and SSH agent from being propagated into devcontainers.
+        "dev.containers.copyGitConfig": false,
+        "dev.containers.mountSSHAgent": false,
+        // Also blank in integrated terminals in case extension injects it.
+        "terminal.integrated.env.linux": {
+          "SSH_AUTH_SOCK": ""
+        }
+      },
+      "extensions": [
+        "golang.go",
+        "dbaeumer.vscode-eslint",
+        "esbenp.prettier-vscode"
+      ]
+    }
+  }
+}

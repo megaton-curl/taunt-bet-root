@@ -1,0 +1,6 @@
+[submodule "solana"]
+	path = solana
+	url = https://github.com/taunt-bet/solana.git
+[submodule "backend"]
+	path = backend
+	url = https://github.com/taunt-bet/backend.git

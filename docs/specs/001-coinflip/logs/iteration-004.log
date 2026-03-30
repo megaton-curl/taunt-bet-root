@@ -1,0 +1,11 @@
+Iteration 4 complete. Implemented `claim_payout` instruction in `solana/programs/coinflip/src/instructions/claim_payout.rs`:
+
+- **Phase check**: `phase == SETTLED` → `InvalidPhase`
+- **Winner check**: `signer == match.winner` → `NotWinner`
+- **Double-claim guard**: `!match.claimed` → `AlreadyClaimed`
+- **Treasury/creator validation**: against config and match state
+- **Fee computation**: `pool = entry_amount * 2`, `fee = calculate_fee(pool)` (3% = 300 bps)
+- **Transfers**: Direct lamport manipulation from PDA — `(pool - fee)` to winner, `fee` to treasury
+- **Account close**: Remaining lamports (rent) refunded to creator
+
+**Verification**: `anchor build -p coinflip` succeeded. 19 passing tests (all 5 claim_payout tests pass). 4 pre-existing failures remain (cancel_match stubs + 1 escrow assertion — next iteration items).

@@ -1,0 +1,23 @@
+node_modules/
+.pnpm-store/
+.DS_Store
+.cursor/
+.env.*
+.env
+.idea/
+.vscode/
+
+# Shell configs (devcontainer-generated)
+.bash_profile
+.bashrc
+.profile
+.zprofile
+.zshrc
+.gitconfig
+.ripgreprc
+
+# Claude Code (local only)
+.claude/settings.local.json
+
+# Images
+.clip-images/
