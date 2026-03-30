@@ -52,7 +52,7 @@ Track key architectural and product decisions as they're made.
 ### Decision: Solana Settlement & Fairness Standard (Pivot Doc)
 **Date**: 2026-02-25
 **Decision**: Program-per-game + shared Rust crate (`solana/shared/`), standardized lifecycle with timeout/pause/fee/refund invariants across all 8 games.
-**Rationale**: Consistency across all games, single audit path, compile-time guarantees via shared crate. No shared on-chain kernel — consistency from compilation, not CPI. See `docs/pivot-doc.md` for full architecture.
+**Rationale**: Consistency across all games, single audit path, compile-time guarantees via shared crate. No shared on-chain kernel — consistency from compilation, not CPI. See `docs/DESIGN_REFERENCE.md` for full architecture.
 **Alternatives considered**: Shared on-chain EscrowKernel program (CPI overhead, larger blast radius), per-game bespoke state machines (inconsistent, harder to audit).
 **Status**: ✅ Locked
 

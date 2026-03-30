@@ -50,7 +50,7 @@ This document is intentionally product-facing and avoids implementation-level de
 
 ### Explicit Constraint
 - Do not build temporary architecture with planned rewrite.
-- Stay on a single architecture path: program-per-game + shared Rust crate (`solana/shared/`). See `docs/pivot-doc.md`.
+- Stay on a single architecture path: program-per-game + shared Rust crate (`solana/shared/`). See `docs/DESIGN_REFERENCE.md`.
 
 ---
 
@@ -75,11 +75,17 @@ This document is intentionally product-facing and avoids implementation-level de
 
 ## 5) Active Game Coverage
 
-### Lord of the RNGs
-- Multiplayer tier participation with multiple entries per player
+### Jackpot (Lord of the RNGs)
+- Multiplayer weighted-entry jackpot pool
 - Backend-assisted hybrid fairness (commitment at create, public entropy capture at spin/start, automatic settlement)
 - Timeout-protected refund fallback
 - Public verification payloads plus on-chain settlement evidence
+
+### Close Call
+- Pari-mutuel BTC price prediction (green/red binary)
+- Pyth oracle pricing via Hermes REST API
+- 30s betting window, automatic settlement
+- Max 32 entries per side
 
 ### Coinflip
 - Match creation/join flow

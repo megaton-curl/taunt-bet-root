@@ -15,7 +15,7 @@
 
 Shared Infrastructure defines the common primitives that all game programs depend on. The active contract is fairness-agnostic shared infrastructure: escrow helpers, a standardized lifecycle state machine, timeout/refund logic, pause controls, commitment verification, entropy/result derivation helpers, fee distribution, and platform CPI helpers. Every game compiles against this crate — consistency is enforced at compile time, not via CPI at runtime.
 
-This spec formalizes the architecture approved in the pivot doc (`docs/pivot-doc.md`) and blocks all game implementations.
+This spec formalizes the architecture approved in the pivot doc (`docs/DESIGN_REFERENCE.md`, originally `docs/archive/pivot-doc.md`) and blocks all game implementations.
 
 ## User Stories
 
@@ -34,7 +34,7 @@ This spec formalizes the architecture approved in the pivot doc (`docs/pivot-doc
 
 ## Required Context Files
 
-- `docs/pivot-doc.md` (Architecture Decision — canonical source for this spec)
+- `docs/DESIGN_REFERENCE.md` (Architecture Decision — canonical source for this spec)
 - `docs/FOUNDATIONS.md` §2 (On-Chain Dev Loop), §5 (Randomness Strategy), §8 (Fee Math)
 - `docs/SCOPE.md` (scope boundary)
 - `solana/shared/` (existing crate — partial implementation)

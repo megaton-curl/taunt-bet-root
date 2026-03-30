@@ -7,32 +7,18 @@ Track temporary hacks, relaxed rules, and shortcuts here.
 
 ## High Priority (Fix ASAP)
 
-### [Platform] Relaxed ESLint Rules
-- **Date**: 2026-02-11
-- **Location**: `apps/platform/eslint.config.js`
-- **What**: Disabled `react/no-unescaped-entities`, `no-console` and downgraded `react-hooks/exhaustive-deps` to warning.
-- **Why**: To establish a passing CI baseline without risking regressions in existing legacy code.
-- **Fix Criteria**: Fix the underlying React issues (proper deps, escaping) and remove the override.
-
----
-
-### [Lord of RNGs] Program needs full PDA + counter redesign
-- **Date**: 2026-03-13
-- **Location**: `solana/programs/lordofrngs/`
-- **What**: Tier removed from PDA seeds and round counters, replaced with placeholder `tier=0`. Program compiles but is non-functional.
-- **Why**: Migrating from fixed tiers to custom wager amounts. Lord's PDA seeds used `["jackpot_round", tier_bytes, round_number_bytes]` which no longer makes sense.
-- **Fix Criteria**: Redesign PDA derivation (e.g., `["jackpot_round", creator, round_id]` like coinflip), replace `LordConfig.round_counters[8]` with a global counter or remove it, regenerate IDL, update frontend chain.ts.
+(none)
 
 ---
 
 ## Medium Priority (Before Launch)
 
-### [Scaffolds] Standalone Build Script Mismatch
-- **Date**: 2026-02-11
-- **Location**: `backend/package.json` (`build:all`) and non-platform app folders under `apps/ (frontend repo)`
-- **What**: `build:all` attempts standalone builds for scaffold apps that are currently platform-only and missing standalone Vite entry setup.
-- **Why**: Preserve existing app folder structure during takeover while treating `apps/platform` as the only runtime target.
-- **Fix Criteria**: After scope/planning finalization, either (a) make selected apps truly standalone buildable, or (b) align scripts to exclude platform-only scaffolds from standalone build expectations.
+### [Jackpot] Backend game-engine PDA helper uses stale `roundNumber` seed
+- **Date**: 2026-03-13 (identified), 2026-03-30 (updated)
+- **Location**: `backend/packages/game-engine/src/lordofrngs.ts:17-26`
+- **What**: `getRoundPda(roundNumber)` derives PDAs using sequential round counter, but on-chain program uses `["jackpot_round", match_id]` (random 8-byte ID). `tx-builder.ts` has the correct `deriveLordRoundPda(matchId)`.
+- **Why**: On-chain PDA redesign completed (tier→match_id) but game-engine helper wasn't updated.
+- **Fix Criteria**: Update `getRoundPda` to accept `matchId: Buffer` instead of `roundNumber`, or remove it in favor of `tx-builder.deriveLordRoundPda`.
 
 ---
 

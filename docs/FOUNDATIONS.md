@@ -61,8 +61,9 @@ Separate deployable programs per game + a platform program for shared on-chain s
 | Program | Type | Purpose |
 |---------|------|---------|
 | `solana/programs/coinflip` | Deployable | Coinflip game logic, settlement |
-| `solana/programs/crash` | Deployable | Crash game logic, settlement |
-| `solana/programs/platform` | Deployable | Platform settings, player profiles, per-game player metadata |
+| `solana/programs/lordofrngs` | Deployable | Jackpot (Lord of RNGs) game logic, settlement |
+| `solana/programs/closecall` | Deployable | Close Call game logic, oracle-based settlement |
+| `solana/programs/platform` | Deployable | Platform settings (fee config, treasury, pause) |
 | `solana/shared` | Rust lib crate (not deployed) | Escrow helpers, lifecycle state machine, timeout logic, pause controls, commit-reveal verifier, fee calculation, constants |
 
 - Games CPI into `platform` to read settings and update player profiles after settlement.
@@ -73,9 +74,7 @@ Separate deployable programs per game + a platform program for shared on-chain s
 - **Legacy note**: Existing `solana/` code is leftover scaffolding — does not influence future design.
 
 ### On-Chain State (Platform Program)
-- **Platform settings account**: Fee rates, pause state, global config.
-- **Player profile PDA** (per wallet): Aggregate stats, history metadata.
-- **Per-game player accounts**: Game-specific stats/metadata, created on first play.
+- **PlatformConfig account**: Fee BPS, treasury address, pause state, authority. Admin-updatable via `update_platform_config`.
 
 ### IDL Pipeline
 1. `anchor build` → generates IDL JSON in `target/idl/` + TS types in `target/types/`
@@ -149,63 +148,46 @@ Each deployable program owns a code range to avoid collisions:
 
 ---
 
-## 5) Randomness & Fairness Strategy `[DRAFT]`
+## 5) Randomness & Fairness Strategy `[DECIDED: Backend-Assisted Hybrid]`
 
-Two fairness approaches cover all 8 games. No per-game fairness mechanisms.
+**Primary model**: Backend-assisted hybrid fairness — commit-reveal + SlotHashes entropy. Used by all shipped games. See `DECISIONS.md` 2026-03-11.
 
-### Approach 1: VRF (Randomness)
+**VRF (Orao)**: Optional for future games, not default infrastructure. Orao integration was explored and reversed — VRF adds latency and a third-party dependency that isn't needed for current game types. May revisit for games requiring pre-committed randomness seeds (e.g., Crash, Slots).
 
-A single VRF provider supplies all on-chain randomness. One integration, one audit, one trust assumption.
+### Commit-Reveal + SlotHashes (Primary)
 
-- **Provider**: **Orao** (locked). Solana-native and production-grade.
-- **MagicBlock VRF dropped**: Their core product is ephemeral rollups, not VRF. Orao is the selected dedicated VRF provider in the current baseline.
-- **Flow**: Game requests VRF during the LOCKED phase → VRF callback writes output to Round PDA → contract derives outcome deterministically from VRF output.
-- **Real-time games (Crash)**: VRF is requested during the waiting/lobby phase. The VRF output becomes the seed. Latency is absorbed before gameplay starts.
+Server proves it didn't cheat. Self-built in the shared crate (~50 lines Rust).
 
-### Approach 2: Commit-Reveal (Server Verification)
-
-For games where the server computes results off-chain, the server proves it didn't cheat. Self-built in the shared crate (~50 lines Rust).
-
-- **Commit phase**: Server submits `hash = SHA256(server_seed)` to the Round PDA before/at round start.
-- **Settle phase**: Server submits `server_seed` + result data. Contract checks `SHA256(server_seed) == stored_hash`. If valid, settle. If not, refund.
+- **Commit phase**: Server submits `commitment = SHA256(secret)` to the Round PDA at creation.
+- **Entropy capture**: SlotHashes sysvar read at join/lock time — immutable, unpredictable at commitment time.
+- **Settle phase**: Server reveals `secret`. Contract verifies `SHA256(secret) == commitment`, derives result from `SHA256(secret || entropy || PDA || algorithm_ver)`.
 - **No third-party dependency**. Auditable in isolation.
 
-### Game x Approach Map
+### Current Game × Fairness Map
 
-| Game | VRF | Commit-Reveal | Oracle (Pyth) | Notes |
-|---|---|---|---|---|
-| **Coinflip** | Yes | — | — | VRF output → flip result |
-| **Lord of RNGs** | Yes | — | — | VRF output → wheel position |
-| **Slots Utopia** | Yes | — | — | VRF output → grid assignment |
-| **Close Call** | — | — | Yes | Pyth price at timestamp, deterministic on-chain |
-| **Crash** | Yes | Yes | — | VRF seed pre-round → crash point derived. Server engine, commit-reveal proves result |
-| **Game of Trades** | — | Yes | Yes | Pyth PnL, server rankings, commit-reveal |
-| **Chart the Course** | — | Yes | — | Server scoring, commit-reveal |
-| **Tug of Earn** | Yes | Yes | — | VRF teams, server tap aggregation, commit-reveal |
+See `docs/DESIGN_REFERENCE.md` for the full 8-game roadmap including planned games.
 
-### Open Questions (Planned)
-- VRF fallback: if provider is down, game pauses — no fallback provider in the current baseline.
+| Game | Fairness | Status |
+|------|----------|--------|
+| **Coinflip** | Commit-reveal + SlotHashes | Shipped |
+| **Jackpot (Lord of RNGs)** | Commit-reveal + SlotHashes | Shipped |
+| **Close Call** | Pyth oracle (BTC/USD) via Hermes REST | Shipped |
 
 ---
 
 ## 6) Event System `[OPEN]`
-> **Note**: Revisit after coinflip integration proves the VRF callback → frontend update flow.
-> **Note**: VRF callback event signatures should now be standardized to Orao integration expectations (see 004 spec FR-4).
 
-### Current State (Three Systems)
-1. **Coordinator WebSocket**: Real-time game state broadcast (server → clients)
-2. **game-engine EventEmitter**: Internal state machine transitions
-3. **Mock subscriber pattern**: Simulated real-time updates in frontends
+### Current State
+1. **PDA watcher**: WebSocket `onAccountChange` for instant join/settle detection
+2. **Polling fallback**: 1s interval for resilience
+3. **game-engine EventEmitter**: Internal state machine transitions
 
-### Convergence Needed
-- Do all three merge into one bus, or stay layered?
-- Typed event contracts (shared event definitions across packages)
-- Real-time state update flow: chain event → coordinator → frontend
+Coordinator service was removed (unused stub). Current architecture: backend watches on-chain state directly via RPC subscriptions + polling.
 
 ### Open Questions
-- Single event bus across the stack, or clear layer boundaries?
-- Event typing: shared type package, or co-located with producer?
-- How does coordinator relay on-chain events (poll vs geyser/websocket subscription)?
+- Typed event contracts across packages?
+- Frontend real-time update flow — polling vs WebSocket push from backend?
+- Event replay for reconnection scenarios?
 
 ---
 

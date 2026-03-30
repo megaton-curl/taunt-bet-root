@@ -7,7 +7,7 @@
 | Status | Draft |
 | Ideation | Active |
 | Priority | P1 |
-| Phase | Deferred |
+| Phase | Deferred (Phase 2 — formally deferred 2026-03-30) |
 | NR_OF_TRIES | 0 |
 
 ---

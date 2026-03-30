@@ -6,7 +6,7 @@ Rules:
 - One lesson = one table row.
 - Keep each field concise.
 - Max 25 rows (recommended).
-- Move deep examples to `docs/PATTERNS.md` only when needed.
+- For deeper context on patterns, see `docs/DESIGN_REFERENCE.md` or `docs/FOUNDATIONS.md`.
 
 | ID | Trigger | Bad Pattern | Better Pattern | Rule Tag | Status |
 | --- | --- | --- | --- | --- | --- |
@@ -27,3 +27,5 @@ Rules:
 | L-014 | React WS subscription churn | Build hook body first, fix lifecycle later (4 fix commits in 2h) | Design subscription lifecycle FIRST: what value triggers re-sub, use primitive/stable keys not object refs, test with StrictMode double-mount. | react-effects | active |
 | L-015 | One-off diagnostic scripts | Commit a throwaway diagnostic script to test a hypothesis | Add instrumentation to the actual production code path (timing logs, debug output). Committed diagnostics become maintenance burden with no ongoing value. | debugging | active |
 | L-016 | Stale accounts after redeploy | Add client-side decode filters for old account layouts (3+ iterations) | After program redeploys that change layouts, close old accounts immediately via admin instruction. Each legacy account requires a new client-side workaround. | on-chain | active |
+| L-017 | Missing auth on /closecall/bet | Assume route-group middleware covers all financial endpoints | Every endpoint that co-signs with server keypair needs **explicit** auth check. Don't rely on path-prefix inheritance — verify each financial endpoint individually. | security | active |
+| L-018 | Leaked Pyth exponent in /price response | Ship API responses without schema validation | Validate API responses against OpenAPI spec. Leaked internal fields (exponents, raw oracle data) create client confusion and potential info disclosure. | api-quality | active |
