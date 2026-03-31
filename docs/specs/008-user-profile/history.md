@@ -74,3 +74,19 @@ Verified: `pnpm lint` (0 errors, 1 existing warning) and `pnpm typecheck` both p
 ## Iteration 16 — 2026-03-31T14:59:42Z — OK
 - **Log**: iteration-016.log
 
+## Iteration 17 — Aggregate stats query
+
+**Item:** `[engine] Aggregate stats query`
+**Status:** Done
+
+Added to `/workspaces/rng-utopia/backend/services/backend/src/db.ts`:
+- `PlayerStats` interface: `{ gamesPlayed: number, totalWagered: bigint, totalWins: number, winRate: number, netPnl: bigint }`
+- `PublicPlayerStats` interface: `{ gamesPlayed: number, totalWins: number, winRate: number }`
+- `getPlayerStats(wallet)`: single SQL query against `transactions` table — COUNT(DISTINCT match_id) for deposits/payouts, SUM for wagered/PnL, computes winRate in app code (avoids division-by-zero). Returns BigInt for monetary values, number for counts.
+- `getPublicPlayerStats(wallet)`: delegates to `getPlayerStats`, returns only `{ gamesPlayed, totalWins, winRate }`
+- Both methods added to `Db` interface with JSDoc
+- Verified: `pnpm lint` (0 errors, 1 existing warning) and `pnpm typecheck` both pass
+
+## Iteration 17 — 2026-03-31T15:03:53Z — OK
+- **Log**: iteration-017.log
+
