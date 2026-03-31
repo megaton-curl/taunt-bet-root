@@ -120,3 +120,21 @@ Added to `/workspaces/rng-utopia/backend/services/backend/src/db.ts`:
 ## Iteration 19 — 2026-03-31T15:11:18Z — OK
 - **Log**: iteration-019.log
 
+## Iteration 20 — GET /profile/me endpoint
+
+**Item:** `[engine] GET /profile/me endpoint`
+**Status:** Done
+
+Added `GET /me` handler to `/workspaces/rng-utopia/backend/services/backend/src/routes/profile.ts`:
+- Gets wallet from `c.get("wallet")`, fetches profile via `db.getProfileByWallet(wallet)`
+- Returns 404 `{ error: "PROFILE_NOT_FOUND" }` if no profile exists
+- Fetches stats, streaks, and game breakdown in parallel via `Promise.all`
+- Assembles FR-9 response shape: `{ userId, username, avatarUrl, heatMultiplier, pointsBalance (string), stats: { gamesPlayed, totalWagered (string), totalWins, winRate, winStreakCurrent, winStreakBest, netPnl (string), gameBreakdown }, usernameNextEditAt, createdAt }`
+- BigInt fields (`totalWagered`, `netPnl`, `pointsBalance`, per-game breakdown values) serialized as strings
+- `usernameNextEditAt` is null if first edit hasn't been used, otherwise username_updated_at + 30 days ISO
+- No `wallet` field in response
+- Verified: `pnpm lint` (0 errors, 1 existing warning) and `pnpm typecheck` both pass
+
+## Iteration 20 — 2026-03-31T15:14:08Z — OK
+- **Log**: iteration-020.log
+
