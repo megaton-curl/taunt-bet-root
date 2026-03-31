@@ -219,3 +219,25 @@ All 5 tests pass. Pre-existing referral-routes test failure is unrelated.
 ## Iteration 24 — 2026-03-31T15:25:30Z — OK
 - **Log**: iteration-024.log
 
+## Iteration 25 — Unit tests for stats + streaks
+
+**Item:** `[test] Unit tests for stats + streaks`
+**Status:** Done
+
+Created `/workspaces/rng-utopia/backend/services/backend/src/__tests__/player-stats.test.ts` with 9 tests:
+- Empty history → all zeros (stats, streaks, and breakdown)
+- 3 consecutive wins → current=3 best=3
+- win-win-loss-win → current=1 best=2
+- Refund-only match skipped in streak calculation
+- Game breakdown groups by frontend game name (coinflip, lord-of-rngs, close-call) with correct stats per game
+- Public stats expose only gamesPlayed, totalWins, winRate (no totalWagered/netPnl)
+- Aggregate stats correctness (mixed wins/losses/refunds, correct netPnl computation)
+
+All 9 tests pass. Pre-existing referral-routes test failure is unrelated.
+Lint: 0 errors (1 existing warning). Typecheck: passes.
+
+## Iteration 25 — 2026-03-31T15:31:00Z — OK
+- **Log**: iteration-025.log
+## Iteration 25 — 2026-03-31T15:31:40Z — OK
+- **Log**: iteration-025.log
+
