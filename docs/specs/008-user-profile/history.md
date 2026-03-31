@@ -199,3 +199,23 @@ Modified `/workspaces/rng-utopia/backend/services/backend/src/openapi.ts`:
 ## Iteration 23 — 2026-03-31T15:22:11Z — OK
 - **Log**: iteration-023.log
 
+## Iteration 24 — Unit tests for username-gen
+
+**Item:** `[test] Unit tests for username-gen`
+**Status:** Done
+
+Created `/workspaces/rng-utopia/backend/services/backend/src/__tests__/username-gen.test.ts` with 5 tests:
+- `generateUserId()` matches format `usr_[a-z0-9]{8}`
+- `generateUserId()` produces 10 unique values on successive calls
+- `generateUsername()` matches format `{word}-{word}-{4digits}`
+- `generateUsername()` produces 10 unique values on successive calls
+- Username parts contain no spaces or special characters (20 iterations, verifies adjective=lowercase alpha, noun=lowercase alpha, suffix=4 digits)
+
+All 5 tests pass. Pre-existing referral-routes test failure is unrelated.
+
+## Iteration 24 — 2026-03-31T15:28:00Z — OK
+- **Log**: iteration-024.log
+
+## Iteration 24 — 2026-03-31T15:25:30Z — OK
+- **Log**: iteration-024.log
+
