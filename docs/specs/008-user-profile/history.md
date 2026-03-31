@@ -241,3 +241,27 @@ Lint: 0 errors (1 existing warning). Typecheck: passes.
 ## Iteration 25 — 2026-03-31T15:31:40Z — OK
 - **Log**: iteration-025.log
 
+## Iteration 26 — Integration test for profile lifecycle
+
+**Item:** `[test] Integration test for profile lifecycle`
+**Status:** Done
+
+Created `/workspaces/rng-utopia/backend/services/backend/src/__tests__/profile.test.ts` with 10 tests covering the full lifecycle:
+- Auth auto-creates `player_profiles` row with `usr_*` user_id and `adjective-noun-NNNN` username
+- `GET /profile/me` returns full profile with empty stats (zero gamesPlayed, winRate, streaks)
+- `PUT /profile/username` succeeds on first edit, returns `nextEditAvailableAt` ~30 days out
+- `PUT /profile/username` again immediately → 429 `COOLDOWN_ACTIVE`
+- `PUT /profile/username` with taken name (case-insensitive) → 409 `USERNAME_TAKEN`
+- `GET /public-profile/:username` returns limited public data (no wallet, no PnL, no streaks)
+- `GET /public-profile/:user_id` resolves same profile by user_id
+- No wallet address appears in any API response (checked via text search for the base58 wallet)
+- 404 for unknown identifier on public endpoint
+- 400 for invalid username format (too short)
+
+All 10 tests pass. Pre-existing referral-routes test failure is unrelated.
+Lint: 0 errors (1 existing warning). Typecheck: passes.
+
+## Iteration 26 — 2026-03-31T15:42:10Z — BLOCKED
+- **Blocker**: Full verification failed: pre-existing test failure in `src/__tests__/referral-routes.test.ts` (referral route "allows the same wallet to update their own code" — expects 200 but gets 409). This failure is unrelated to spec 008 changes and was already present in iterations 24 and 25. All 26 implementation checklist items are complete, all new tests pass (114/115), lint has 0 errors, typecheck passes. The verify script returns non-zero due to the pre-existing referral test failure only.
+- **Log**: iteration-026.log
+
