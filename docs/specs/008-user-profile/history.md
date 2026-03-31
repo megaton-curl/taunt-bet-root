@@ -19,3 +19,17 @@ Created `/workspaces/rng-utopia/backend/services/backend/migrations/013_player_p
 ## Iteration 13 — 2026-03-31T14:05:54Z — OK
 - **Log**: iteration-013.log
 
+## Iteration 14 — Username + User ID Generation Utility
+
+**Item:** `[engine] Username + user ID generation utility`
+**Status:** Done
+
+Created `/workspaces/rng-utopia/backend/services/backend/src/utils/username-gen.ts` with:
+- `generateUserId()`: returns `usr_` + 8 random lowercase alphanumeric chars (a-z0-9) using `crypto.randomBytes`
+- `generateUsername()`: picks random adjective + noun from embedded word lists (51 adjectives, 56 nouns, no profanity) + random 4-digit suffix → `{adjective}-{noun}-{NNNN}`
+- Both functions are pure (no DB access), synchronous, and unit-testable
+- Verified: `pnpm lint` and `pnpm typecheck` both pass
+
+## Iteration 14 — 2026-03-31T14:09:31Z — OK
+- **Log**: iteration-014.log
+
