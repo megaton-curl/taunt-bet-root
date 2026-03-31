@@ -7,7 +7,7 @@
 | Status | Ready |
 | Priority | P1 |
 | Phase | 3 |
-| NR_OF_TRIES | 12 |
+| NR_OF_TRIES | 13 |
 
 ---
 
@@ -530,7 +530,7 @@ inside `sql.begin()` transactions. Idempotent — safe to re-run.
 
 #### Iteration 2: Identity + Stats (Backend Only)
 
-- [ ] [engine] Migration `013_player_profiles.sql` — create `player_profiles` table: `id BIGSERIAL PK`, `user_id TEXT UNIQUE NOT NULL`, `wallet TEXT UNIQUE NOT NULL`, `username TEXT UNIQUE NOT NULL`, `username_updated_at TIMESTAMPTZ`, `avatar_url TEXT`, `heat_multiplier NUMERIC DEFAULT 1.0`, `points_balance BIGINT DEFAULT 0`, `created_at TIMESTAMPTZ DEFAULT now()`. Add functional index `CREATE UNIQUE INDEX idx_player_profiles_username_lower ON player_profiles (LOWER(username))` for case-insensitive uniqueness. Verify: `cd services/backend && pnpm migrate`.
+- [x] [engine] Migration `013_player_profiles.sql` — create `player_profiles` table: `id BIGSERIAL PK`, `user_id TEXT UNIQUE NOT NULL`, `wallet TEXT UNIQUE NOT NULL`, `username TEXT UNIQUE NOT NULL`, `username_updated_at TIMESTAMPTZ`, `avatar_url TEXT`, `heat_multiplier NUMERIC DEFAULT 1.0`, `points_balance BIGINT DEFAULT 0`, `created_at TIMESTAMPTZ DEFAULT now()`. Add functional index `CREATE UNIQUE INDEX idx_player_profiles_username_lower ON player_profiles (LOWER(username))` for case-insensitive uniqueness. Verify: `cd services/backend && pnpm migrate`. (done: iteration 13)
 - [ ] [engine] Username + user ID generation utility — create `services/backend/src/utils/username-gen.ts`. Export `generateUserId()`: returns `usr_` + 8 random lowercase alphanumeric chars (a-z0-9). Export `generateUsername()`: picks random adjective + noun from embedded word lists (50+ each, no profanity) + random 4-digit suffix → `{adjective}-{noun}-{NNNN}`. Both functions are pure (no DB access), synchronous, and unit-testable. No collision handling here — that's in the DB layer.
 - [ ] [engine] DB functions for player_profiles — add to `db.ts`: (1) `createPlayerProfile(wallet: string): Promise<PlayerProfile>` — calls `generateUserId()` + `generateUsername()`, inserts row, on UNIQUE violation of username retries up to 5 times with new username, if all retries fail uses fallback `user-{random8}`. Returns the created profile. (2) `getProfileByWallet(wallet: string): Promise<PlayerProfile | null>` — lookup by wallet column. (3) `getProfileByIdentifier(identifier: string): Promise<PlayerProfile | null>` — if identifier starts with `usr_`, lookup by `user_id`; otherwise lookup by `LOWER(username) = LOWER(identifier)`. (4) `updateUsername(wallet: string, newUsername: string): Promise<PlayerProfile>` — validates 30-day cooldown from `username_updated_at` (null = first edit free), updates `username` + `username_updated_at = now()`, throws on UNIQUE violation. Define `PlayerProfile` type matching the table columns (excluding `wallet` from any serialization helper). Verify: `cd services/backend && pnpm lint`.
 - [ ] [engine] Profile creation hook in auth verify — in `services/backend/src/routes/auth.ts`, in the POST `/verify` handler: after successful signature verification (after the `nacl.sign.detached.verify` check) and before issuing tokens, add: `const profile = await deps.db.getProfileByWallet(body.wallet); if (!profile) { try { await deps.db.createPlayerProfile(body.wallet); } catch (e) { console.error("Profile creation failed:", e); } }`. This is fire-and-forget — auth success MUST NOT depend on profile creation succeeding. Update `AuthRoutesDeps` interface to include `db`. Verify: `cd services/backend && pnpm lint`.
