@@ -1,27 +1,30 @@
-# Specification: 008 User Profile — Transaction History
+# Specification: 008 User Profile
 
 ## Meta
 
 | Field | Value |
 |-------|-------|
-| Status | Done |
+| Status | Ready |
 | Priority | P1 |
 | Phase | 3 |
-| NR_OF_TRIES | 11 |
+| NR_OF_TRIES | 12 |
 
 ---
 
 ## Overview
 
-First iteration of player profiles. Players can view a chronological list of
-their own game transactions — joins, wins, losses, and refunds — across all
-games (Coinflip, Lord of the RNGs, Close Call). Data is stored in a new
-backend ledger table and served via an authenticated API endpoint. The
-existing mock-driven `ProfileTransactions` frontend component is wired to the
-real data.
+Player profile system for TAUNT. Backend/API only — no frontend work in this
+spec. The profile is the player's identity on the platform: a username, avatar,
+aggregate stats, and transaction history. Wallets are never exposed publicly;
+all external-facing lookups use a short user ID or username.
 
-No on-chain footprint. No aggregate stats, XP, levels, or social features in
-this iteration.
+**Iteration 1 (done):** Transaction history ledger + API.
+
+**Iteration 2 (this pass):** Player identity (profile record, username, avatar),
+aggregate stats, public lookup API, HEAT/points display slots (null until those
+features ship).
+
+No on-chain footprint. No social accounts (X/Discord) — deferred TBD.
 
 ## User Stories
 
@@ -29,6 +32,15 @@ this iteration.
   track what I wagered, won, or lost.
 - As a player, I want the list to update automatically after a game settles so
   I don't have to refresh.
+- As a player, I want an auto-generated username when I sign up so I have an
+  identity on the platform immediately.
+- As a player, I want to change my username so I can personalize my identity,
+  with a cooldown to prevent abuse.
+- As a player, I want to see my aggregate stats (games played, wins, win rate,
+  streaks) so I can track my performance.
+- As another player, I want to look up someone by username or ID and see their
+  public stats (games played, wins, win rate) without seeing their wallet or
+  transaction history.
 
 ---
 
@@ -206,6 +218,189 @@ already used for Close Call BTC/USD prices).
 
 ---
 
+### FR-6: Player Profile Record
+
+A `player_profiles` table that stores the player's identity. Created automatically
+on first wallet auth (JWT challenge-response) or waitlist signup. The wallet is
+stored internally but **never exposed in API responses** — all public-facing
+references use `user_id` or `username`.
+
+**Schema:**
+
+| Column | Type | Constraints | Notes |
+|--------|------|-------------|-------|
+| `id` | `BIGSERIAL` | PK | Internal DB key (not exposed) |
+| `user_id` | `TEXT` | UNIQUE, NOT NULL | Short random string, e.g. `usr_a8f3k2`. Public-facing identifier for API calls |
+| `wallet` | `TEXT` | UNIQUE, NOT NULL | Player wallet address. **Never exposed in public API responses** |
+| `username` | `TEXT` | UNIQUE, NOT NULL | Auto-generated on creation. Editable (freeform, 30-day cooldown) |
+| `username_updated_at` | `TIMESTAMPTZ` | | Null until first manual edit. Cooldown enforced from this timestamp |
+| `avatar_url` | `TEXT` | | Null = use deterministic identicon derived from wallet. Explicit URL for future unlock/upload |
+| `heat_multiplier` | `NUMERIC` | DEFAULT 1.0 | Reserved slot — always 1.0 until HEAT feature ships |
+| `points_balance` | `BIGINT` | DEFAULT 0 | Reserved slot — always 0 until Points feature ships |
+| `created_at` | `TIMESTAMPTZ` | NOT NULL DEFAULT now() | Profile creation time |
+
+**Indexes:**
+- `uq_player_profiles_user_id` on `(user_id)` — public lookup
+- `uq_player_profiles_wallet` on `(wallet)` — internal lookup / auth join
+- `uq_player_profiles_username` on `(username)` — username lookup
+
+**User ID format:** `usr_` prefix + 8 random alphanumeric characters (lowercase).
+Generated once at profile creation, immutable.
+
+**Username auto-generation:** `{adjective}-{noun}-{4digits}`. On collision, retry
+with new random suffix (max 5 retries, then fall back to `user-{random8}`).
+
+**Username edit rules:**
+- Freeform: 3-20 characters, `[a-zA-Z0-9_-]`, no spaces
+- Unique (case-insensitive)
+- Editable once per 30 days (enforced via `username_updated_at`)
+- First manual edit is free (cooldown starts from that edit, not from creation)
+
+**Acceptance Criteria:**
+- [ ] Migration `013_player_profiles.sql` creates table + indexes
+- [ ] Profile auto-created on first JWT auth (challenge-response verify endpoint)
+- [ ] Profile auto-created on waitlist signup (if applicable entry point exists)
+- [ ] `user_id` is a short random string (`usr_` + 8 alphanumeric), immutable after creation
+- [ ] Username auto-generated as `{adjective}-{noun}-{4digits}`, collision-safe
+- [ ] Wallet address never appears in any public API response
+- [ ] `heat_multiplier` and `points_balance` are reserved columns, default values only
+
+### FR-7: Username Management API
+
+Players can view and change their username.
+
+**Endpoints:**
+
+`PUT /profile/username`
+- Auth: JWT required
+- Body: `{ "username": "my-new-name" }`
+- Validates: 3-20 chars, `[a-zA-Z0-9_-]`, unique (case-insensitive), 30-day cooldown
+- Returns: `{ "username": "my-new-name", "nextEditAvailableAt": "2026-05-01T..." }`
+- Errors: 400 (invalid format), 409 (taken), 429 (cooldown not expired)
+
+**Acceptance Criteria:**
+- [ ] Username change validates format (3-20 chars, `[a-zA-Z0-9_-]`)
+- [ ] Username uniqueness enforced case-insensitively
+- [ ] 30-day cooldown enforced from `username_updated_at`; first edit is free
+- [ ] Successful edit updates both `username` and `username_updated_at`
+- [ ] Returns next available edit timestamp in response
+
+### FR-8: Aggregate Player Stats API
+
+Computed stats from the existing `transactions` table. Served as part of the
+profile response (own profile) or public lookup (limited subset).
+
+**Own profile stats (authenticated):**
+
+| Stat | Computation |
+|------|-------------|
+| `gamesPlayed` | COUNT(DISTINCT match_id) where tx_type = 'deposit' |
+| `totalWagered` | SUM(amount_lamports) where tx_type = 'deposit' |
+| `totalWins` | COUNT(*) where tx_type = 'payout' |
+| `winRate` | totalWins / gamesPlayed (0 if no games) |
+| `winStreakCurrent` | Consecutive most-recent wins (across all games) |
+| `winStreakBest` | Longest-ever consecutive win streak |
+| `netPnl` | SUM(payout + refund) - SUM(deposit) |
+| `gameBreakdown` | Per-game version of above (keyed by game name) |
+
+**Public stats (visible to others via lookup):**
+
+| Stat | Included |
+|------|----------|
+| `gamesPlayed` | Yes |
+| `totalWins` | Yes |
+| `winRate` | Yes |
+| `totalWagered` | **No** |
+| `netPnl` | **No** |
+| `winStreakCurrent` | **No** |
+| `winStreakBest` | **No** |
+| `gameBreakdown` | **No** |
+
+**Win streak logic:** Ordered by `created_at DESC`, across all games. A `payout`
+row = win. A `deposit` row with no corresponding `payout` for the same `match_id`
+= loss. Refunds don't break or extend streaks. Streak resets on first loss
+walking backward from most recent game.
+
+**Performance note:** Stats can be computed on-the-fly for now (single query per
+request). If latency becomes a problem, add a `player_stats_cache` materialized
+view or summary table later — but don't pre-optimize.
+
+**Acceptance Criteria:**
+- [ ] `gamesPlayed`, `totalWagered`, `totalWins`, `winRate` computed correctly from `transactions`
+- [ ] `winStreakCurrent` counts consecutive most-recent wins across all games
+- [ ] `winStreakBest` tracks the longest-ever streak
+- [ ] `netPnl` = total inflows (payout + refund) minus total outflows (deposit)
+- [ ] `gameBreakdown` returns per-game stats keyed by frontend game name
+- [ ] Public stats expose only `gamesPlayed`, `totalWins`, `winRate`
+
+### FR-9: Profile API Endpoints
+
+All profile interaction points for the frontend.
+
+**Endpoints:**
+
+`GET /profile/me` (authenticated)
+- Returns: full own profile + full stats
+- Response shape:
+  ```json
+  {
+    "userId": "usr_a8f3k2",
+    "username": "fierce-dragon-4821",
+    "avatarUrl": null,
+    "heatMultiplier": 1.0,
+    "pointsBalance": "0",
+    "stats": {
+      "gamesPlayed": 42,
+      "totalWagered": "150000000000",
+      "totalWins": 23,
+      "winRate": 0.5476,
+      "winStreakCurrent": 3,
+      "winStreakBest": 7,
+      "netPnl": "5000000000",
+      "gameBreakdown": {
+        "coinflip": { "gamesPlayed": 20, "totalWins": 11, "winRate": 0.55, "totalWagered": "...", "netPnl": "..." },
+        "lord-of-rngs": { ... },
+        "close-call": { ... }
+      }
+    },
+    "usernameNextEditAt": "2026-05-01T00:00:00Z",
+    "createdAt": "2026-03-15T10:00:00Z"
+  }
+  ```
+- `avatarUrl` null means frontend should render identicon from `userId`
+- `totalWagered`, `netPnl`, `pointsBalance` as strings (BigInt safety)
+
+`GET /public-profile/:identifier` (public, no auth)
+- Mounted at `/public-profile` (separate from `/profile/*` to avoid JWT middleware)
+- `:identifier` resolves to either `user_id` (starts with `usr_`) or `username`
+- Returns: public profile (no wallet, no tx history, limited stats)
+- Response shape:
+  ```json
+  {
+    "userId": "usr_a8f3k2",
+    "username": "fierce-dragon-4821",
+    "avatarUrl": null,
+    "heatMultiplier": 1.0,
+    "stats": {
+      "gamesPlayed": 42,
+      "totalWins": 23,
+      "winRate": 0.5476
+    },
+    "createdAt": "2026-03-15T10:00:00Z"
+  }
+  ```
+- 404 if identifier not found
+
+**Acceptance Criteria:**
+- [ ] `GET /profile/me` requires JWT, returns full profile + full stats
+- [ ] `GET /public-profile/:identifier` is public (no auth), resolves user_id or username
+- [ ] Public endpoint returns only `gamesPlayed`, `totalWins`, `winRate` — no wallet, no PnL, no wagered, no streaks, no tx history
+- [ ] `avatarUrl` null means use identicon (frontend responsibility)
+- [ ] BigInt fields serialized as strings
+- [ ] 404 for unknown identifier on public endpoint
+
+---
+
 ## Success Criteria
 
 - A player who completes a game sees the transaction appear in their profile
@@ -213,6 +408,9 @@ already used for Close Call BTC/USD prices).
 - Transaction list is accurate — amounts, outcomes, and game types match
   on-chain reality
 - Profile page loads transaction history performantly (< 500ms for first page)
+- Profile is auto-created on first wallet auth with a unique username and user ID
+- Any player can look up another player by username or user ID and see limited public stats
+- Wallet addresses are never exposed in any public-facing API response
 
 ---
 
@@ -221,13 +419,17 @@ already used for Close Call BTC/USD prices).
 - JWT auth system (spec 007 — already shipped)
 - Settlement worker (coinflip + lord + closecall — already shipped)
 - PDA watcher for join detection (already shipped)
+- `transactions` table (migration 009 — already shipped)
 
 ## Assumptions
 
-- No backfill of historical data — table starts empty, only new events recorded
+- No backfill of historical data — `transactions` table starts empty, only new events recorded
 - Close Call enforces one entry per player per round (on-chain constraint)
-- No aggregate stats (win rate, total wagered, P&L) in this iteration
-- No other players' transaction visibility — own wallet only
+- Stats computed on-the-fly from `transactions` table (no pre-aggregation cache for now)
+- No public browsable profile page — the public API serves a popup/card in the frontend
+- No social account linking (X/Discord) — deferred TBD
+- HEAT multiplier and points balance are placeholder fields (always default values until those features ship)
+- Identicon generation is a frontend concern — backend just stores/serves `avatar_url` (null = identicon)
 
 ---
 
@@ -247,7 +449,7 @@ already used for Close Call BTC/USD prices).
 | Connection library | `postgres` (v3.4.0) — tagged template literal style |
 
 **Naming**: Files are `NNN_description.sql` where NNN is zero-padded sequential.
-Next available: `007`.
+Next available: `013`.
 
 **Runner behavior**: Reads `migrations/` dir, parses version from filename
 prefix, tracks applied versions in `_migrations` table, applies pending ones
@@ -282,6 +484,8 @@ inside `sql.begin()` transactions. Idempotent — safe to re-run.
 
 ## Validation Plan
 
+### Iteration 1 (Transaction History)
+
 | # | Acceptance Criterion | Validation Method | Evidence Required |
 |---|---------------------|-------------------|-------------------|
 | 1 | Migration creates table + indexes | Run `pnpm migrate` on fresh + existing DB | Migration status shows applied |
@@ -289,6 +493,21 @@ inside `sql.begin()` transactions. Idempotent — safe to re-run.
 | 3 | API returns own transactions only | Call endpoint with two different JWTs | Each sees only their own rows |
 | 4 | Pagination works | Insert > 20 rows, paginate | Second page returns remaining rows |
 | 5 | Frontend displays real data | Play a game, check profile page | Transaction appears with correct details |
+
+### Iteration 2 (Identity + Stats)
+
+| # | Acceptance Criterion | Validation Method | Evidence Required |
+|---|---------------------|-------------------|-------------------|
+| 6 | Profile migration creates table + indexes | Run `pnpm migrate` on fresh + existing DB | Migration 013 applied |
+| 7 | Profile auto-created on JWT auth | Auth a new wallet, query `player_profiles` | Row with user_id, username, wallet |
+| 8 | Username auto-generated correctly | Auth a new wallet, check format | `{adjective}-{noun}-{4digits}` pattern |
+| 9 | Username edit with cooldown | Change username, attempt again within 30 days | 429 on second attempt |
+| 10 | Username uniqueness (case-insensitive) | Attempt to take an existing username with different case | 409 response |
+| 11 | `GET /profile/me` returns full stats | Auth + fetch, verify all stat fields | JSON with gamesPlayed, totalWagered, winRate, streaks, PnL, gameBreakdown |
+| 12 | `GET /public-profile/:id` returns limited stats | Fetch without auth, verify no wallet/PnL | JSON with gamesPlayed, totalWins, winRate only |
+| 13 | Public endpoint resolves both user_id and username | Lookup same player by both identifiers | Same response body |
+| 14 | No wallet in any public response | Inspect all public endpoint responses | No `wallet` field anywhere |
+| 15 | Win streak computed correctly | Play games with known outcomes, check streak | Correct current and best streak values |
 
 ---
 
@@ -309,43 +528,58 @@ inside `sql.begin()` transactions. Idempotent — safe to re-run.
 - [x] [test] Update visual baselines for profile transactions page. Run `pnpm test:visual` to identify failures, then `pnpm test:visual:update` to regenerate. **Before committing**: read old baseline and new screenshot for each changed page (use Read tool on PNG files). Evaluate: **PASS** (changes clearly match spec intent, only expected areas changed) → commit updated baselines. **REVIEW** (changes look plausible but unexpected areas also changed, or uncertain) → do NOT commit baselines. Save the diff images from `test-results/` to `docs/specs/008-user-profile/visual-review/`, describe concerns in `history.md`, output `<blocker>Visual review needed: [describe what looks off]</blocker>`. **FAIL** (layout broken, elements missing, clearly wrong) → fix the code, do NOT update baselines. (done: iteration 11)
 - [x] [test] N/A — no external provider/oracle/VRF integration in scope for this spec (done: iteration 11)
 
+#### Iteration 2: Identity + Stats (Backend Only)
+
+- [ ] [engine] Migration `013_player_profiles.sql` — create `player_profiles` table: `id BIGSERIAL PK`, `user_id TEXT UNIQUE NOT NULL`, `wallet TEXT UNIQUE NOT NULL`, `username TEXT UNIQUE NOT NULL`, `username_updated_at TIMESTAMPTZ`, `avatar_url TEXT`, `heat_multiplier NUMERIC DEFAULT 1.0`, `points_balance BIGINT DEFAULT 0`, `created_at TIMESTAMPTZ DEFAULT now()`. Add functional index `CREATE UNIQUE INDEX idx_player_profiles_username_lower ON player_profiles (LOWER(username))` for case-insensitive uniqueness. Verify: `cd services/backend && pnpm migrate`.
+- [ ] [engine] Username + user ID generation utility — create `services/backend/src/utils/username-gen.ts`. Export `generateUserId()`: returns `usr_` + 8 random lowercase alphanumeric chars (a-z0-9). Export `generateUsername()`: picks random adjective + noun from embedded word lists (50+ each, no profanity) + random 4-digit suffix → `{adjective}-{noun}-{NNNN}`. Both functions are pure (no DB access), synchronous, and unit-testable. No collision handling here — that's in the DB layer.
+- [ ] [engine] DB functions for player_profiles — add to `db.ts`: (1) `createPlayerProfile(wallet: string): Promise<PlayerProfile>` — calls `generateUserId()` + `generateUsername()`, inserts row, on UNIQUE violation of username retries up to 5 times with new username, if all retries fail uses fallback `user-{random8}`. Returns the created profile. (2) `getProfileByWallet(wallet: string): Promise<PlayerProfile | null>` — lookup by wallet column. (3) `getProfileByIdentifier(identifier: string): Promise<PlayerProfile | null>` — if identifier starts with `usr_`, lookup by `user_id`; otherwise lookup by `LOWER(username) = LOWER(identifier)`. (4) `updateUsername(wallet: string, newUsername: string): Promise<PlayerProfile>` — validates 30-day cooldown from `username_updated_at` (null = first edit free), updates `username` + `username_updated_at = now()`, throws on UNIQUE violation. Define `PlayerProfile` type matching the table columns (excluding `wallet` from any serialization helper). Verify: `cd services/backend && pnpm lint`.
+- [ ] [engine] Profile creation hook in auth verify — in `services/backend/src/routes/auth.ts`, in the POST `/verify` handler: after successful signature verification (after the `nacl.sign.detached.verify` check) and before issuing tokens, add: `const profile = await deps.db.getProfileByWallet(body.wallet); if (!profile) { try { await deps.db.createPlayerProfile(body.wallet); } catch (e) { console.error("Profile creation failed:", e); } }`. This is fire-and-forget — auth success MUST NOT depend on profile creation succeeding. Update `AuthRoutesDeps` interface to include `db`. Verify: `cd services/backend && pnpm lint`.
+- [ ] [engine] Aggregate stats query — add `getPlayerStats(wallet: string)` to `db.ts`. Single SQL query against the `transactions` table: `gamesPlayed` = COUNT(DISTINCT match_id) WHERE tx_type='deposit', `totalWagered` = SUM(amount_lamports) WHERE tx_type='deposit', `totalWins` = COUNT(DISTINCT match_id) WHERE tx_type='payout', `winRate` = totalWins / gamesPlayed (0.0 if no games), `netPnl` = SUM(CASE WHEN tx_type IN ('payout','refund') THEN amount_lamports ELSE -amount_lamports END). Returns `{ gamesPlayed: number, totalWagered: bigint, totalWins: number, winRate: number, netPnl: bigint }`. Add `getPublicPlayerStats(wallet)` that calls getPlayerStats and returns only `{ gamesPlayed, totalWins, winRate }`. Verify: `cd services/backend && pnpm lint`.
+- [ ] [engine] Win streak computation — add `getWinStreaks(wallet: string)` to `db.ts`. Query approach: get all distinct match_ids for this wallet from `transactions`, determine outcome per match (has tx_type='payout' row = win, has 'deposit' but no 'payout' = loss, only 'refund' = skip). Order by MAX(created_at) DESC per match. Walk the ordered list: count consecutive wins from the most recent for `current`, track longest run for `best`. Refund-only matches are excluded. Returns `{ current: number, best: number }`. This can be done in SQL with window functions or in application code — implementer's choice. Verify: `cd services/backend && pnpm lint`.
+- [ ] [engine] Per-game breakdown query — add `getGameBreakdown(wallet: string)` to `db.ts`. Same computation as `getPlayerStats` but grouped by `game` column. Returns `Record<string, { gamesPlayed, totalWagered, totalWins, winRate, netPnl }>` keyed by frontend game name (map DB `lord` → `lord-of-rngs`, `closecall` → `close-call`, `coinflip` → `coinflip`). Games with zero activity are omitted from the result (not returned as zeroes). Verify: `cd services/backend && pnpm lint`.
+- [ ] [engine] `GET /profile/me` endpoint — add to `services/backend/src/routes/profile.ts` (already behind JWT middleware). Handler: get wallet from `c.get("wallet")`, fetch profile via `db.getProfileByWallet(wallet)`. If no profile, return 404 `{ error: "PROFILE_NOT_FOUND" }`. Fetch stats via `db.getPlayerStats(wallet)`, streaks via `db.getWinStreaks(wallet)`, breakdown via `db.getGameBreakdown(wallet)`. Assemble response per FR-9 shape: `{ userId, username, avatarUrl, heatMultiplier, pointsBalance (string), stats: { gamesPlayed, totalWagered (string), totalWins, winRate, winStreakCurrent, winStreakBest, netPnl (string), gameBreakdown }, usernameNextEditAt (null if username_updated_at is null, else +30 days ISO), createdAt }`. No `wallet` field anywhere. Verify: `cd services/backend && pnpm lint`.
+- [ ] [engine] `PUT /profile/username` endpoint — add to `services/backend/src/routes/profile.ts` (already behind JWT middleware). Handler: get wallet from `c.get("wallet")`, parse body `{ username: string }`. Validate format: regex `^[a-zA-Z0-9_-]{3,20}$`, return 400 `{ error: "INVALID_FORMAT" }` if fails. Fetch current profile. Check cooldown: if `username_updated_at` is not null and less than 30 days ago, return 429 `{ error: "COOLDOWN_ACTIVE", nextEditAvailableAt }`. Call `db.updateUsername(wallet, username)`. On UNIQUE violation (case-insensitive index), return 409 `{ error: "USERNAME_TAKEN" }`. On success, return `{ username, nextEditAvailableAt }`. Verify: `cd services/backend && pnpm lint`.
+- [ ] [engine] `GET /public-profile/:identifier` endpoint — create `services/backend/src/routes/public-profile.ts`. Export `createPublicProfileRoutes(deps)` following the existing route factory pattern. Single GET `/:identifier` handler (no auth middleware). Resolve identifier via `db.getProfileByIdentifier(identifier)`. If not found, return 404 `{ error: "NOT_FOUND" }`. Fetch public stats via `db.getPublicPlayerStats(profile.wallet)`. Return FR-9 public shape: `{ userId, username, avatarUrl, heatMultiplier, stats: { gamesPlayed, totalWins, winRate }, createdAt }`. No `wallet` anywhere. Register in `index.ts`: `app.route("/public-profile", createPublicProfileRoutes({ db }))` — NO JWT middleware. Verify: `cd services/backend && pnpm lint`.
+- [ ] [engine] Update OpenAPI spec (`services/backend/src/openapi.ts`) — (1) Update Profile tag description from "Player transaction history" to "Player identity, stats, and transaction history". (2) Add component schemas: `PlayerProfile` (userId, username, avatarUrl, heatMultiplier, pointsBalance, stats, usernameNextEditAt, createdAt), `PlayerStats` (gamesPlayed, totalWagered, totalWins, winRate, winStreakCurrent, winStreakBest, netPnl, gameBreakdown), `PublicPlayerProfile` (userId, username, avatarUrl, heatMultiplier, stats: {gamesPlayed, totalWins, winRate}, createdAt). (3) Add paths: `GET /profile/me` (tag: Profile, security: bearerAuth, 200→PlayerProfile, 401, 404), `PUT /profile/username` (tag: Profile, security: bearerAuth, requestBody: {username: string}, 200→{username, nextEditAvailableAt}, 400/409/429), `GET /public-profile/{identifier}` (tag: Profile, no security, parameter: identifier path string, 200→PublicPlayerProfile, 404). Follow existing endpoint documentation patterns. Verify: `cd services/backend && pnpm lint`.
+- [ ] [test] Unit tests for username-gen — in `services/backend/src/__tests__/username-gen.test.ts`. Tests: (1) `generateUserId()` matches format `usr_[a-z0-9]{8}`, (2) `generateUsername()` matches format `{word}-{word}-{4digits}`, (3) both produce different values on successive calls (non-deterministic check with 10 iterations), (4) username words contain no spaces or special characters. Run: `cd services/backend && pnpm test`.
+- [ ] [test] Unit tests for stats + streaks — in `services/backend/src/__tests__/player-stats.test.ts`. Requires DB (use vitest setup from existing `auth-routes.test.ts` pattern). Seed `transactions` table with known rows, then call `getPlayerStats`, `getWinStreaks`, `getGameBreakdown`, `getPublicPlayerStats`. Test cases: (1) empty history → all zeros, (2) 3 wins in a row → current=3 best=3, (3) win-win-loss-win → current=1 best=2, (4) refund-only match skipped in streak, (5) game breakdown groups correctly, (6) public stats omit wagered/pnl. Run: `cd services/backend && pnpm test`.
+- [ ] [test] Integration test for profile lifecycle — in `services/backend/src/__tests__/profile.test.ts`. Test flow: (1) POST `/verify` with new wallet → succeeds → `player_profiles` row exists with auto-generated username + user_id, (2) GET `/profile/me` returns profile + stats (empty), (3) PUT `/profile/username` with valid name → succeeds, (4) PUT `/profile/username` again immediately → 429 cooldown, (5) PUT `/profile/username` with taken name → 409, (6) GET `/public-profile/{username}` returns public profile + limited stats, (7) GET `/public-profile/{user_id}` returns same data, (8) no `wallet` field in any response. Run: `cd services/backend && pnpm test`.
+
 ### Testing Requirements
 
 The agent MUST complete ALL before outputting the completion signal:
 
 #### Code Quality
 - [ ] All existing tests pass
-- [ ] New tests added for new functionality
-- [ ] No lint errors
+- [ ] New tests added for new functionality (username gen, stats computation, streak logic)
+- [ ] No lint errors (`cd backend && pnpm lint`)
 
 #### Functional Verification
-- [ ] All acceptance criteria verified
-- [ ] Edge cases handled
-- [ ] Error states handled
+- [ ] All acceptance criteria verified (FR-1 through FR-9)
+- [ ] Edge cases: empty tx history → zero stats, single game → streak of 1 or 0, username collision retry, cooldown boundary
+- [ ] Error states: invalid username format, taken username, cooldown not expired, unknown identifier 404
 
-#### Visual Regression
-- [ ] `pnpm test:visual` passes (all baselines match)
-- [ ] If this spec changes UI: affected baselines regenerated and committed
-- [ ] Local deterministic E2E passes (`pnpm test:e2e`) for user-facing flows
-- [ ] Devnet real-provider E2E: N/A for this spec
-
-#### Visual Verification (if UI)
-- [ ] Desktop view correct
-- [ ] Mobile view correct
-
-#### Console/Network Check (if web)
-- [ ] No JS console errors
-- [ ] No failed network requests
+#### Backend-Specific Checks
+- [ ] Migration runs cleanly on fresh and existing DB
+- [ ] Profile auto-created on auth (verify via DB query after JWT flow)
+- [ ] Stats match manual calculation from transactions table
+- [ ] No wallet address in any public API response (grep all response builders)
 
 #### Smoke Test (Human-in-the-Loop)
 
+**Iteration 1:**
 - [ ] Settle a coinflip match → transaction appears in profile within seconds
 - [ ] Settle a lord round → transaction appears in profile
 - [ ] Place a closecall bet + settle → join and result rows appear
 - [ ] Pagination loads older transactions correctly
 - [ ] Amounts shown in SOL with USD estimate, match on-chain values
-- [ ] Empty profile shows clean empty state, not broken UI
-- [ ] Unauthenticated request returns 401, not data
+
+**Iteration 2:**
+- [ ] Auth a fresh wallet → profile row created with username + user_id
+- [ ] `GET /profile/me` returns correct stats after playing games
+- [ ] `GET /public-profile/{username}` returns limited public stats, no wallet
+- [ ] `PUT /profile/username` succeeds on first edit, 429 on second within 30 days
+- [ ] Win streak reflects actual consecutive wins across games
 
 ### Iteration Instructions
 
@@ -373,46 +607,77 @@ After the spec loop outputs `<promise>DONE</promise>`, `spec-loop.sh` automatica
 
 ### Backend
 
-- **Endpoints**:
+- **Endpoints (Iteration 1 — transaction history)**:
   - `GET  /profile/transactions?cursor=<id>&limit=<n>&game=<filter>` -- paginated transaction history for JWT-authenticated wallet. Default limit 20, max 50. Game filter accepts both DB names (`lord`, `closecall`) and frontend names (`lord-of-rngs`, `close-call`). Response: `{ transactions: [...], nextCursor }` with `amountLamports` as string
   - `POST /profile/confirm-tx` -- frontend reports a confirmed on-chain tx (deposit/refund). Accepts `{ game, matchId, txType, txSig, amountLamports }`
   - `GET  /price/sol-usd` -- cached SOL/USD price from Pyth Hermes (60s TTL, public, no auth). Response: `{ price, updatedAt }`
+
+- **Endpoints (Iteration 2 — identity + stats)**:
+  - `GET  /profile/me` -- JWT required (under `/profile/*` middleware). Full own profile: userId, username, avatarUrl, heatMultiplier, pointsBalance, full stats (gamesPlayed, totalWagered, totalWins, winRate, winStreakCurrent, winStreakBest, netPnl, gameBreakdown), usernameNextEditAt, createdAt. No wallet in response.
+  - `GET  /public-profile/:identifier` -- public (no auth). Mounted at `/public-profile` separately from `/profile/*` to avoid JWT middleware. Resolves user_id (starts with `usr_`) or username (case-insensitive). Returns: userId, username, avatarUrl, heatMultiplier, limited stats (gamesPlayed, totalWins, winRate), createdAt. No wallet, no PnL, no streaks, no tx history. 404 if not found.
+  - `PUT  /profile/username` -- JWT required (under `/profile/*` middleware). Body: `{ username }`. Validates format (3-20 chars, `[a-zA-Z0-9_-]`), case-insensitive uniqueness, 30-day cooldown. Returns: `{ username, nextEditAvailableAt }`. Errors: 400/409/429.
+
 - **DB Tables**:
-  - `transactions` (PK: `id`, BIGSERIAL) -- on-chain SOL movement ledger. Key columns: `wallet`, `game`, `match_id`, `tx_type` (deposit/payout/refund), `amount_lamports`, `tx_sig` (NOT NULL). Unique index: `(wallet, match_id, tx_type, tx_sig)`. Replaced earlier `user_transactions` table in migration 009
-  - `user_transactions` -- (dropped by migration 009, replaced by `transactions`)
-- **Write Paths**:
+  - `transactions` (PK: `id`, BIGSERIAL) -- on-chain SOL movement ledger. Key columns: `wallet`, `game`, `match_id`, `tx_type` (deposit/payout/refund), `amount_lamports`, `tx_sig` (NOT NULL). Unique index: `(wallet, match_id, tx_type, tx_sig)`. Migration 009.
+  - `player_profiles` (PK: `id`, BIGSERIAL) -- player identity. Key columns: `user_id` (UNIQUE, `usr_` + 8 random), `wallet` (UNIQUE, internal only), `username` (UNIQUE, auto-gen or player-set), `username_updated_at`, `avatar_url`, `heat_multiplier` (default 1.0), `points_balance` (default 0), `created_at`. Migration 013.
+
+- **Profile Creation Triggers**:
+  - JWT auth verify endpoint (`routes/auth.ts`) -- on first successful challenge-response, check if `player_profiles` row exists for wallet; if not, create with auto-generated username + user_id
+  - Waitlist signup (if applicable entry point exists) -- same logic
+
+- **Write Paths (Iteration 1)**:
   - Coinflip settlement: `worker/settle-tx.ts` `settleMatch()` -- writes win + loss rows after `settle_confirmed`
   - Lord settlement: `worker/settle-tx.ts` `settleLordRound()` -- writes win row for winner + loss rows for all losers
   - Close Call settlement: `worker/closecall-clock.ts` `settleRound()` -- writes join + outcome (win/loss/refund) per entry
   - Coinflip creator deposit: frontend reports via `POST /profile/confirm-tx` after tx confirmation
   - Coinflip opponent join: `worker/pda-watcher.ts` on PHASE_LOCKED detection
+
 - **Key Files**:
-  - `services/backend/src/routes/profile.ts` -- transaction history + confirm-tx endpoints
+  - `services/backend/src/routes/profile.ts` -- transaction history + confirm-tx + profile/me + username (all behind JWT)
+  - `services/backend/src/routes/public-profile.ts` -- public player lookup (no JWT, separate mount)
+  - `services/backend/src/routes/auth.ts` -- JWT auth (profile creation hook goes here)
+  - `services/backend/src/utils/username-gen.ts` -- generateUserId() + generateUsername() pure functions
   - `services/backend/src/routes/price.ts` -- SOL/USD price endpoint (Pyth HermesClient)
+  - `services/backend/src/db.ts` -- query functions (add: createPlayerProfile, getProfileByWallet, getProfileByIdentifier, updateUsername, getPlayerStats, getPublicPlayerStats)
   - `services/backend/src/worker/settle-tx.ts` -- coinflip + lord settlement write paths
   - `services/backend/src/worker/closecall-clock.ts` -- Close Call settlement write paths
   - `services/backend/src/worker/pda-watcher.ts` -- opponent join detection (coinflip)
-  - `services/backend/migrations/008_user_transactions.sql` -- original user_transactions table (now dropped)
-  - `services/backend/migrations/009_transactions.sql` -- current transactions table schema
+  - `services/backend/migrations/009_transactions.sql` -- transactions table schema
+  - `services/backend/migrations/013_player_profiles.sql` -- player profiles table schema
 
 ---
 
 ## Key Decisions (from refinement)
 
+### Iteration 1 (Transaction History)
 - **Amounts**: SOL + USD estimate (Pyth SOL/USD feed via Hermes REST API, 60s cache TTL)
 - **Refunds**: Close Call only — coinflip/lord refunds are permissionless on-chain, backend doesn't process them
 - **Lord joins**: Skipped — PDA watcher sees round state, not individual entries. Win/loss only at settlement
 - **Close Call joins**: Written at settlement time (not at /bet route) — avoids false positives from unsubmitted txs
 - **Coinflip joins**: Creator at create route, opponent at PDA watcher lock detection
 - **Game name mapping**: DB `lord`/`closecall` mapped to API `lord-of-rngs`/`close-call`
-- **Migration naming**: Spec says `007_user_transactions.sql` but implementation uses `008_user_transactions.sql` because migration 007 (`round_entries`) already existed
 - **Idempotency**: UNIQUE constraint on `(wallet, match_id, event)` with `ON CONFLICT DO NOTHING` on all write paths
-- All 26 acceptance criteria across 5 FRs satisfied (gap analysis found zero gaps)
+
+### Iteration 2 (Identity + Stats)
+- **No wallet exposure**: Wallet is internal only. All public-facing references use `user_id` (short random string) or `username`. This is a hard rule — no endpoint returns a wallet address.
+- **Profile creation trigger**: JWT auth verify endpoint (first successful challenge-response). Also waitlist signup if that entry point exists. NOT first completed game.
+- **User ID format**: `usr_` + 8 random lowercase alphanumeric chars. Immutable once created.
+- **Username auto-gen**: `{adjective}-{noun}-{4digits}`. Retry on collision (max 5 retries, fallback `user-{random8}`). Freeform editable: 3-20 chars, `[a-zA-Z0-9_-]`, 30-day cooldown.
+- **Avatar**: `avatar_url` field, null = frontend renders identicon from `user_id`. No upload/unlock system in this iteration.
+- **Stats source**: Computed on-the-fly from `transactions` table. No pre-aggregation cache.
+- **Win streak**: Cross-game (all games combined). Refunds don't affect streak.
+- **Public stats**: Only `gamesPlayed`, `totalWins`, `winRate`. No PnL, wagered, or streaks visible to others.
+- **HEAT + Points**: Reserved columns with default values. No computation yet.
+- **No social links**: X/Discord linking removed from scope entirely — TBD future decision.
+- **No public profile page**: API serves data for a popup/card in the frontend, not a browsable page.
 
 ## Deferred Items
 
 - **Lord join rows** (individual entry tracking): PDA watcher sees round state change but not individual entries. Low priority; entries are visible on-chain
-- **Aggregate stats** (win rate, P&L): Deferred to next iteration by design
-- **Other player profile visibility**: Deferred by design — own wallet only for V1
 - **Lord multi-entry loss amount accuracy**: UNIQUE constraint means at most one loss row per player per Lord round. If a player enters multiple times and loses, only the first entry's amount is recorded (ON CONFLICT DO NOTHING drops subsequent inserts). Total loss amount is under-reported for multi-entry losers. Low impact for V1. Potential fix: change UNIQUE constraint to `(wallet, match_id, event, amount_lamports)` or aggregate amounts before insert
-- **Orphaned mock file**: `apps/platform/src/features/player-profile/utils/mock-simulation.ts` is no longer imported by ProfileTransactions but still exists (568 lines). Consider deleting to reduce bundle size
+- **Social account linking (X/Discord)**: Removed from scope. TBD future decision — unclear whether self-reported handles or OAuth verification.
+- **Avatar upload / unlock system**: Depends on Loot Crates feature. Only identicon for now.
+- **Stats pre-aggregation / caching**: On-the-fly computation for now. Add `player_stats_cache` materialized view if latency becomes a problem.
+- **HEAT multiplier computation**: Reserved column, always 1.0. Depends on HEAT feature spec.
+- **Points system**: Reserved column, always 0. Depends on Points feature spec.
+- **Orphaned mock file**: `apps/platform/src/features/player-profile/utils/mock-simulation.ts` is no longer imported by ProfileTransactions but still exists (568 lines). Consider deleting to reduce bundle size.

@@ -4,3 +4,7 @@
 [submodule "backend"]
 	path = backend
 	url = https://github.com/taunt-bet/backend.git
+[submodule "waitlist"]
+	path = waitlist
+	url = https://github.com/taunt-bet/waitlist.git
+	branch = dev
