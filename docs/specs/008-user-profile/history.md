@@ -178,3 +178,24 @@ Verified: `pnpm lint` (0 errors, 1 existing warning) and `pnpm typecheck` both p
 ## Iteration 22 — 2026-03-31T15:19:27Z — OK
 - **Log**: iteration-022.log
 
+## Iteration 23 — Update OpenAPI spec
+
+**Item:** `[engine] Update OpenAPI spec`
+**Status:** Done
+
+Modified `/workspaces/rng-utopia/backend/services/backend/src/openapi.ts`:
+- Updated Profile tag description from "Player transaction history" to "Player identity, stats, and transaction history"
+- Added 6 component schemas: `GameBreakdownStats`, `PlayerStats` (with gameBreakdown as additionalProperties), `PublicStats`, `PlayerProfile` (full profile shape with stats + pointsBalance + usernameNextEditAt), `PublicPlayerProfile` (limited shape without wallet/PnL/streaks)
+- Added 3 new paths:
+  - `GET /profile/me` — JWT-secured, returns PlayerProfile, 401/404 errors
+  - `PUT /profile/username` — JWT-secured, requestBody {username}, returns {username, nextEditAvailableAt}, 400/409/429 errors
+  - `GET /public-profile/{identifier}` — no auth, path param identifier, returns PublicPlayerProfile, 404 error
+- All schemas match actual response shapes from profile.ts and public-profile.ts
+- Verified: `pnpm lint` (0 errors, 1 existing warning) and `pnpm typecheck` both pass
+
+## Iteration 23 — 2026-03-31T15:25:00Z — OK
+- **Log**: iteration-023.log
+
+## Iteration 23 — 2026-03-31T15:22:11Z — OK
+- **Log**: iteration-023.log
+
