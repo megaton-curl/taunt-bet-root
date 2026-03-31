@@ -60,7 +60,7 @@ RUN curl --proto '=https' --tlsv1.2 -sSfL https://solana-install.solana.workers.
 ENV PATH="/home/vscode/.avm/bin:/home/vscode/.cargo/bin:/home/vscode/.local/share/solana/install/active_release/bin:${PATH}"
 
 # Additional global npm packages not included in the one-command installer
-RUN bash -ic "npm install -g pnpm@10.16.0 @openai/codex @anthropic-ai/claude-code @anthropic-ai/sandbox-runtime"
+RUN bash -ic "npm install -g pnpm@10.33.0 @openai/codex @anthropic-ai/claude-code @anthropic-ai/sandbox-runtime"
 
 # Persist PATH for interactive shells (ENV only applies to Docker build + postStartCommand)
 # nvm is already sourced in .bashrc by the installer; just add Solana/AVM paths
