@@ -104,3 +104,19 @@ Added to `/workspaces/rng-utopia/backend/services/backend/src/db.ts`:
 ## Iteration 18 — 2026-03-31T15:07:24Z — OK
 - **Log**: iteration-018.log
 
+## Iteration 19 — Per-game breakdown query
+
+**Item:** `[engine] Per-game breakdown query`
+**Status:** Done
+
+Added to `/workspaces/rng-utopia/backend/services/backend/src/db.ts`:
+- `GameBreakdownStats` interface: `{ gamesPlayed: number, totalWagered: bigint, totalWins: number, winRate: number, netPnl: bigint }`
+- `getGameBreakdown(wallet)` method on `Db` interface + implementation
+- SQL: same aggregation as `getPlayerStats` but with `GROUP BY game`
+- Maps DB game names to frontend names: `lord` → `lord-of-rngs`, `closecall` → `close-call`, `coinflip` → `coinflip`
+- Games with zero `gamesPlayed` are omitted from the result
+- Verified: `pnpm lint` (0 errors, 1 existing warning) and `pnpm typecheck` both pass
+
+## Iteration 19 — 2026-03-31T15:11:18Z — OK
+- **Log**: iteration-019.log
+
