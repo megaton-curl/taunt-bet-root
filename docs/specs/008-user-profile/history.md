@@ -51,3 +51,26 @@ Added to `/workspaces/rng-utopia/backend/services/backend/src/db.ts`:
 ## Iteration 15 — 2026-03-31T14:54:54Z — OK
 - **Log**: iteration-015.log
 
+## Iteration 16 — Profile creation hook in auth verify
+
+**Item:** `[engine] Profile creation hook in auth verify`
+**Status:** Done
+
+Modified `/workspaces/rng-utopia/backend/services/backend/src/routes/auth.ts`:
+- Added `db: Db` to `AuthRoutesDeps` interface
+- Imported `Db` type from `../db.js`
+- Destructured `db` in `createAuthRoutes()`
+- After Ed25519 signature verification in POST `/verify` handler, added fire-and-forget profile creation: checks `db.getProfileByWallet(wallet)`, if null calls `db.createPlayerProfile(wallet)`, logs errors but never blocks auth success
+
+Modified `/workspaces/rng-utopia/backend/services/backend/src/index.ts`:
+- Passed `db` in the `createAuthRoutes()` deps object
+
+Modified `/workspaces/rng-utopia/backend/services/backend/src/__tests__/auth-routes.test.ts`:
+- Added `stubDb` with mock `getProfileByWallet` (returns null) and `createPlayerProfile` (returns empty object) to satisfy the new `db` dependency in tests
+- Passed `db: stubDb` in `createAuthRoutes()` call
+
+Verified: `pnpm lint` (0 errors, 1 existing warning) and `pnpm typecheck` both pass.
+
+## Iteration 16 — 2026-03-31T14:59:42Z — OK
+- **Log**: iteration-016.log
+
