@@ -90,3 +90,17 @@ Added to `/workspaces/rng-utopia/backend/services/backend/src/db.ts`:
 ## Iteration 17 — 2026-03-31T15:03:53Z — OK
 - **Log**: iteration-017.log
 
+## Iteration 18 — Win streak computation
+
+**Item:** `[engine] Win streak computation`
+**Status:** Done
+
+Added to `/workspaces/rng-utopia/backend/services/backend/src/db.ts`:
+- `WinStreaks` interface: `{ current: number, best: number }`
+- `getWinStreaks(wallet)` method on `Db` interface
+- Implementation: SQL query groups `transactions` by `match_id`, uses `bool_or(tx_type = 'payout')` and `bool_or(tx_type = 'deposit')` to determine win/loss per match, orders by `MAX(created_at) DESC`. Application code walks the ordered results: counts consecutive wins from most recent for `current`, tracks longest run for `best`. Refund-only matches (no deposit, no payout) are skipped. If no losses encountered, current = total streak.
+- Verified: `pnpm lint` (0 errors, 1 existing warning) and `pnpm typecheck` both pass
+
+## Iteration 18 — 2026-03-31T15:07:24Z — OK
+- **Log**: iteration-018.log
+
