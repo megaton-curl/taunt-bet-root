@@ -33,3 +33,21 @@ Created `/workspaces/rng-utopia/backend/services/backend/src/utils/username-gen.
 ## Iteration 14 — 2026-03-31T14:09:31Z — OK
 - **Log**: iteration-014.log
 
+## Iteration 15 — DB functions for player_profiles
+
+**Item:** `[engine] DB functions for player_profiles`
+**Status:** Done
+
+Added to `/workspaces/rng-utopia/backend/services/backend/src/db.ts`:
+- 4 new methods on `Db` interface: `createPlayerProfile`, `getProfileByWallet`, `getProfileByIdentifier`, `updateUsername`
+- `normalizePlayerProfile()` helper for numeric field coercion (`id`, `heat_multiplier`, `points_balance`)
+- `createPlayerProfile(wallet)`: generates `userId` + `username` via imported utils, inserts row, retries up to 5 times on UNIQUE violation (username collision), final fallback uses `user-{random8}`
+- `getProfileByWallet(wallet)`: simple SELECT by wallet, returns null if not found
+- `getProfileByIdentifier(identifier)`: routes `usr_*` to `user_id` lookup, otherwise case-insensitive username lookup via `LOWER()`
+- `updateUsername(wallet, newUsername)`: validates 30-day cooldown from `username_updated_at` (null = first edit free), throws enriched error with `cooldown: true` + `nextEditAvailableAt` on cooldown violation, UNIQUE violation propagates naturally from postgres
+- `PlayerProfile` type was already defined (iteration 13)
+- Verified: `pnpm lint` and `pnpm typecheck` both pass
+
+## Iteration 15 — 2026-03-31T14:54:54Z — OK
+- **Log**: iteration-015.log
+
