@@ -138,3 +138,21 @@ Added `GET /me` handler to `/workspaces/rng-utopia/backend/services/backend/src/
 ## Iteration 20 — 2026-03-31T15:14:08Z — OK
 - **Log**: iteration-020.log
 
+## Iteration 21 — PUT /profile/username endpoint
+
+**Item:** `[engine] PUT /profile/username endpoint`
+**Status:** Done
+
+Added `PUT /username` handler to `/workspaces/rng-utopia/backend/services/backend/src/routes/profile.ts`:
+- Requires JWT auth (wallet from `c.get("wallet")`)
+- Validates username format: regex `^[a-zA-Z0-9_-]{3,20}$`, returns 400 `INVALID_FORMAT` on failure
+- Checks 30-day cooldown from `username_updated_at` (first edit is free), returns 429 `COOLDOWN_ACTIVE` with `nextEditAvailableAt`
+- Calls `db.updateUsername(wallet, username)` to persist the change
+- On postgres UNIQUE violation (code `23505` or message contains "unique"), returns 409 `USERNAME_TAKEN`
+- Race condition fallback: catches cooldown error from db layer too
+- On success, returns `{ username, nextEditAvailableAt }` (ISO string, 30 days from now)
+- Verified: `pnpm lint` (0 errors, 1 existing warning) and `pnpm typecheck` both pass
+
+## Iteration 21 — 2026-03-31T15:17:08Z — OK
+- **Log**: iteration-021.log
+
