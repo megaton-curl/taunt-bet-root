@@ -156,3 +156,25 @@ Added `PUT /username` handler to `/workspaces/rng-utopia/backend/services/backen
 ## Iteration 21 — 2026-03-31T15:17:08Z — OK
 - **Log**: iteration-021.log
 
+## Iteration 22 — GET /public-profile/:identifier endpoint
+
+**Item:** `[engine] GET /public-profile/:identifier endpoint`
+**Status:** Done
+
+Created `/workspaces/rng-utopia/backend/services/backend/src/routes/public-profile.ts`:
+- `createPublicProfileRoutes(deps)` factory following existing route pattern
+- GET `/:identifier` handler — no auth middleware
+- Resolves via `db.getProfileByIdentifier(identifier)` (supports both `usr_*` user IDs and usernames)
+- Returns 404 `{ error: "NOT_FOUND" }` when no profile found
+- Fetches public stats via `db.getPublicPlayerStats(profile.wallet)`
+- Response shape: `{ userId, username, avatarUrl, heatMultiplier, stats: { gamesPlayed, totalWins, winRate }, createdAt }` — no wallet anywhere
+
+Modified `/workspaces/rng-utopia/backend/services/backend/src/index.ts`:
+- Imported `createPublicProfileRoutes` from `./routes/public-profile.js`
+- Registered `app.route("/public-profile", createPublicProfileRoutes({ db }))` without JWT middleware
+
+Verified: `pnpm lint` (0 errors, 1 existing warning) and `pnpm typecheck` both pass
+
+## Iteration 22 — 2026-03-31T15:19:27Z — OK
+- **Log**: iteration-022.log
+
