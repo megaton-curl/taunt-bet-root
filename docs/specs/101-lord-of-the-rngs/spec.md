@@ -291,3 +291,62 @@ If ANY check fails:
 5. Check again
 
 **Only when ALL checks pass, output:** `<promise>DONE</promise>`
+
+---
+
+## Implementation Reference
+
+### On-Chain (Solana)
+- **Program ID**: `EtiKV4VdHPLow2N8zqHhb5QhxvqwzTqZxULPNrffZr6z`
+- **PDA Seeds**:
+  - `LordConfig`: `["lord_config"]`
+  - `JackpotRound`: `["jackpot_round", match_id]` (match_id is random 8 bytes, backend-generated)
+- **Accounts**:
+  - `LordConfig` — authority, paused, bump
+  - `JackpotRound` — match_id, server, phase (RoundPhase from shared crate), commitment, algorithm_ver, entries (Vec\<WeightedEntry\>, max 64), total_amount_lamports, distinct_players, created_at, countdown_started_at, countdown_ends_at, target_entropy_slot, resolve_deadline, result_hash, winning_offset, winning_entry_index, winner, creator, bump
+  - `WeightedEntry` — player (Pubkey), amount_lamports (u64)
+- **Instructions**: `initialize_config`, `create_round`, `join_round`, `buy_more_entries`, `cancel_round`, `start_spin` (deprecated shim), `claim_payout`, `timeout_refund`, `force_close`, `set_paused`
+
+### Backend
+- **Endpoints**:
+  - `GET /fairness/lord/current` — active lord round (on-chain enriched, DB fallback)
+  - `POST /fairness/lord/create` — create round (generates secret + commitment, builds co-signed tx, inserts DB row, starts PDA watcher)
+  - `GET /fairness/rounds/history?game=lord` — settled lord round history
+  - `GET /fairness/rounds/by-id/:matchId` — round details + fairness payload (16-char hex matchId)
+  - `GET /fairness/rounds/:pda` — round lookup by PDA address
+- **DB Table**: `rounds` (shared with coinflip) — pda, game (`"lord"`), creator, server_key, secret, commitment, amount_lamports, side, match_id (hex), phase, target_slot, settle_tx, settle_attempts, result_hash, result_side (winning_entry_index), winner, entries, created_at, updated_at
+- **Settlement**: PDA watcher (`onAccountChange` WebSocket) detects phase transitions. After countdown expires and `target_entropy_slot` is reached, backend calls `claim_payout(match_id, secret)` revealing the committed secret. On-chain derives `result_hash = SHA256(secret || entropy || round_pda || algo_ver)`, maps winning offset to entry, transfers payout to winner and fee to treasury. 1s poll fallback if WebSocket misses events.
+
+---
+
+## Key Decisions (from refinement)
+
+- Entry model changed from equal-cost tier slots to independent weighted entries with custom SOL amounts (minimum 0.0026 SOL). Named tiers retired.
+- Winner selection uses cumulative lamport ranges over the ordered entry vector, not equal slot counts. `winning_offset = u64_le(result_hash[0..8]) % total_amount_lamports`.
+- Fairness model: backend-assisted commit-reveal + SlotHashes entropy (same as coinflip). NOT Orao VRF — switched during spec pivot.
+- No entry cap per player (whale-friendly by design). Entries field is u32 counter per `PlayerEntry`.
+- Max 64 total entries per round (`MAX_ENTRIES = 64`, `Vec<WeightedEntry>` account size cap). Not 64 players — 64 entries across all players.
+- Countdown: 60 seconds, starts when 2nd distinct wallet joins. Stores both `countdownEndsAtUnix` and precomputed `targetEntropySlot` on-chain.
+- No separate lock transaction to close entries. Countdown close is implicit at `countdownEndsAtUnix`; backend submits one settlement tx after `targetEntropySlot`.
+- `start_spin` instruction is a deprecated compatibility shim — kept for frontend compatibility but performs no state transition (no VRF request).
+- Settlement: backend calls `claim_payout(round_number, secret)` to reveal committed secret and settle. Winner receives payout automatically. Frontend shows progress/verification rather than asking winner to claim in happy path.
+- Fee: 500 bps (5%) flat fee to single treasury via PlatformConfig. Collected at settlement of decisive rounds only.
+- Account design: single round PDA with ordered entry vec. PDA seeds: `["jackpot_round", round_number.to_le_bytes()]` — no tier or amount in seeds.
+- `PlayerProfile` removed (2026-03-12) — no platform CPI for stats. Stats moved off-chain.
+- Spin trigger `start_spin` is permissionless and idempotent — any player can press it after countdown expires. On-chain rejects if already Locked.
+- `timeout_refund` is permissionless after `resolve_deadline`. Aggregates per-player refund totals across all entries. Uses remaining_accounts pattern (one per distinct player).
+- `force_close` is admin-only. Works on any non-terminal phase (Waiting, Active, or Locked). Refunds all players.
+- Visual pulse: CSS-only animation for final 5 seconds of countdown. No on-chain involvement.
+- PDA helpers defined locally in frontend (not imported from `@rng-utopia/game-engine`) to avoid `Buffer` polyfill issues in Vite browser builds.
+- Verification lives in game-engine package (not fairness package) because fairness package is HMAC/crash-specific while VRF verification uses `@solana/web3.js` types.
+
+## Deferred Items
+
+- **FR-8 Audio (all 5 criteria)**: Wheel spin sound, countdown beeps, drum roll, victory fanfare, coin/cash sound — all deferred to a dedicated audio spec covering all games. No target spec exists yet (untracked deferral).
+- **FR-2.5 Audio ticks in countdown**: Same deferral — dedicated audio spec.
+- **Phase C game-engine update**: `lordofrngs.ts` exports not yet updated for round-number-keyed rounds (e.g., `getRoundPda(roundNumber)` without tier, `determineWinnerFromResultHash`). TypeScript compiles but API shape is from the tier-based era.
+- **Phase D frontend wiring (partial)**: `chain.ts` transaction builders, `LordOfRngsContext.tsx` backend integration, and amount-input replacement for tier selectors are incomplete — pending backend fairness integration (Phase G).
+- **Phase E bankrun tests**: Full bankrun suite (>=15 tests) not re-validated against the commit-reveal pivot. 38 tests exist from the VRF era but some may need updates for the new settlement model.
+- **Phase F validation**: Final validation pass (all tests, lint, build, FR acceptance criteria) not completed.
+- **Phase G backend fairness integration**: Lord-specific create/settle/verify flows on top of the backend fairness architecture not yet implemented. Backend needs `create_round` with server co-signer + commitment, and `claim_payout` with revealed secret.
+- **Audio spec tracking**: No target audio spec exists to receive the FR-8 deferrals. Risk of permanent deferral without a tracking ticket.

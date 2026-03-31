@@ -384,3 +384,47 @@ After the spec loop outputs `<promise>DONE</promise>`, `spec-loop.sh` automatica
 2. Writes `docs/specs/{id}/gap-analysis.md` with inventory + audit + recommendations
 3. Annotates FR checkboxes with HTML comment evidence (`<!-- satisfied: ... -->`)
 4. Commits everything together with the completion commit
+
+---
+
+## Implementation Reference
+
+### Backend
+- **Endpoints**: None (infrastructure-only; `getQueueDepth()` is exported but not wired to an HTTP endpoint yet)
+- **DB Tables** (migration `010_event_queue.sql`):
+  - `event_queue` — `id BIGSERIAL PK`, `event_type TEXT NOT NULL`, `payload JSONB NOT NULL`, `status TEXT NOT NULL DEFAULT 'pending'` (CHECK: `pending|processing|completed|failed|dead`), `attempts INT DEFAULT 0`, `max_attempts INT DEFAULT 3`, `scheduled_at TIMESTAMPTZ DEFAULT now()`, `started_at`, `completed_at`, `error TEXT`, `created_at`; partial index `idx_event_queue_poll` on `(scheduled_at) WHERE status = 'pending'`; index `idx_event_queue_status` on `(status, created_at)`
+- **Key Files**:
+  - `backend/services/backend/src/queue/emit-event.ts` — `emitEvent(tx, eventType, payload, options?)` inserts into `event_queue` within a DB transaction for atomic commit with the triggering operation
+  - `backend/services/backend/src/queue/worker.ts` — `createEventWorker(sql, options?)` returns `{ start(), stop(), poll(), isRunning }`. Polls every `pollIntervalMs` (default 1500ms), claims up to 10 events via `UPDATE ... FOR UPDATE SKIP LOCKED`, dispatches to handlers. Exponential backoff: attempt 1 -> 5s, attempt 2 -> 30s, attempt 3+ -> 300s. Dead events logged with `"MANUAL REVIEW NEEDED"` prefix.
+  - `backend/services/backend/src/queue/handler-registry.ts` — `registerHandler(eventType, handler)`, `getHandler(eventType)`, `clearHandlers()`. One handler per event type (no fan-out). Unhandled types marked `dead` immediately.
+  - `backend/services/backend/src/queue/event-types.ts` — `EventTypes` const object with `REFERRAL_CODE_APPLIED`, `REFERRAL_GAME_SETTLED`, `REFERRAL_CLAIM_REQUESTED`; `EventType` union type for compile-time safety
+  - `backend/services/backend/src/queue/health.ts` — `getQueueDepth(sql)` returns `{ pending, processing, dead, completed }` counts
+  - `backend/services/backend/src/queue/index.ts` — barrel re-export of all queue primitives
+  - `backend/services/backend/src/queue/__tests__/queue.test.ts` — unit tests (emitEvent, transactional rollback, handler registry, backoff)
+  - `backend/services/backend/src/queue/__tests__/queue-integration.test.ts` — integration tests (happy path, retry/dead, concurrent SKIP LOCKED safety)
+  - `backend/services/backend/migrations/010_event_queue.sql` — table + indexes + CHECK constraint
+  - `backend/services/backend/src/config.ts` — `EVENT_QUEUE_POLL_MS` env var (default 1500)
+- **Integration Points**:
+  - **Startup**: `index.ts:186-198` registers handlers (currently only `referral.claim_requested` via `createClaimHandler` from spec 300), creates the worker with `config.eventQueuePollMs`, and calls `start()`. Worker logs `"Event queue worker started"` at INFO.
+  - **Settlement (producer)**: `emitEvent()` is designed to be called inside an existing `sql.begin()` transaction so the event is committed atomically with the triggering operation. Currently used by `POST /referral/claim` (in `routes/referral.ts`) to emit `referral.claim_requested`.
+  - **Referral system (spec 300)**: First and currently only consumer. The claim handler (`queue/handlers/referral-claim.ts`) is registered at startup. Future event types (`referral.code_applied`, `referral.game_settled`) are defined but not yet wired to handlers.
+  - **Graceful shutdown**: `stop()` sets `running=false`, clears the poll timeout, and awaits any in-flight poll before resolving.
+
+---
+
+## Key Decisions (from refinement)
+- FR-7 (referral handlers) moved to spec 300 to avoid circular dependency with referral tables
+- Claim handler is a stub in 301 tests; real implementation lives in spec 300
+- Implementation order: 301 ships first, 300 builds on top
+- Visual regression: N/A (backend-only, no UI changes)
+- `postgres.Sql` used as tx type instead of `TransactionSql` (which loses call signatures through `Omit` in TS)
+- Payload cast via `as postgres.JSONValue` (same pattern as `db.ts`)
+- Unix socket connection for Postgres in dev container (TCP `localhost:5432` refused)
+- `clearHandlers()` added to handler registry for test isolation
+- `getQueueDepth()` exported but not yet wired into `/health` HTTP endpoint
+- `stop()` does not return a Promise that awaits in-flight work (safe but not explicitly awaitable)
+
+## Deferred Items
+- FR-5 (Idempotency) — all 3 criteria deferred to spec 300; handler-level responsibility, not queue infrastructure
+- Health endpoint integration for `getQueueDepth()` — not wired into `/health` HTTP response
+- Graceful shutdown await — `stop()` could return `Promise<void>` for production use

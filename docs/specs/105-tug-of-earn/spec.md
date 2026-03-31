@@ -171,3 +171,40 @@ If ANY check fails:
 5. Check again
 
 **Only when ALL checks pass, output:** `<promise>DONE</promise>`
+
+---
+
+## Open Items (from checklist review)
+
+| # | Item | Category | Blocking? |
+|---|------|----------|-----------|
+| 1 | Team assignment algorithm undefined | FR-1 | Yes |
+| 2 | Minimum players per team/round undefined | FR-1 | Yes |
+| 3 | Tap rate limits/anti-bot rules undefined | FR-2 | Yes |
+| 4 | Tap weight rules undefined (equal or variable) | FR-2 | Yes |
+| 5 | Tap-to-chart-movement formula undefined | FR-2 | Yes |
+| 6 | Ghost line determination method undefined | FR-3 | Yes |
+| 7 | Chart data source undefined (synthetic or real) | FR-3 | Yes |
+| 8 | Exact ghost line tie handling undefined | FR-4 | Yes |
+| 9 | Payout distribution among winning team undefined | FR-4 | Yes |
+| 10 | Platform fee inconsistency (2.0-2.2% vs 3%) | Assumption | Yes |
+| 11 | No contract files | Contract | No (deferred) |
+
+### Refinement Carry-Forward (Pivot)
+
+- [ ] Define Tug of Earn proof contract fields for team assignment, tap aggregation output, and commit-reveal verification.
+- [ ] Lock determinism boundary between verifiable on-chain facts and off-chain aggregation outputs.
+- [ ] Specify timeout/refund behavior for missing final aggregates, invalid reveal, and unresolved rounds.
+- [ ] Define replay/idempotency protections for tap/event ingestion and settlement calls.
+- [ ] Add failure-mode acceptance checks for tie outcomes, anti-bot enforcement failures, and late/invalid reveals.
+
+### Checklist Notes
+
+- Source (TUG_OF_EARN.md) is minimal - "Specifications to be defined"
+- 10 blocking items - nearly all mechanics need design from scratch
+- The concept is clear (team tap game, chart vs ghost line) but no formulas or rules defined
+- Key design challenge: making taps feel impactful while preventing bot abuse
+- Ghost line determination is critical to game balance (too easy/hard for either side)
+- Payout distribution within winning team is an important fairness decision (equal split vs proportional to taps)
+- Unique among games: requires real-time tap aggregation infrastructure
+- 4 functional requirements extracted, most with incomplete acceptance criteria

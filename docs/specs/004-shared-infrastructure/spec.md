@@ -17,6 +17,8 @@ Shared Infrastructure defines the common primitives that all game programs depen
 
 This spec formalizes the architecture approved in the pivot doc (`docs/DESIGN_REFERENCE.md`, originally `docs/archive/pivot-doc.md`) and blocks all game implementations.
 
+> **Fairness Model (updated 2026-03-11)**: The primary fairness model for all shipped V1 games is **backend-assisted commit-reveal + SlotHashes entropy** (see `docs/DECISIONS.md` 2026-03-11). VRF integration (Orao) is gated behind a `#[cfg(feature = "orao-vrf")]` feature flag and is available as an optional module for future games, but is not the default architecture. The shared crate's `fairness.rs` module provides commitment verification, SlotHashes entropy reading, and deterministic result derivation as the primary helpers.
+
 ## User Stories
 
 - As a game developer, I want a shared lifecycle state machine so that every game follows the same round phases and invariants without reimplementation.
@@ -119,6 +121,8 @@ Formalize existing fee math as the single path for all fee calculations. No game
 
 ### FR-4: VRF Provider Integration (Orao)
 
+> **Status**: VRF is optional, not default (DECISIONS.md 2026-03-11). Commit-reveal + SlotHashes is the primary model for all shipped games. The `vrf_orao` module is compiled only under `#[cfg(feature = "orao-vrf")]`. Historical acceptance criteria below reflect the original VRF-first implementation (Phases B-C) and remain valid for any future game that opts into the feature.
+
 Integrate **Orao** as the single VRF provider for all games requiring randomness. Uses `orao-solana-vrf` (standard crate, not callback variant). No separate consume/resolve instruction — VRF result is read at claim time.
 
 **Integration Contract (Authoritative Shape):**
@@ -178,7 +182,7 @@ WAITING -> ACTIVE -> LOCKED -> RESOLVING -> SETTLED
 
 ~~Reusable CPI calls from game programs to the platform program for updating player profiles after settlement.~~
 
-**Status**: Removed. `PlayerProfile` and all profile CPI infrastructure deleted. Player stats moved off-chain. Game programs no longer CPI into the platform program for profile updates. `shared/src/cpi.rs` deleted.
+> **Removed**: PlayerProfile was deleted (DECISIONS.md 2026-03-12). Platform CPI is limited to reading PlatformConfig for fees via `shared/src/platform_config.rs` (`read_platform_config`). No write CPI into the platform program exists. `shared/src/cpi.rs` deleted.
 
 ---
 
@@ -221,7 +225,7 @@ WAITING -> ACTIVE -> LOCKED -> RESOLVING -> SETTLED
 | 5 | Timeout refund is permissionless | bankrun test: any signer can trigger after deadline | Test output showing refund by third party |
 | 6 | Pause blocks new rounds | bankrun test: paused game rejects create_round | Test output showing rejection |
 | 7 | Orao request + read-at-claim works | bankrun test (mock-vrf): join requests VRF, claim reads + settles. Plus timeout path. | Test output showing 3-tx flow + audit event emitted |
-| 8 | CPI updates player profile | bankrun test: settlement updates both profiles | Test output showing profile changes |
+| 8 | ~~CPI updates player profile~~ | ~~bankrun test: settlement updates both profiles~~ | ~~Test output showing profile changes~~ | **Removed**: PlayerProfile deleted (DECISIONS.md 2026-03-12). Platform CPI limited to reading PlatformConfig for fees. |
 
 ---
 
@@ -313,3 +317,46 @@ After the spec loop outputs `<promise>DONE</promise>`, `spec-loop.sh` automatica
 2. Writes `docs/specs/004-shared-infrastructure/gap-analysis.md` with inventory + audit + recommendations
 3. Annotates FR checkboxes with HTML comment evidence (`<!-- satisfied: ... -->`)
 4. Commits everything together with the completion commit
+
+---
+
+## Implementation Reference
+
+Actual shared crate modules as of the current implementation (`solana/shared/src/`):
+
+| Module | File | Exports | Notes |
+|--------|------|---------|-------|
+| `commit_reveal` | `solana/shared/src/commit_reveal.rs` | `store_commitment()`, `verify_reveal()`, `CommitRevealError` | SHA256 commitment verification primitive |
+| `constants` | `solana/shared/src/constants.rs` | `SIDE_HEADS`, `SIDE_TAILS`, `LOCK_TIMEOUT_SECONDS`, `from_randomness()`, `is_valid_side()` | Coinflip-specific constants (legacy u8 phase constants retained for compat) |
+| `escrow` | `solana/shared/src/escrow.rs` | `transfer_lamports_to_pda()`, `transfer_lamports_from_pda()`, `close_pda()`, `EscrowError` | Raw lamport transfers: system CPI deposit, direct manipulation payout/refund, PDA close+drain |
+| `fairness` | `solana/shared/src/fairness.rs` | `verify_commitment()`, `derive_result()`, `read_slot_hash_entropy()`, `read_mock_entropy()`, `ALGORITHM_VERSION`, `ENTROPY_SLOT_OFFSET`, `SLOT_HASHES_ID`, `FairnessError` | **Primary fairness module**: SlotHashes entropy reading (O(1) lookup + scan fallback), deterministic result derivation `SHA256(secret \|\| entropy \|\| pda \|\| algo_ver)`, commitment verification |
+| `fees` | `solana/shared/src/fees.rs` | `calculate_fee()`, `calculate_net_payout()`, `DEFAULT_FEE_BPS`, `MAX_FEE_BPS` | Integer-only fee math, 500 bps default, 1000 bps compile-time safety cap |
+| `lifecycle` | `solana/shared/src/lifecycle.rs` | `RoundPhase` enum, `RoundTimestamps`, `transition()`, `LifecycleError` | 6-phase state machine (Waiting/Active/Locked/Resolving/Settled/Refunded) with validated transitions |
+| `pause` | `solana/shared/src/pause.rs` | `check_not_paused()`, `PauseError` | Global + per-game pause validation |
+| `platform_config` | `solana/shared/src/platform_config.rs` | `read_platform_config()`, `PLATFORM_PROGRAM_ID`, `PlatformConfigError` | Zero-CPI read of PlatformConfig account (fee_bps + treasury) via raw data parsing with owner validation |
+| `timeout` | `solana/shared/src/timeout.rs` | `is_expired()`, `enforce_not_expired()`, `DEFAULT_RESOLVE_TIMEOUT_SECONDS`, `COINFLIP_RESOLVE_TIMEOUT_SECONDS`, `TimeoutError` | Deadline enforcement for refund liveness |
+| `wager` | `solana/shared/src/wager.rs` | `validate_wager()`, `MIN_WAGER_LAMPORTS`, `MAX_WAGER_LAMPORTS`, `WagerError` | Wager bounds: 0.001 SOL min, 100 SOL max |
+| `vrf_orao` | `solana/shared/src/vrf_orao.rs` | Orao VRF request/read helpers | **Feature-gated**: `#[cfg(feature = "orao-vrf")]` only. Not compiled by default. |
+
+---
+
+## Key Decisions (from refinement)
+
+- **Orao VRF model**: Request-then-read (not callback). Game requests randomness at join, Orao fulfills to PDA, game reads at claim time (3-tx flow: create -> join+request -> claim+read). Later superseded by backend-assisted commit-reveal for V1 (specs 005/006).
+- **Coinflip rewrite scope**: On-chain + IDL sync only. Game-engine + frontend wiring handled by spec 001 separately.
+- **VRF testing approach**: `mock-vrf` feature flag for bankrun tests + devnet smoke tests separately.
+- **Shared crate pattern**: Pure Rust modules with types, validation functions, and helpers. No Anchor `#[account]` structs (those stay per-program). Games import and call shared helpers. Consistency via compile-time shared crate, not CPI at runtime.
+- **Coinflip phase migration**: WAITING(0)/LOCKED(1)/SETTLED(2)/CANCELLED(3) u8 constants replaced by shared `RoundPhase` enum (Waiting, Active, Locked, Resolving, Settled, Refunded).
+- **Claim-based payout**: 3-tx pattern for VRF games. Claim reads Orao randomness, derives winner, transfers funds in one tx. No separate settle/resolve instruction. Later replaced by backend-assisted settle for V1.
+- **Fee model**: Moved from 200/70/30 bps split (revenue/rakeback/chest) to 500 bps flat fee to single treasury via PlatformConfig. Admin-updatable. MAX_FEE_BPS=1000 compile-time safety cap.
+- **MagicBlock VRF dropped**: All MagicBlock and ephemeral-vrf-sdk references removed. Orao selected as VRF provider (documented in DECISIONS.md).
+- **PlayerProfile and CPI removed**: FR-6 (Platform CPI Helpers) removed entirely. Player stats moved off-chain. Game programs no longer CPI into the platform program for profile updates. `shared/src/cpi.rs` deleted.
+- **No visual changes**: Spec is backend/on-chain only -- no visual regression impact.
+
+## Deferred Items
+
+- **Commit-reveal failure -> REFUNDED transition (FR-2 AC-4)**: Module provides the verification primitive; transition-to-REFUNDED logic belongs in the consuming game's handler. Deferred until 002-crash (first commit-reveal consumer, Draft status).
+- **Phase transition events (G-2)**: Only MatchSettled emitted on claim. Create/join/cancel/timeout do not emit Anchor events. Frontend relies on account polling. Carried forward to 003-platform-core.
+- **`settled_at` timestamp (G-3)**: CoinflipMatch lacks settled_at field. PDA closes after claim so the field would be unreadable on-chain. The tx timestamp on MatchSettled event serves as proxy. No action for V1.
+- **Game discriminator in CPI (G-4)**: CPI helper and platform `update_player_profile` lacked a game type discriminator. PlayerProfile stats were aggregated without per-game attribution. Became moot when PlayerProfile was removed entirely. Would need to be addressed if per-game stats tracking is re-added.
+- **Phase D: Hybrid Fairness Realignment**: Rewriting shared infrastructure framing and lifecycle guidance for the backend-assisted commit-reveal model (specs 005/006). Unchecked items remain in implementation checklist.

@@ -15,6 +15,11 @@ export SSH_AUTH_SOCK=""
 EOF
 fi
 
+# Enforce minimum package release age for pnpm/npm installs.
+if ! grep -q "^minimum-release-age=10080$" "${HOME}/.npmrc" 2>/dev/null; then
+  echo "minimum-release-age=10080" >> "${HOME}/.npmrc"
+fi
+
 # ── Toolchain verification ──
 echo ""
 echo "Core toolchain:"

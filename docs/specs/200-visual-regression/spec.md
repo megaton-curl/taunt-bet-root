@@ -203,3 +203,21 @@ After the spec loop outputs `<promise>DONE</promise>`, `spec-loop.sh` automatica
 2. Writes `docs/specs/{id}/gap-analysis.md` with inventory + audit + recommendations
 3. Annotates FR checkboxes with HTML comment evidence (`<!-- satisfied: ... -->`)
 4. Commits everything together with the completion commit
+
+---
+
+## Key Decisions (from refinement)
+- Playwright location: `apps/platform/` (config + tests scoped to platform app)
+- Font handling: wait for `document.fonts.ready` in test fixture (no font bundling)
+- State variants: connected/disconnected wallet states only; complex coinflip game states deferred
+- Turbo integration: `test:visual` task added to `turbo.json` + root `package.json` with `cache: false`
+- Viewport updated from 1280x720 to 1280x1080 to accommodate central container with `overflow: hidden`
+- Diff threshold set to `maxDiffPixelRatio: 0.015` (1.5%) for anti-aliasing stability; spec example was 0.1%
+- Animation handling: inject CSS to disable all animations/transitions (`animation-duration: 0s !important`) plus SVG SMIL pause
+- Determinism: seeded Mulberry32 PRNG replacing `Math.random` + frozen `Date.now` + paused SVG animations
+- Mobile viewport baselines deferred — desktop 1280x1080 only for V1
+- Full verify blocked by pre-existing `vite/client` typecheck errors in 7 unrelated packages (not caused by this spec)
+
+## Deferred Items
+- Complex coinflip game states (empty lobby, lobby with matches, active match waiting/win/loss) — requires mock data seeding infrastructure; no target spec created yet
+- Mobile viewport baselines — deferred to post-V1

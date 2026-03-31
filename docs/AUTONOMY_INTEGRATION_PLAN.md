@@ -1,4 +1,4 @@
-# Autonomy Integration Plan (RNG Utopia)
+# Autonomy Integration Plan (Taunt Bet)
 
 Plan to merge RNG Utopia governance with autonomous execution while preserving existing project files, paths, and conventions.
 

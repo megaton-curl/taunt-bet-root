@@ -172,3 +172,37 @@ If ANY check fails:
 5. Check again
 
 **Only when ALL checks pass, output:** `<promise>DONE</promise>`
+
+---
+
+## Open Items (from checklist review)
+
+| # | Item | Category | Blocking? |
+|---|------|----------|-----------|
+| 1 | Monthly wagering threshold amount undefined | FR-1 | Yes |
+| 2 | Threshold tracking method undefined | FR-1 | Yes |
+| 3 | Threshold reset cadence undefined | FR-1 | Yes |
+| 4 | Minimum players per spin undefined (9 assumed) | FR-2 | Yes |
+| 5 | Handling fewer than 9 players undefined | FR-2 | Yes |
+| 6 | Position assignment method undefined (VRF assumed) | FR-2 | Yes |
+| 7 | Multi-position per player rules undefined | FR-3 | No |
+| 8 | Results history undefined | FR-4 | No |
+| 9 | Platform fee inconsistency (2.0-2.2% vs 3%) | Assumption | Yes |
+| 10 | No contract files | Contract | No (deferred) |
+
+### Refinement Carry-Forward (Pivot)
+
+- [ ] Lock Slots fairness proof contract fields and verification path for selected VRF provider.
+- [ ] Confirm determinism boundary: seat assignment and payout distribution derive only from verified randomness and on-chain rules.
+- [ ] Specify timeout/refund behavior for underfilled lobbies and unresolved rounds.
+- [ ] Define replay/idempotency protections for seat entry, lock, resolve, and payout distribution.
+- [ ] Add failure-mode acceptance checks for fewer-than-target players, duplicate seat claims, and VRF delays/failures.
+
+### Checklist Notes
+
+- Source (SLOTS_UTOPIA.md) is minimal - "Specifications to be defined"
+- Payout distribution IS defined clearly (50/8.5/4 split) - this is the most concrete element
+- Loyalty gate adds dependency on XP/wagering tracking system
+- Core question: what happens with fewer than 9 players? This is the central design challenge
+- 6 blocking items focused on player count and loyalty mechanics
+- 4 functional requirements extracted

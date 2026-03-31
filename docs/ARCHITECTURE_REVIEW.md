@@ -4,6 +4,8 @@
 **Scope**: Full codebase — Solana programs, frontend, backend, infra, monorepo
 **Method**: Deep read of source, not just file names
 
+> **Note (2026-03-30)**: Written pre-split. Frontend assessment applies to the old monorepo, not current structure (frontend is now a separate repo). Turbo was also removed post-split.
+
 ---
 
 ## TL;DR

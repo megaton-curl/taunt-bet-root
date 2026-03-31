@@ -284,3 +284,73 @@ If ANY check fails:
 5. Check again
 
 **Only when ALL checks pass, output:** `<promise>DONE</promise>`
+
+---
+
+## Open Items (from checklist review)
+
+| # | Item | Category | Blocking? |
+|---|------|----------|-----------|
+| 1 | Contract files not identified (frontend mocks, on-chain interfaces) | Contract | Yes |
+| 2 | Platform fee inconsistency: game docs use 3%, PLATFORM.md says 2.0-2.2% | Assumption | Yes |
+| 3 | Real-time sync approach undecided (WebSocket vs polling) | Dependency | Yes |
+| 4 | Client-server sync for cash-out timing fairness | Dependency | Yes |
+| 5 | Round synchronization approach undecided (DB-backed vs computed) | Dependency | No |
+| 6 | Acceptable latency for cash-out registration | Edge Case | No |
+| 7 | Network jitter handling / latency compensation for cash-outs | Edge Case | No |
+| 8 | Edge case: all players in a tier disconnect mid-round | Edge Case | No |
+| 9 | Edge case: player attempts cash-out at exact crash moment (race condition) | Edge Case | No |
+| 10 | HMAC-SHA256 crash point leaks implementation detail (spec says "cryptographic function" is sufficient) | Content Quality | No |
+
+### Refinement Carry-Forward (Pivot)
+
+- [ ] Define Crash fairness proof contract fields (seed/proof envelope, result payload, proof versioning).
+- [ ] Lock determinism boundary between on-chain recomputation and off-chain engine reporting.
+- [ ] Specify timeout/refund trigger behavior, deadline source, and caller expectations for unresolved rounds.
+- [ ] Define replay/idempotency protections for cash-out actions and settle calls.
+- [ ] Add failure-mode acceptance checks for late reveals, invalid proofs, and race conditions around crash boundary.
+
+### Checklist Notes
+
+- Source material (CRASH.md) is very detailed for P2P mode; Classic house mode explicitly deferred
+- More blocking items than Coinflip due to real-time infrastructure decisions
+- 11 functional requirements extracted (most complex game spec)
+- Crash point generation uses HMAC-SHA256 (different verification path than Coinflip's VRF)
+- Boost mechanic adds complexity: needs separate validation
+- The CRASH.md Technical Research Notes section documents several open architecture decisions
+- Item #10: spec references HMAC-SHA256 directly - consider abstracting to "deterministic cryptographic function" for purity, but retained for precision since it's specified in source
+
+---
+
+## Open Items (from checklist review)
+
+| # | Item | Category | Blocking? |
+|---|------|----------|-----------|
+| 1 | Contract files not identified (frontend mocks, on-chain interfaces) | Contract | Yes |
+| 2 | Platform fee inconsistency: game docs use 3%, PLATFORM.md says 2.0-2.2% | Assumption | Yes |
+| 3 | Real-time sync approach undecided (WebSocket vs polling) | Dependency | Yes |
+| 4 | Client-server sync for cash-out timing fairness | Dependency | Yes |
+| 5 | Round synchronization approach undecided (DB-backed vs computed) | Dependency | No |
+| 6 | Acceptable latency for cash-out registration | Edge Case | No |
+| 7 | Network jitter handling / latency compensation for cash-outs | Edge Case | No |
+| 8 | Edge case: all players in a tier disconnect mid-round | Edge Case | No |
+| 9 | Edge case: player attempts cash-out at exact crash moment (race condition) | Edge Case | No |
+| 10 | HMAC-SHA256 crash point leaks implementation detail (spec says "cryptographic function" is sufficient) | Content Quality | No |
+
+### Refinement Carry-Forward (Pivot)
+
+- [ ] Define Crash fairness proof contract fields (seed/proof envelope, result payload, proof versioning).
+- [ ] Lock determinism boundary between on-chain recomputation and off-chain engine reporting.
+- [ ] Specify timeout/refund trigger behavior, deadline source, and caller expectations for unresolved rounds.
+- [ ] Define replay/idempotency protections for cash-out actions and settle calls.
+- [ ] Add failure-mode acceptance checks for late reveals, invalid proofs, and race conditions around crash boundary.
+
+### Notes (from checklist)
+
+- Source material (CRASH.md) is very detailed for P2P mode; Classic house mode explicitly deferred
+- More blocking items than Coinflip due to real-time infrastructure decisions
+- 11 functional requirements extracted (most complex game spec)
+- Crash point generation uses HMAC-SHA256 (different verification path than Coinflip's VRF)
+- Boost mechanic adds complexity: needs separate validation
+- The CRASH.md Technical Research Notes section documents several open architecture decisions
+- Item #10: spec references HMAC-SHA256 directly - consider abstracting to "deterministic cryptographic function" for purity, but retained for precision since it's specified in source

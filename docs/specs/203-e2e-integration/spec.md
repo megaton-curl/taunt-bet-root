@@ -244,3 +244,24 @@ After the spec loop outputs `<promise>DONE</promise>`, `spec-loop.sh` automatica
 2. Writes `docs/specs/{id}/gap-analysis.md` with inventory + audit + recommendations
 3. Annotates FR checkboxes with HTML comment evidence (`<!-- satisfied: ... -->`)
 4. Commits everything together with the completion commit
+
+---
+
+## Key Decisions (from refinement)
+- Two distinct suites: local deterministic (`pnpm test:e2e`) and devnet real backend (`pnpm test:e2e:devnet`)
+- Local suite uses `solana-test-validator` with programs preloaded via `--bpf-program` at genesis (faster than post-start deploy)
+- Deterministic keypairs from fixed seeds (`0xaa` and `0xbb` x32) for reproducibility
+- Dual-browser-context fixture for two-player simulation with isolated storage/session
+- Mock VRF resolution via pre-loaded Orao accounts at genesis (`--account` in bootstrap)
+- Devnet suite uses separate Playwright config (port 3003, 120s timeout for real VRF latency)
+- Devnet env validated in two phases: sync env var check + async deployment verification
+- `io_uring` required by Solana 3.x test-validator; devcontainer uses `seccomp=unconfined`
+- CSS-class selectors used (no data-testid needed) matching existing component markup
+- Local suite also needs to boot the fairness backend + DB (carry-forward, not yet done)
+- Local VRF shortcut needs replacement with backend-backed create/settle flow (carry-forward)
+- CI trigger policy for devnet suite (nightly vs pre-release vs manual) left as open process decision
+
+## Deferred Items
+- Local fairness backend boot as part of `pnpm test:e2e` stack (active carry-forward)
+- Replace local VRF-resolution shortcut with backend-backed create -> join -> auto-settle -> verify coverage (active carry-forward)
+- CI trigger policy for devnet suite needs to be decided and documented

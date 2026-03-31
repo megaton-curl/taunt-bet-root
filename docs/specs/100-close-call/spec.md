@@ -313,3 +313,58 @@ If ANY check fails:
 5. Check again
 
 **Only when ALL checks pass, output:** `<promise>DONE</promise>`
+
+---
+
+## Implementation Reference
+
+### On-Chain (Solana)
+- **Program ID**: `594DD86FCyKirp4m7R9EWwUgZ9A6VdipiCDS2HGHHgwY`
+- **PDA Seeds**:
+  - `CloseCallConfig`: `["closecall_config"]`
+  - `CloseCallRound`: `["cc_round", minute_ts.to_le_bytes()]`
+- **Accounts**:
+  - `CloseCallConfig` — authority, pyth_feed_id, betting_window_secs, max_entries_per_side, paused, bump
+  - `CloseCallRound` — minute_ts, server, phase, green_entries (Vec\<BetEntry\>), red_entries (Vec\<BetEntry\>), green_pool, red_pool, open_price, open_price_expo, close_price, created_at, betting_ends_at, resolve_deadline, outcome, total_fee, bump
+- **Instructions**: `initialize_config`, `bet` (unified create-or-join), `settle_round`, `timeout_refund`, `force_close`, `set_paused`
+
+### Backend
+- **Endpoints** (prefix `/closecall`):
+  - `GET /current-round` — active round + pool state (reads on-chain PDA directly)
+  - `GET /history` — last N settled/refunded rounds from DB
+  - `GET /candles` — last N minute-boundary candles from `closecall_candles` table
+  - `POST /bet` — co-sign a bet tx (server partially signs, returns serialized tx)
+  - `GET /fairness/rounds/by-id/:matchId` — supports closecall rounds (numeric minuteTs as matchId)
+- **DB Tables**:
+  - `closecall_rounds` — round_id, pda, server_key, phase, open_price, open_price_expo, close_price, outcome, green_pool, red_pool, total_fee, green_entries (JSONB), red_entries (JSONB), settle_tx, created_at, settled_at
+  - `closecall_candles` — minute_ts, price_human (boundary prices for candle construction)
+- **Settlement**: `CloseCallClockWorker` runs on minute-boundary intervals. Each tick: (1) settles previous round by reading Pyth close price and submitting `settle_round` tx, (2) creates new round with open price from Pyth. Server pays rent on creation, gets it back on close. Timeout refund is permissionless after `resolve_deadline`.
+
+---
+
+## Key Decisions (from refinement)
+
+- Oracle-resolved via Pyth Network — no commit-reveal, no server secret. Simpler than coinflip/lord fairness model.
+- Strict price comparison (close > open = GREEN, close < open = RED). No DOJI threshold — exact equality triggers full refund.
+- 2 PDA architecture: `CloseCallConfig` (global) + `CloseCallRound` (per-round). 6 instructions total.
+- Pari-mutuel model: losers' pool distributed proportionally to winners. Single winner-takes-all is not possible (always multi-winner per side).
+- Fee: 500 bps (5%) flat fee to single treasury via PlatformConfig, collected only on decisive rounds.
+- Auto-payout via remaining accounts pattern — no claim instruction, winners paid in settlement tx.
+- Separate `closecall_rounds` DB table (not reusing commit-reveal `rounds` table) because schema differs: no secret/commitment fields, stores oracle prices, JSONB entry arrays.
+- Backend clock worker creates and settles rounds at minute boundaries (+2s offset for candle close). Rounds are not player-initiated.
+- Pyth BTC/USD push oracle account (`4cSM2e6rvbGQUFiJbqytoVMi5GgghSMr8LwVrT9VPSPo`) read directly on-chain via manual Borsh parser (`pyth.rs`) — no Pyth SDK dependency.
+- Max 32 entries per side (64 total per round) to fit auto-payout in a single transaction's compute budget.
+- Betting window: 30s (configurable on-chain via `CloseCallConfig.betting_window_secs`).
+- Local E2E tests not feasible — Pyth oracle requires real devnet deployment (no localnet Pyth stack). Devnet E2E covers integration.
+- Removed from original concept: DOJI threshold, carryover mechanics, audio, provably fair section (replaced by oracle transparency).
+- `PriceFeedProvider` placed at app root (not inside `CloseCallProvider`) to avoid WebSocket reconnection on navigation and to support future features needing Pyth data.
+- PDA helpers defined locally in frontend `CloseCallContext.tsx` (not imported from `@rng-utopia/game-engine`) to avoid `Buffer` polyfill issues in Vite browser builds.
+
+## Deferred Items
+
+- **FR-2 one-sided pool UX message**: `PoolDistribution.tsx` shows pool amounts but no messaging when all bets are on one side. Low severity — the refund behavior works correctly, just no pre-emptive UI warning.
+- **FR-7 countdown timer**: `ActiveBetView.tsx` has working countdown code (`Math.ceil(bettingTimeLeft / 1000)s left`) but the component is never rendered in `CloseCallPage.tsx`. Moderate severity — players cannot see betting window remaining.
+- **`ActiveBetView` dead code**: Component is exported but never rendered. Should be integrated or removed.
+- **Future asset support**: Only BTC/USD at launch. SOL/USD, ETH/USD not scoped.
+- **Audio**: No audio in Close Call scope. Same deferral as coinflip and lord-of-rngs — dedicated audio spec planned.
+- **Pyth devnet staleness**: Devnet push oracle updates every ~5 minutes (vs real-time on mainnet). `MAX_OPEN_PRICE_AGE_SECS=60` causes frequent `PriceTooStale` failures. Production clock worker may need Pyth Hermes to push fresh prices before creating rounds.

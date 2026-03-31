@@ -237,3 +237,47 @@ Rate limiting works with both JWT-authenticated and pre-auth routes.
 | `CHALLENGE_TTL_SECONDS` | `300` | 5 min challenge window |
 | `ACCESS_TOKEN_TTL_SECONDS` | `86400` | 24h access token |
 | `REFRESH_TOKEN_TTL_DAYS` | `14` | 14d refresh token |
+
+---
+
+## Implementation Reference
+
+### Backend
+
+- **Endpoints**:
+  - `POST /auth/challenge` -- accepts `{ wallet }`, returns `{ nonce, message, expiresAt }`
+  - `POST /auth/verify` -- accepts `{ nonce, wallet, signature }`, verifies Ed25519 sig, returns `{ accessToken, accessExpiresAt, refreshToken, refreshExpiresAt }`
+  - `POST /auth/refresh` -- accepts `{ refreshToken }`, rotates token, returns new access + refresh tokens
+  - `POST /auth/logout` -- accepts `{ refreshToken }`, revokes it, returns 204
+- **DB Tables**:
+  - `auth_challenges` (PK: `nonce`) -- single-use challenge nonces. Key columns: `wallet`, `cluster`, `message`, `expires_at`, `used`
+  - `refresh_tokens` (PK: `id`) -- hashed refresh tokens with family-based rotation. Key columns: `wallet`, `token_hash` (BYTEA, UNIQUE), `family_id`, `expires_at`, `revoked`
+- **Middleware**:
+  - JWT middleware on `POST /fairness/*` -- verifies HS256 Bearer token, sets `c.set("wallet", payload.sub)`
+  - JWT middleware on `/profile/*` and `/referral/*` -- `requireAllMethods: true` (GET and POST)
+  - JWT middleware on `POST /closecall/bet` -- same as fairness
+  - Rate limiting on `/auth/*` -- keyed by IP (pre-auth, no wallet available)
+- **Key Files**:
+  - `services/backend/src/routes/auth.ts` -- challenge/verify/refresh/logout handlers
+  - `services/backend/src/middleware/jwt-auth.ts` -- `createJwtAuthMiddleware()` (HS256 via `jose`)
+  - `services/backend/src/middleware/auth.ts` -- legacy Ed25519 per-request auth (replaced, kept for reference)
+  - `services/backend/src/middleware/rate-limit.ts` -- context-aware rate limiting (JWT wallet or IP fallback)
+  - `services/backend/src/auth-db.ts` -- DB operations for challenges + refresh tokens
+  - `services/backend/migrations/002_auth_sessions.sql` -- auth_challenges + refresh_tokens tables
+
+---
+
+## Key Decisions (from refinement)
+
+- Hard switch from per-request Ed25519 signing — no backward compatibility needed (no public users yet)
+- JWT secret defaults to first 32 bytes of `SERVER_KEYPAIR` but explicit `JWT_SECRET` recommended for production
+- Challenge nonces are single-use, consumed atomically (`UPDATE ... SET used=TRUE WHERE used=FALSE`)
+- Refresh token rotation with family-based reuse detection — if a revoked token is reused, the entire family is revoked
+- Access token stored in memory only (not localStorage); refresh token persisted in localStorage for session restoration
+- DB-dependent tests require PostgreSQL (pass in CI, skip in devcontainer without DB)
+- All acceptance criteria satisfied across 7 FRs; DB-free tests: 27/27 pass
+
+## Deferred Items
+
+- **E2E coverage**: Auth flow requires wallet interaction; covered by manual smoke test rather than automated E2E
+- **Visual regression**: No UI component changes in this spec, only data flow changes

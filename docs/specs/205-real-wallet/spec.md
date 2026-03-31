@@ -275,3 +275,22 @@ After the spec loop outputs `<promise>DONE</promise>`, `spec-loop.sh` automatica
 2. Writes `docs/specs/{id}/gap-analysis.md` with inventory + audit + recommendations
 3. Annotates FR checkboxes with HTML comment evidence (`<!-- satisfied: ... -->`)
 4. Commits everything together with the completion commit
+
+---
+
+## Key Decisions (from refinement)
+- Library: Unified Wallet Kit (`@jup-ag/wallet-adapter`) with `wallets: []` for Wallet Standard auto-detection
+- RPG wallet icon preserved in bottom-right corner; connect triggers Unified Wallet modal via `setShowModal(true)`
+- `ConnectionProvider` shared across all wallet modes (mock, test, real) at `WalletProvider.tsx` level
+- `CoinflipContext` and `useBalance` refactored to use shared `useConnection()` instead of per-context `Connection` instances
+- `.env.example` mismatch resolved: standardized on `VITE_RPC_URL` (was `VITE_SOLANA_RPC_URL`)
+- Wallet adapter modal styled with `theme: 'dark'` to match medieval theme
+- Mode priority for WalletProvider: mock > test > real (based on env vars)
+- TestWalletWrapper reads seed from `window.__TEST_WALLET_SEED__` for E2E keypair injection
+- Full coinflip lifecycle E2E deferred to 001-coinflip (this spec validates wallet signing infrastructure only)
+- Existing scaffold code validated and fixed rather than built from scratch
+
+## Deferred Items
+- Full coinflip lifecycle testing (create -> join -> resolve -> claim) — deferred to 001-coinflip spec
+- Privy/embedded wallets — deferred to V1.5 per DECISIONS.md
+- Backend-partially-signed create transaction flow — FR-3 criterion updated for backend co-signed creates

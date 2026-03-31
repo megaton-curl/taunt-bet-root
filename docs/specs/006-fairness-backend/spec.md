@@ -536,3 +536,68 @@ After the spec loop outputs `<promise>DONE</promise>`, `spec-loop.sh` automatica
 2. Writes `docs/specs/{id}/gap-analysis.md` with inventory + audit + recommendations
 3. Annotates FR checkboxes with HTML comment evidence (`<!-- satisfied: ... -->`)
 4. Commits everything together with the completion commit
+
+---
+
+## Implementation Reference
+
+### Backend
+
+- **Endpoints**:
+  - `POST /fairness/coinflip/create` -- generate secret, build co-signed create_match tx (JWT auth)
+  - `POST /fairness/lord/create` -- generate secret, build co-signed create_lord_round tx (JWT auth)
+  - `GET  /fairness/lord/current` -- active Lord round with on-chain enrichment
+  - `GET  /fairness/rounds/:pda` -- round lifecycle + post-settlement verification payload
+  - `GET  /fairness/rounds/by-id/:matchId` -- lookup by match_id (coinflip/lord hex or closecall numeric)
+  - `GET  /fairness/rounds/history?game=<game>&limit=<n>` -- recent settled rounds
+  - `POST /closecall/bet` -- co-sign a Close Call bet tx (JWT auth)
+  - `GET  /closecall/current-round` -- active round from on-chain
+  - `GET  /closecall/history?limit=<n>` -- last N settled/refunded rounds
+  - `GET  /closecall/candles?limit=<n>` -- minute-boundary BTC price candles
+- **DB Tables**:
+  - `rounds` (PK: `pda`) -- commit-reveal round state for coinflip + lord. Key columns: `game`, `creator`, `secret`, `commitment`, `amount_lamports`, `side`, `match_id`, `phase`, `target_slot`, `settle_tx`, `result_hash`, `result_side`, `winner`, `entries`
+  - `closecall_rounds` (PK: `round_id`) -- pari-mutuel rounds. Key columns: `pda`, `phase`, `open_price`, `close_price`, `outcome`, `green_pool`, `red_pool`, `green_entries`, `red_entries`, `settle_tx`
+  - `operator_events` (PK: `id`) -- append-only audit trail. Key columns: `pda`, `event_type`, `payload`
+  - `closecall_candles` (PK: `minute_ts`) -- cached Hermes BTC boundary prices
+- **Key Files**:
+  - `services/backend/src/routes/create.ts` -- coinflip create endpoint
+  - `services/backend/src/routes/lord-create.ts` -- lord create + current round endpoints
+  - `services/backend/src/routes/rounds.ts` -- round verification/lookup endpoints
+  - `services/backend/src/routes/closecall.ts` -- Close Call bet + read endpoints
+  - `services/backend/src/worker/settlement.ts` -- poll-based settlement worker (discovers locked rounds)
+  - `services/backend/src/worker/settle-tx.ts` -- settlement tx builder + submission (coinflip `settleMatch`, lord `settleLordRound`, closecall ix builders)
+  - `services/backend/src/worker/pda-watcher.ts` -- WebSocket PDA subscription for instant join/lock detection
+  - `services/backend/src/worker/closecall-clock.ts` -- minute-boundary price capture + Close Call settlement
+  - `services/backend/src/worker/retry.ts` -- retry logic for transient settlement failures
+  - `packages/fairness/src/commitment.ts` -- `computeCommitment()`, `verifyCommitment()` (SHA-256)
+  - `packages/fairness/src/verification.ts` -- `verifyRound()` full fairness verification
+  - `services/backend/migrations/001_init.sql` -- rounds + operator_events tables
+  - `services/backend/migrations/005_closecall_rounds.sql` -- closecall_rounds table
+  - `services/backend/migrations/007_round_entries.sql` -- entries JSONB column on rounds
+
+---
+
+## Key Decisions (from refinement)
+
+- HTTP framework: **Hono** (lightweight, TypeScript-first, modern)
+- Postgres dev setup: **Devcontainer feature** (`ghcr.io/devcontainers/features/postgresql:1`)
+- Phase model: **Simplified** — `created -> locked -> settling -> settled | expired`. Dropped `tx_sent` and `on_chain` (backend can't observe these; worker discovers matches via polling)
+- Entropy: **Single-step settle** against current program. Mock entropy for bankrun tests, SlotHashes sysvar address for production (configurable via `ENTROPY_ACCOUNT` env var). Settlement targets <10s, well within ~200s SlotHashes window
+- Timeout: **300s** (spec 005 update required). If backend is down, no new games can start (server co-sign), so timeout refund returns all funds
+- Auth switched from per-request Ed25519 signatures to JWT Bearer tokens (see spec 007)
+- All 43 acceptance criteria across 7 FRs satisfied with codebase evidence (gap analysis found zero gaps)
+- 39 tests total: 11 unit (fairness), 8 unit (auth), 7 unit (rate-limit), 4 integration (full lifecycle), 9 HTTP endpoint tests
+
+## Deferred Items
+
+- **Privileged historical entropy submission**: Allow backend to submit historical slot hash and settle matches that missed the ~200s SlotHashes window. Requires on-chain trusted caller + slot hash verification
+- **Multi-game support** (Crash, Lord of RNGs, Slots): Prove the model on coinflip first; each game has different entropy capture timing
+- **Key rotation / split authorities**: Single keypair fine for MVP; add when operational maturity requires it
+- **WebSocket push for settlement notifications**: Frontend already polls on-chain state; WS is a UX optimization
+- **Redis-backed rate limiting**: In-memory sufficient until horizontal scaling needed
+- **Batch settlement** (multiple matches per tx): Premature optimization; single-match settlement simpler to debug
+- **Verification page / UI**: Endpoint exists; standalone verification UI is a frontend concern
+- **Automated server keypair funding**: Manual top-up for MVP; automate when tx volume justifies it
+- **Horizontal scaling / multiple workers**: Single process handles expected MVP load
+- **Event-driven settlement** (geyser/websocket): Polling simpler and sufficient; switch if latency budget tightens
+- **Metrics endpoint** (Prometheus): Structured logs + operator_events table sufficient for MVP observability

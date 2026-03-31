@@ -1,9 +1,0 @@
-**Iteration 3 complete.** Implemented the `resolve_match` handler in `solana/programs/coinflip/src/instructions/resolve_match.rs`:
-
-- **Phase check**: Requires `phase == PHASE_LOCKED`, otherwise `InvalidPhase` (6102)
-- **Oracle check**: Requires `signer == config.oracle_authority`, otherwise `UnauthorizedOracle` (6105)
-- **Result derivation**: Uses `shared::constants::from_randomness(randomness[0])` — even byte → HEADS (0), odd → TAILS (1)
-- **Winner determination**: If `result == creator_side` → creator wins, else opponent wins
-- **State update**: Sets `result`, `winner`, and `phase = PHASE_SETTLED`
-
-All 5 resolve_match bankrun tests pass. 9 remaining failures are pre-existing TDD stubs for later iterations (claim_payout, cancel_match, full lifecycle).

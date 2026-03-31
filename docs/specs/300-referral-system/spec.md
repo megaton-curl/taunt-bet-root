@@ -712,3 +712,59 @@ After the spec loop outputs `<promise>DONE</promise>`, `spec-loop.sh` automatica
 2. Writes `docs/specs/{id}/gap-analysis.md` with inventory + audit + recommendations
 3. Annotates FR checkboxes with HTML comment evidence (`<!-- satisfied: ... -->`)
 4. Commits everything together with the completion commit
+
+---
+
+## Implementation Reference
+
+### Backend
+- **Endpoints** (all JWT-authenticated, mounted at `/referral`):
+  - `POST /referral/code` — set player's referral code (one-time, permanent)
+  - `GET  /referral/code` — get player's current referral code
+  - `POST /referral/apply` — link authenticated player to a referrer via code
+  - `GET  /referral/referrer` — check if player has a referrer (returns referrer wallet + code)
+  - `GET  /referral/stats` — referral summary (referred count, active count, volume, earned, rebate, pending)
+  - `GET  /referral/referrals` — list referred users (last 10, newest first)
+  - `GET  /referral/earnings` — paginated per-game earnings log (`?page=&limit=`)
+  - `POST /referral/claim` — request async payout of pending earnings (returns 202 + claim ID)
+  - `GET  /referral/claim/:claimId` — poll claim status (pending/processing/completed/failed)
+- **DB Tables** (migration `011_referral.sql` + `012_referral_claim_retry.sql`):
+  - `referral_codes` — `id SERIAL PK`, `wallet TEXT UNIQUE`, `code TEXT UNIQUE`, `created_at`, `updated_at`
+  - `referral_links` — `id SERIAL PK`, `referrer_wallet TEXT`, `referee_wallet TEXT UNIQUE`, `created_at`; index on `referrer_wallet`
+  - `referral_earnings` — `id SERIAL PK`, `referrer_wallet`, `referee_wallet`, `round_id`, `game_type`, `wager_lamports BIGINT`, `fee_lamports BIGINT`, `referrer_earned_lamports BIGINT`, `referrer_rate_bps INT`, `referee_rebate_lamports BIGINT`, `referee_rebate_rate_bps INT`, `created_at`; `UNIQUE(referee_wallet, round_id)` idempotency guard; indexes on `referrer_wallet`, `referee_wallet`, `round_id`
+  - `referral_claims` — `id UUID PK DEFAULT gen_random_uuid()`, `wallet`, `amount_lamports BIGINT`, `status TEXT CHECK(pending|processing|error|completed|failed)`, `tx_signature`, `error`, `retry_count INT DEFAULT 0`, `requested_at`, `processed_at`; partial unique index `idx_referral_claims_wallet_active` prevents concurrent active claims per wallet
+  - `referral_kol_rates` — `wallet TEXT PK`, `rate_bps INT`, `set_by TEXT`, `created_at`, `updated_at`
+- **Key Files**:
+  - `backend/services/backend/src/routes/referral.ts` — all route handlers
+  - `backend/services/backend/src/worker/settle-tx.ts` — `recordReferralEarnings()` (lines 123-195) runs after each game settlement
+  - `backend/services/backend/src/queue/handlers/referral-claim.ts` — `createClaimHandler()` handles `referral.claim_requested` events (SOL transfer from server keypair)
+  - `backend/services/backend/src/queue/event-types.ts` — `EventTypes.REFERRAL_CLAIM_REQUESTED` (`"referral.claim_requested"`)
+  - `backend/services/backend/src/db.ts` — all referral DB methods (`insertReferralCode`, `getReferralCodeByWallet`, `getReferralCodeByCode`, `insertReferralLink`, `getReferralLinkByReferee`, `getReferralLinksByReferrer`, `insertReferralEarning`, `getPendingBalance`, `getReferralEarnings`, `getReferralStats`, `getReferralClaim`, `updateClaimStatus`, `getReferrerRate`)
+  - `backend/services/backend/src/config.ts` — `REFERRAL_DEFAULT_RATE_BPS` (default 1000), `REFERRAL_MIN_CLAIM_LAMPORTS` (default 10000000 = 0.01 SOL)
+  - `backend/services/backend/src/__tests__/referral-routes.test.ts` — route-level tests
+  - `backend/services/backend/migrations/011_referral.sql` — creates all 5 tables
+  - `backend/services/backend/migrations/012_referral_claim_retry.sql` — adds `retry_count`, `error` status, concurrent claim guard
+- **Integration Points**:
+  - **Settlement**: `recordReferralEarnings()` in `settle-tx.ts` is called after coinflip and lord-of-rngs settlement. For each player, looks up `referral_links` for a referrer, checks `referral_kol_rates` for custom rate, calculates earnings/rebate, inserts into `referral_earnings`. Errors are logged but never bubble (referral must not fail settlement). `UNIQUE(referee_wallet, round_id)` provides idempotency on retries.
+  - **Event Queue (spec 301)**: `POST /referral/claim` atomically inserts a `referral_claims` row + emits `referral.claim_requested` event in the same DB transaction via `emitEvent()`. The claim handler (`referral-claim.ts`) is registered at startup in `index.ts:187-190` before the event worker starts.
+  - **Claim handler flow**: load claim -> verify not already completed/failed -> update to `processing` -> re-verify `getPendingBalance() >= amount` -> `SystemProgram.transfer` from `serverKeypair` -> record `tx_signature` -> `completed`. Transient failures increment `retry_count`; permanent failure after 5 retries.
+
+---
+
+## Key Decisions (from refinement)
+- Referral codes are always player-chosen (3-16 chars, `[a-z0-9-]`); no auto-generation
+- Entirely off-chain for v1 per System Invariant 7; no on-chain program changes
+- Referee rebate fixed at 1000 bps (10%) of fee, not configurable; referrer rate defaults to 1000 bps but overridable via KOL table
+- Settlement integration uses `db.withTransaction()` for atomicity (referral earning insert in same tx as game settlement)
+- `referral.game_settled` earnings written synchronously in settlement tx; only claims use async queue
+- `getPendingBalance` is a unified calculation: SUM(referrer_earned) + SUM(referee_rebate) - SUM(claims)
+- Frontend auth mock needed for visual tests (mock mode has no backend for JWT auth)
+- Loop signal detection fixed mid-implementation: `jq` extraction of assistant text before tag search (was matching tags in tool results)
+- Pre-existing `HealthDeps` typecheck error fixed in iteration 33 (added missing `sql` parameter from spec 301)
+
+## Deferred Items
+- Concurrent claim DB-level locking (moderate): `getPendingBalance` snapshot is outside any lock; handler re-verifies as defense-in-depth, but no `SELECT FOR UPDATE` at API level
+- Rate limiting on `/referral/*` routes (moderate): only `/auth/*` and `/fairness/*` have rate limiting middleware
+- Toast notifications for referral auto-apply and invalid codes (low): blocked on platform-wide toast system; uses `console.warn` as placeholder
+- `referral.game_settled` event emission (low): event type defined but never emitted; earnings are synchronous so no downstream handler needed yet
+- Dead-letter classification for malformed payloads (low): handler throws on validation errors causing queue retry instead of immediate dead-lettering

@@ -366,3 +366,53 @@ After the spec loop outputs `<promise>DONE</promise>`, `spec-loop.sh` automatica
 2. Writes `docs/specs/008-user-profile/gap-analysis.md` with inventory + audit + recommendations
 3. Annotates FR checkboxes with HTML comment evidence (`<!-- satisfied: ... -->`)
 4. Commits everything together with the completion commit
+
+---
+
+## Implementation Reference
+
+### Backend
+
+- **Endpoints**:
+  - `GET  /profile/transactions?cursor=<id>&limit=<n>&game=<filter>` -- paginated transaction history for JWT-authenticated wallet. Default limit 20, max 50. Game filter accepts both DB names (`lord`, `closecall`) and frontend names (`lord-of-rngs`, `close-call`). Response: `{ transactions: [...], nextCursor }` with `amountLamports` as string
+  - `POST /profile/confirm-tx` -- frontend reports a confirmed on-chain tx (deposit/refund). Accepts `{ game, matchId, txType, txSig, amountLamports }`
+  - `GET  /price/sol-usd` -- cached SOL/USD price from Pyth Hermes (60s TTL, public, no auth). Response: `{ price, updatedAt }`
+- **DB Tables**:
+  - `transactions` (PK: `id`, BIGSERIAL) -- on-chain SOL movement ledger. Key columns: `wallet`, `game`, `match_id`, `tx_type` (deposit/payout/refund), `amount_lamports`, `tx_sig` (NOT NULL). Unique index: `(wallet, match_id, tx_type, tx_sig)`. Replaced earlier `user_transactions` table in migration 009
+  - `user_transactions` -- (dropped by migration 009, replaced by `transactions`)
+- **Write Paths**:
+  - Coinflip settlement: `worker/settle-tx.ts` `settleMatch()` -- writes win + loss rows after `settle_confirmed`
+  - Lord settlement: `worker/settle-tx.ts` `settleLordRound()` -- writes win row for winner + loss rows for all losers
+  - Close Call settlement: `worker/closecall-clock.ts` `settleRound()` -- writes join + outcome (win/loss/refund) per entry
+  - Coinflip creator deposit: frontend reports via `POST /profile/confirm-tx` after tx confirmation
+  - Coinflip opponent join: `worker/pda-watcher.ts` on PHASE_LOCKED detection
+- **Key Files**:
+  - `services/backend/src/routes/profile.ts` -- transaction history + confirm-tx endpoints
+  - `services/backend/src/routes/price.ts` -- SOL/USD price endpoint (Pyth HermesClient)
+  - `services/backend/src/worker/settle-tx.ts` -- coinflip + lord settlement write paths
+  - `services/backend/src/worker/closecall-clock.ts` -- Close Call settlement write paths
+  - `services/backend/src/worker/pda-watcher.ts` -- opponent join detection (coinflip)
+  - `services/backend/migrations/008_user_transactions.sql` -- original user_transactions table (now dropped)
+  - `services/backend/migrations/009_transactions.sql` -- current transactions table schema
+
+---
+
+## Key Decisions (from refinement)
+
+- **Amounts**: SOL + USD estimate (Pyth SOL/USD feed via Hermes REST API, 60s cache TTL)
+- **Refunds**: Close Call only — coinflip/lord refunds are permissionless on-chain, backend doesn't process them
+- **Lord joins**: Skipped — PDA watcher sees round state, not individual entries. Win/loss only at settlement
+- **Close Call joins**: Written at settlement time (not at /bet route) — avoids false positives from unsubmitted txs
+- **Coinflip joins**: Creator at create route, opponent at PDA watcher lock detection
+- **Game name mapping**: DB `lord`/`closecall` mapped to API `lord-of-rngs`/`close-call`
+- **Migration naming**: Spec says `007_user_transactions.sql` but implementation uses `008_user_transactions.sql` because migration 007 (`round_entries`) already existed
+- **Idempotency**: UNIQUE constraint on `(wallet, match_id, event)` with `ON CONFLICT DO NOTHING` on all write paths
+- All 26 acceptance criteria across 5 FRs satisfied (gap analysis found zero gaps)
+
+## Deferred Items
+
+- **Lord join rows** (individual entry tracking): PDA watcher sees round state change but not individual entries. Low priority; entries are visible on-chain
+- **Aggregate stats** (win rate, P&L): Deferred to next iteration by design
+- **Other player profile visibility**: Deferred by design — own wallet only for V1
+- **Lord multi-entry loss amount accuracy**: UNIQUE constraint means at most one loss row per player per Lord round. If a player enters multiple times and loses, only the first entry's amount is recorded (ON CONFLICT DO NOTHING drops subsequent inserts). Total loss amount is under-reported for multi-entry losers. Low impact for V1. Potential fix: change UNIQUE constraint to `(wallet, match_id, event, amount_lamports)` or aggregate amounts before insert
+- **Orphaned mock file**: `apps/platform/src/features/player-profile/utils/mock-simulation.ts` is no longer imported by ProfileTransactions but still exists (568 lines). Consider deleting to reduce bundle size
