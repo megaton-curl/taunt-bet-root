@@ -70,74 +70,77 @@ No on-chain footprint. No social accounts (X/Discord) — deferred TBD.
 
 ## Functional Requirements
 
-### FR-1: `user_transactions` Ledger Table
+### FR-1: Transaction Ledger Table
 
-A new PostgreSQL table that stores one row per user-visible game event.
+The `transactions` table stores one row per real on-chain SOL movement
+(deposit, payout, refund). Used by the `/profile/transactions` endpoint
+for displaying transaction history. Stats and leaderboard use
+`game_entries` instead (see FR-8).
+
+> **Schema evolution**: Originally `user_transactions` (event-based: join/win/loss/refund),
+> then replaced by `transactions` (movement-based: deposit/payout/refund), now part of
+> consolidated `001_init.sql`. `game_entries` is the single source of truth for participation
+> data and stats.
 
 **Schema:**
 
 | Column | Type | Constraints | Notes |
 |--------|------|-------------|-------|
-| `id` | `BIGSERIAL` | PK | Auto-increment |
+| `id` | `BIGINT GENERATED ALWAYS AS IDENTITY` | PK | Auto-increment |
+| `user_id` | `TEXT` | | Player user_id (nullable — backfillable) |
 | `wallet` | `TEXT` | NOT NULL | Player wallet address |
-| `game` | `TEXT` | NOT NULL | `coinflip`, `lord`, `closecall` |
+| `game` | `TEXT` | NOT NULL, CHECK | `coinflip`, `lord`, `closecall` |
 | `match_id` | `TEXT` | NOT NULL | Links to rounds/closecall_rounds |
-| `event` | `TEXT` | NOT NULL | `join`, `win`, `loss`, `refund` |
-| `amount_lamports` | `BIGINT` | NOT NULL | Wager (join) or payout (win) or refund amount |
-| `tx_sig` | `TEXT` | | On-chain transaction signature (nullable until confirmed) |
+| `tx_type` | `TEXT` | NOT NULL, CHECK | `deposit`, `payout`, `refund` |
+| `amount_lamports` | `BIGINT` | NOT NULL | SOL amount moved |
+| `tx_sig` | `TEXT` | NOT NULL | On-chain transaction signature |
 | `created_at` | `TIMESTAMPTZ` | NOT NULL DEFAULT now() | Event timestamp |
 
-**Indexes:**
-- `idx_user_tx_wallet_created` on `(wallet, created_at DESC)` — paginated history
-- `idx_user_tx_match_id` on `(match_id)` — dedup / lookup
-
 **Acceptance Criteria:**
-- [x] Migration `007_user_transactions.sql` creates the table and indexes <!-- satisfied: migrations/008_user_transactions.sql:1-30 (named 008 because 007 was taken) — table, 2 indexes, UNIQUE constraint -->
-- [x] Migration runs cleanly on a fresh DB and on an existing DB <!-- satisfied: standard IF NOT EXISTS DDL pattern; confirmed in history iterations 1 + 11 -->
-- [x] No backfill of historical data (table starts empty) <!-- satisfied: migrations/008_user_transactions.sql contains only DDL, no INSERT/UPDATE -->
+- [x] Migration creates the `transactions` table with indexes and CHECK constraints <!-- satisfied: migrations/001_init.sql (consolidated) — table, indexes, UNIQUE, CHECK constraints -->
+- [x] Migration runs cleanly on a fresh DB <!-- satisfied: consolidated migration tested against fresh DB reset -->
+- [x] No backfill of historical data (table starts empty after DB reset) <!-- satisfied: DDL only -->
 
-### FR-2: Write Path — Populate on Settlement
+### FR-2: Write Paths — Game Entries + Transactions
 
-The settlement worker writes to `user_transactions` when a round settles.
-All writes use `ON CONFLICT DO NOTHING` on `(wallet, match_id, event)` for
-idempotency.
+Two tables are written during the game lifecycle:
+
+1. **`game_entries`** — participation + stats. Written at create/bet time
+   (participation entries), updated at settlement via UPSERT with results.
+   Single source of truth for stats, leaderboard, and entry display.
+2. **`transactions`** — real on-chain SOL movements. Written at settlement
+   only (deposit/payout/refund with `tx_sig`). Used for transaction history API.
 
 **Coinflip** (commit-reveal, 1v1):
-- **Join — creator**: Written when the create route inserts the round into DB
-  (creator wallet is known at create time).
-- **Join — opponent**: Written when PDA watcher detects phase change to LOCKED
-  (opponent wallet readable from on-chain account).
-- **Win + Loss**: On `settle_confirmed` in `settle-tx.ts`, insert two rows.
-  `win.amount_lamports` = payout (after fees). `loss.amount_lamports` =
-  original wager.
+- **Participation**: Creator's `game_entry` written at `POST /coinflip/create`.
+- **Settlement**: UPSERT both entries (creator update, opponent insert) with
+  `is_winner`, `payout_lamports`, `settled_at`. Insert payout `transaction`
+  for winner.
 
 **Lord of the RNGs** (commit-reveal, multi-player):
-- **No join rows** — the PDA watcher sees the round state change but not
-  individual entries. Join visibility is deferred.
-- **Win + Loss**: On `settle_confirmed` in `settle-tx.ts`, insert one `win`
-  row for the winner and one `loss` row per losing entry. Entries array is
-  available from on-chain round data at settlement time.
+- **Participation**: Creator's `game_entry` written at `POST /lord/create`.
+  Joiners/buy_more have no backend route — entries discovered at settlement.
+- **Settlement**: UPSERT all entries (creator update, joiners insert).
+  `getOrCreateProfile()` resolves `user_id` for on-chain-only joiners.
 
 **Close Call** (pari-mutuel):
-- **All rows at settlement**: When `settleRound()` in `closecall-clock.ts`
-  completes, write one `join` + one outcome (`win`/`loss`/`refund`) row per
-  entry. Entries are in the round's `green_entries`/`red_entries` JSONB.
-- **Refund rows**: Only Close Call has backend-processed refunds (one-sided
-  rounds, single player, equal price). Coinflip/Lord refunds are
-  permissionless on-chain timeout — the backend doesn't process them.
+- **Participation**: Bettor's `game_entry` written at `POST /closecall/bet`.
+- **Settlement**: UPSERT entries with results. Refund rounds: `is_winner = NULL`,
+  `payout_lamports = amount_lamports`. Non-refund: computed pari-mutuel payouts.
 
 **Game name mapping**: DB stores `coinflip`, `lord`, `closecall`. API maps to
 frontend `GameId`: `lord` → `lord-of-rngs`, `closecall` → `close-call`.
 
 **Acceptance Criteria:**
-- [x] Coinflip: creator join row written at create time <!-- satisfied: routes/create.ts:208-215 — insertUserTransaction after round INSERT -->
-- [x] Coinflip: opponent join row written at PDA watcher lock detection <!-- satisfied: worker/pda-watcher.ts:120-132 — fire-and-forget on PHASE_LOCKED -->
-- [x] Coinflip: win + loss rows written at settlement with correct amounts and tx_sig <!-- satisfied: worker/settle-tx.ts:304-323 — Promise.all win(payoutAmount)+loss(entryAmount) with txSignature -->
-- [x] Lord: win row for winner + loss rows for all losers at settlement <!-- satisfied: worker/settle-tx.ts:518-543 — win(payoutAmount) + loss per non-winner entry -->
-- [x] Close Call: join + outcome rows per entry at settlement <!-- satisfied: worker/closecall-clock.ts:489-538 — iterates green/red entries, join+outcome per entry -->
-- [x] Close Call: refund rows written for refund outcomes <!-- satisfied: worker/closecall-clock.ts:508-509,523-524 — isRefund check writes refund event -->
-- [x] `match_id` links back to the correct round in `rounds` or `closecall_rounds` <!-- satisfied: coinflip/lord use round.match_id→rounds; closecall uses roundId→closecall_rounds.round_id -->
-- [x] No duplicate rows for the same event (idempotent via ON CONFLICT) <!-- satisfied: UNIQUE(wallet,match_id,event) in migration:27-29; all paths use ON CONFLICT DO NOTHING -->
+- [x] Coinflip: creator game_entry written at create time <!-- satisfied: routes/create.ts — upsertGameEntry after insertRound -->
+- [x] Coinflip: both entries UPSERT'd at settlement with results <!-- satisfied: worker/settle-tx.ts — upsertGameEntries with getOrCreateProfile for opponent -->
+- [x] Lord: creator game_entry written at create time <!-- satisfied: routes/lord-create.ts — upsertGameEntry after insertRound -->
+- [x] Lord: all entries UPSERT'd at settlement <!-- satisfied: worker/settle-tx.ts — upsertGameEntries with profileMap for all players -->
+- [x] Close Call: bettor game_entry written at bet time <!-- satisfied: routes/closecall.ts — upsertGameEntry in /bet handler -->
+- [x] Close Call: entries UPSERT'd at settlement (including refund handling) <!-- satisfied: worker/closecall-clock.ts — withTransaction, upsertGameEntries -->
+- [x] Transaction rows written for real SOL movements at settlement <!-- satisfied: insertTransactions in settle-tx.ts and closecall-clock.ts -->
+- [x] `match_id` links back to the correct round <!-- satisfied: coinflip/lord use round.match_id; closecall uses roundId -->
+- [x] No duplicate entries (idempotent via UPSERT) <!-- satisfied: UNIQUE(wallet, round_pda) + ON CONFLICT DO UPDATE -->
 
 ### FR-3: API Endpoint — Transaction History
 
@@ -159,7 +162,7 @@ GET /profile/transactions?cursor=<id>&limit=<n>&game=<filter>
         "id": 123,
         "game": "coinflip",
         "matchId": "a1b2c3d4e5f67890",
-        "event": "win",
+        "txType": "payout",
         "amountLamports": "5000000",
         "txSig": "5KtP...",
         "createdAt": "2026-03-19T12:00:00Z"
@@ -229,7 +232,7 @@ references use `user_id` or `username`.
 
 | Column | Type | Constraints | Notes |
 |--------|------|-------------|-------|
-| `id` | `BIGSERIAL` | PK | Internal DB key (not exposed) |
+| `id` | `BIGINT GENERATED ALWAYS AS IDENTITY` | PK | Internal DB key (not exposed) |
 | `user_id` | `TEXT` | UNIQUE, NOT NULL | Short random string, e.g. `usr_a8f3k2`. Public-facing identifier for API calls |
 | `wallet` | `TEXT` | UNIQUE, NOT NULL | Player wallet address. **Never exposed in public API responses** |
 | `username` | `TEXT` | UNIQUE, NOT NULL | Auto-generated on creation. Editable (freeform, 30-day cooldown) |
@@ -257,13 +260,13 @@ with new random suffix (max 5 retries, then fall back to `user-{random8}`).
 - First manual edit is free (cooldown starts from that edit, not from creation)
 
 **Acceptance Criteria:**
-- [ ] Migration `013_player_profiles.sql` creates table + indexes
-- [ ] Profile auto-created on first JWT auth (challenge-response verify endpoint)
-- [ ] Profile auto-created on waitlist signup (if applicable entry point exists)
-- [ ] `user_id` is a short random string (`usr_` + 8 alphanumeric), immutable after creation
-- [ ] Username auto-generated as `{adjective}-{noun}-{4digits}`, collision-safe
-- [ ] Wallet address never appears in any public API response
-- [ ] `heat_multiplier` and `points_balance` are reserved columns, default values only
+- [x] Migration creates `player_profiles` table + indexes <!-- satisfied: migrations/001_init.sql (consolidated) — table with GENERATED ALWAYS AS IDENTITY + case-insensitive username index -->
+- [x] Profile auto-created on first JWT auth (challenge-response verify endpoint) <!-- satisfied: routes/auth.ts:154-163 — fire-and-forget after signature verify -->
+- [x] Profile auto-created on waitlist signup (if applicable entry point exists) <!-- satisfied: waitlist app calls POST /auth/verify (waitlist/src/lib/auth-api.ts) which triggers profile auto-creation in routes/auth.ts:154-163 -->
+- [x] `user_id` is a short random string (`usr_` + 8 alphanumeric), immutable after creation <!-- satisfied: utils/username-gen.ts:140-141; db.ts:1075 generated once -->
+- [x] Username auto-generated as `{adjective}-{noun}-{4digits}`, collision-safe <!-- satisfied: utils/username-gen.ts:148-153; db.ts:1075-1103 (5 retries + fallback) -->
+- [x] Wallet address never appears in any public API response <!-- satisfied: profile.ts:70-88, public-profile.ts:29-39 — no wallet field in responses -->
+- [x] `heat_multiplier` and `points_balance` are reserved columns, default values only <!-- satisfied: migrations/001_init.sql — player_profiles DEFAULT 1.0 / DEFAULT 0 -->
 
 ### FR-7: Username Management API
 
@@ -279,28 +282,30 @@ Players can view and change their username.
 - Errors: 400 (invalid format), 409 (taken), 429 (cooldown not expired)
 
 **Acceptance Criteria:**
-- [ ] Username change validates format (3-20 chars, `[a-zA-Z0-9_-]`)
-- [ ] Username uniqueness enforced case-insensitively
-- [ ] 30-day cooldown enforced from `username_updated_at`; first edit is free
-- [ ] Successful edit updates both `username` and `username_updated_at`
-- [ ] Returns next available edit timestamp in response
+- [x] Username change validates format (3-20 chars, `[a-zA-Z0-9_-]`) <!-- satisfied: routes/profile.ts:113 regex ^[a-zA-Z0-9_-]{3,20}$ -->
+- [x] Username uniqueness enforced case-insensitively <!-- satisfied: migrations/001_init.sql — idx_player_profiles_username_lower on LOWER(username) -->
+- [x] 30-day cooldown enforced from `username_updated_at`; first edit is free <!-- satisfied: routes/profile.ts:124-132 cooldown check; null = first edit free -->
+- [x] Successful edit updates both `username` and `username_updated_at` <!-- satisfied: db.ts:1126-1160 updateUsername sets both columns -->
+- [x] Returns next available edit timestamp in response <!-- satisfied: routes/profile.ts:137-141 nextEditAvailableAt in response -->
 
 ### FR-8: Aggregate Player Stats API
 
-Computed stats from the existing `transactions` table. Served as part of the
-profile response (own profile) or public lookup (limited subset).
+Computed stats from the `game_entries` table (single source of truth for
+participation data — written at create/bet time, updated at settlement).
+Served as part of the profile response (own profile) or public lookup
+(limited subset).
 
 **Own profile stats (authenticated):**
 
 | Stat | Computation |
 |------|-------------|
-| `gamesPlayed` | COUNT(DISTINCT match_id) where tx_type = 'deposit' |
-| `totalWagered` | SUM(amount_lamports) where tx_type = 'deposit' |
-| `totalWins` | COUNT(*) where tx_type = 'payout' |
+| `gamesPlayed` | COUNT(*) from game_entries WHERE settled_at IS NOT NULL |
+| `totalWagered` | SUM(amount_lamports) from game_entries WHERE settled_at IS NOT NULL |
+| `totalWins` | SUM(CASE WHEN is_winner = true THEN 1 ELSE 0 END) |
 | `winRate` | totalWins / gamesPlayed (0 if no games) |
 | `winStreakCurrent` | Consecutive most-recent wins (across all games) |
 | `winStreakBest` | Longest-ever consecutive win streak |
-| `netPnl` | SUM(payout + refund) - SUM(deposit) |
+| `netPnl` | SUM(payout_lamports - amount_lamports) |
 | `gameBreakdown` | Per-game version of above (keyed by game name) |
 
 **Public stats (visible to others via lookup):**
@@ -316,22 +321,21 @@ profile response (own profile) or public lookup (limited subset).
 | `winStreakBest` | **No** |
 | `gameBreakdown` | **No** |
 
-**Win streak logic:** Ordered by `created_at DESC`, across all games. A `payout`
-row = win. A `deposit` row with no corresponding `payout` for the same `match_id`
-= loss. Refunds don't break or extend streaks. Streak resets on first loss
-walking backward from most recent game.
+**Win streak logic:** Ordered by `settled_at DESC`, across all games. `is_winner
+= true` = win, `is_winner = false` = loss, `is_winner IS NULL` (refund) =
+skipped. Streak resets on first loss walking backward from most recent game.
 
 **Performance note:** Stats can be computed on-the-fly for now (single query per
-request). If latency becomes a problem, add a `player_stats_cache` materialized
-view or summary table later — but don't pre-optimize.
+request). `game_entries` has appropriate indexes (`idx_game_entries_user_settled`).
+If latency becomes a problem, add a materialized view — but don't pre-optimize.
 
 **Acceptance Criteria:**
-- [ ] `gamesPlayed`, `totalWagered`, `totalWins`, `winRate` computed correctly from `transactions`
-- [ ] `winStreakCurrent` counts consecutive most-recent wins across all games
-- [ ] `winStreakBest` tracks the longest-ever streak
-- [ ] `netPnl` = total inflows (payout + refund) minus total outflows (deposit)
-- [ ] `gameBreakdown` returns per-game stats keyed by frontend game name
-- [ ] Public stats expose only `gamesPlayed`, `totalWins`, `winRate`
+- [x] `gamesPlayed`, `totalWagered`, `totalWins`, `winRate` computed correctly from `game_entries` <!-- satisfied: db.ts getPlayerStats — COUNT(*), SUM amounts WHERE settled_at IS NOT NULL -->
+- [x] `winStreakCurrent` counts consecutive most-recent wins across all games <!-- satisfied: db.ts getWinStreaks — walks entries DESC by settled_at, skips is_winner IS NULL -->
+- [x] `winStreakBest` tracks the longest-ever streak <!-- satisfied: db.ts getWinStreaks — if (streak > best) best = streak -->
+- [x] `netPnl` = SUM(payout_lamports - amount_lamports) from game_entries <!-- satisfied: db.ts getPlayerStats — SUM(payout_lamports - amount_lamports) -->
+- [x] `gameBreakdown` returns per-game stats keyed by frontend game name <!-- satisfied: db.ts getGameBreakdown — DB_TO_FRONTEND mapping, GROUP BY game -->
+- [x] Public stats expose only `gamesPlayed`, `totalWins`, `winRate` <!-- satisfied: db.ts getPublicPlayerStats returns subset -->
 
 ### FR-9: Profile API Endpoints
 
@@ -392,12 +396,12 @@ All profile interaction points for the frontend.
 - 404 if identifier not found
 
 **Acceptance Criteria:**
-- [ ] `GET /profile/me` requires JWT, returns full profile + full stats
-- [ ] `GET /public-profile/:identifier` is public (no auth), resolves user_id or username
-- [ ] Public endpoint returns only `gamesPlayed`, `totalWins`, `winRate` — no wallet, no PnL, no wagered, no streaks, no tx history
-- [ ] `avatarUrl` null means use identicon (frontend responsibility)
-- [ ] BigInt fields serialized as strings
-- [ ] 404 for unknown identifier on public endpoint
+- [x] `GET /profile/me` requires JWT, returns full profile + full stats <!-- satisfied: routes/profile.ts:35-96 — JWT required, returns userId/username/stats/streaks/breakdown -->
+- [x] `GET /public-profile/:identifier` is public (no auth), resolves user_id or username <!-- satisfied: routes/public-profile.ts:18; db.ts:1113-1124 usr_ → user_id, else username -->
+- [x] Public endpoint returns only `gamesPlayed`, `totalWins`, `winRate` — no wallet, no PnL, no wagered, no streaks, no tx history <!-- satisfied: routes/public-profile.ts:34-38 — only 3 stat fields, no wallet -->
+- [x] `avatarUrl` null means use identicon (frontend responsibility) <!-- satisfied: routes/profile.ts:73 passes null through -->
+- [x] BigInt fields serialized as strings <!-- satisfied: routes/profile.ts:75,78,83 String() calls for totalWagered, pointsBalance, netPnl -->
+- [x] 404 for unknown identifier on public endpoint <!-- satisfied: routes/public-profile.ts:23-24 returns 404 NOT_FOUND -->
 
 ---
 
@@ -419,13 +423,14 @@ All profile interaction points for the frontend.
 - JWT auth system (spec 007 — already shipped)
 - Settlement worker (coinflip + lord + closecall — already shipped)
 - PDA watcher for join detection (already shipped)
-- `transactions` table (migration 009 — already shipped)
+- `game_entries` table (consolidated migration 001_init.sql — single source of truth)
+- `transactions` table (SOL movement audit trail — still used for `/profile/transactions` endpoint)
 
 ## Assumptions
 
-- No backfill of historical data — `transactions` table starts empty, only new events recorded
+- No backfill of historical data — tables start empty after DB reset, only new events recorded
 - Close Call enforces one entry per player per round (on-chain constraint)
-- Stats computed on-the-fly from `transactions` table (no pre-aggregation cache for now)
+- Stats computed on-the-fly from `game_entries` table (not `transactions`)
 - No public browsable profile page — the public API serves a popup/card in the frontend
 - No social account linking (X/Discord) — deferred TBD
 - HEAT multiplier and points balance are placeholder fields (always default values until those features ship)
@@ -442,43 +447,49 @@ All profile interaction points for the frontend.
 
 | What | Where |
 |------|-------|
-| Migration files | `services/backend/migrations/NNN_snake_name.sql` |
-| Migration runner | `services/backend/src/migrate.ts` — auto-runs on server start (`pnpm start` = `migrate && server`) |
+| Migration file | `services/backend/migrations/001_init.sql` (consolidated) |
+| Migration runner | `services/backend/src/migrate.ts` — auto-runs on server start |
 | DB client + query fns | `services/backend/src/db.ts` |
 | DB config (schema) | `services/backend/src/db-config.ts` — supports `DB_SCHEMA` env var |
-| Connection library | `postgres` (v3.4.0) — tagged template literal style |
+| Connection library | `postgres` (v3.4.8) — tagged template literal style |
 
-**Naming**: Files are `NNN_description.sql` where NNN is zero-padded sequential.
-Next available: `013`.
+**Schema**: All tables defined in a single consolidated `001_init.sql`.
+Uses `BIGINT GENERATED ALWAYS AS IDENTITY` (not BIGSERIAL) and CHECK
+constraints on all enum TEXT columns. Requires DB reset when migrating
+from the old 14-file schema.
 
-**Runner behavior**: Reads `migrations/` dir, parses version from filename
-prefix, tracks applied versions in `_migrations` table, applies pending ones
-inside `sql.begin()` transactions. Idempotent — safe to re-run.
+### Game Entry Write Paths
 
-**Manual run**: `cd services/backend && pnpm migrate` (uses `.env`).
-**Check status**: `pnpm migrate:status`.
+`game_entries` is the single source of truth for participation and stats.
+Written at participation time (create/bet), updated at settlement via UPSERT.
 
-### Settlement Write Paths (where to add INSERTs)
+| Game | Actor | When | File |
+|------|-------|------|------|
+| Coinflip creator | Participation | `POST /coinflip/create` | `routes/create.ts` |
+| Coinflip joiner | Settlement | `settleMatch()` | `worker/settle-tx.ts` |
+| Lord creator | Participation | `POST /lord/create` | `routes/lord-create.ts` |
+| Lord joiners | Settlement | `settleLordRound()` | `worker/settle-tx.ts` |
+| Close Call bettor | Participation | `POST /closecall/bet` | `routes/closecall.ts` |
+| Close Call settlement | Settlement | `settleRound()` | `worker/closecall-clock.ts` |
 
-| Game | File | Function | Insert after |
-|------|------|----------|-------------|
-| Coinflip settle | `src/worker/settle-tx.ts` | `settleMatch()` | After `settle_confirmed` operator event (~line 286) |
-| Lord settle | `src/worker/settle-tx.ts` | `settleLordRound()` | After `settle_confirmed` operator event (~line 466) |
-| Close Call settle | `src/worker/closecall-clock.ts` | `settleRound()` | After DB update (~line 443-487) |
-| Coinflip creator join | `src/routes/create.ts` | POST `/fairness/coinflip/create` | After round INSERT |
-| Coinflip opponent join | `src/worker/pda-watcher.ts` | `handleCoinflipChange()` | After lock detection (~line 113) |
-| Close Call join+outcome | `src/worker/closecall-clock.ts` | `settleRound()` | Same as settle — all rows at settlement |
+Settlement uses `upsertGameEntries` (INSERT ON CONFLICT DO UPDATE) — updates
+existing participation entries with results, inserts new entries for joiners.
 
-### Existing Schema (for reference)
+### Schema (for reference)
 
 | Table | PK | Purpose |
 |-------|----|---------|
-| `rounds` | `pda` | Commit-reveal rounds (coinflip + lord). Has `creator`, `winner`, `settle_tx`, `amount_lamports`, `match_id` |
-| `closecall_rounds` | `round_id` | Pari-mutuel rounds. Entries in JSONB: `green_entries` / `red_entries` = `[{ player, amountLamports }]` |
-| `operator_events` | `id` | Audit log. `event_type` + JSONB `payload` |
+| `rounds` | `pda` | Commit-reveal rounds (coinflip + lord) |
+| `closecall_rounds` | `round_id` | Pari-mutuel rounds (oracle-resolved) |
+| `game_entries` | `id` | Participation + stats. Has `user_id`, `wallet`, `game`, `side`, `is_winner`, `payout_lamports`, `settled_at` |
+| `transactions` | `id` | Real on-chain SOL movements (deposit/payout/refund). Has `tx_sig` |
+| `player_profiles` | `id` | Player identity (user_id, username, avatar) |
+| `operator_events` | `id` | Audit log |
+| `closecall_candles` | `minute_ts` | Cached Hermes BTC prices |
 | `auth_challenges` | `nonce` | JWT challenge nonces |
 | `refresh_tokens` | `id` | JWT refresh token families |
-| `closecall_candles` | `minute_ts` | Cached Hermes BTC prices |
+| `referral_*` | various | Referral system (codes, links, earnings, claims, KOL rates) |
+| `event_queue` | `id` | Async side-effect processing |
 
 ---
 
