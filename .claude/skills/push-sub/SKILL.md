@@ -1,30 +1,31 @@
 ---
 name: push-sub
-description: Commit and push changes in submodules (backend/solana), then update root pointers.
-argument-hint: [backend|solana|both] [commit message] (optional — auto-generates if omitted)
+description: Commit and push changes in submodules (backend/solana/chat/waitlist/webapp), then update root pointers.
+argument-hint: [backend|solana|chat|waitlist|webapp|all] [commit message] (optional — auto-generates if omitted)
 ---
 
 # /push-sub — Commit & Push Submodules
 
-Commit changes in one or both submodules (`backend/`, `solana/`), push them,
-update the submodule pointers in the root repo, and commit the root.
+Commit changes in one or more submodules, push them, update the submodule
+pointers in the root repo, and commit the root.
+
+Submodules: `backend/`, `solana/`, `chat/`, `waitlist/`, `webapp/`
 
 ## Steps
 
 1. **Detect which submodules have changes**:
-   - `cd backend && git status` — check for changes
-   - `cd solana && git status` — check for changes
-   - If an argument specifies `backend` or `solana`, only process that one
-   - If `both` or no argument, process all with changes
+   - Check `git status` in each: `backend`, `solana`, `chat`, `waitlist`, `webapp`
+   - If an argument names a specific submodule, only process that one
+   - If `all` or no argument, process all with changes
 
-2. **For each changed submodule** (backend first, then solana):
+2. **For each changed submodule** (backend → solana → chat → waitlist → webapp):
    - Stage relevant files (not `git add -A` — be specific)
    - Commit with the provided message, or auto-generate from the diff
    - Push to origin
 
 3. **Root repo commit** (`/workspaces/rng-utopia/`):
    - The submodule pointers will show as modified
-   - Stage them: `git add backend solana`
+   - Stage them: `git add backend solana chat waitlist webapp` (only the ones that changed)
    - If there are other changed files in root (docs/, scripts/), show them
      and ask whether to include
    - Commit with message: `chore: update submodule refs`

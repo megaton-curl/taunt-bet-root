@@ -11,3 +11,6 @@
 [submodule "chat"]
 	path = chat
 	url = https://github.com/taunt-bet/chat.git
+[submodule "webapp"]
+	path = webapp
+	url = https://github.com/taunt-bet/webapp.git
