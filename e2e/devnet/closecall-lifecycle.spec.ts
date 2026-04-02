@@ -11,7 +11,7 @@
  *   3. Player B bets RED via POST /closecall/bet, signs + submits tx
  *   4. Wait for settlement (up to 120s)
  *   5. Verify settlement outcome, closePrice, settleTx
- *   6. Verify fairness results page via GET /fairness/rounds/by-id/:minuteTs
+ *   6. Verify fairness results page via GET /rounds/by-id/:minuteTs
  */
 import { test, expect } from "./fixtures";
 import {
@@ -27,6 +27,7 @@ import {
   verifyFairnessBackend,
   type DevnetConfig,
 } from "./helpers/env";
+import { authenticate } from "./helpers/auth";
 
 // ── Constants ────────────────────────────────────────────────────────
 
@@ -94,10 +95,14 @@ async function placeBetViaApi(
   playerKeypair: Keypair,
   side: "green" | "red",
   amountLamports: number,
+  accessToken: string,
 ): Promise<{ minuteTs: number; roundPda: string; signature: string }> {
   const resp = await fetch(`${config.fairnessBackendUrl}/closecall/bet`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${accessToken}`,
+    },
     body: JSON.stringify({
       playerPubkey: playerKeypair.publicKey.toBase58(),
       side,
@@ -292,6 +297,14 @@ test.describe("closecall devnet E2E", () => {
       await new Promise((r) => setTimeout(r, waitMs));
     }
 
+    // ── Step 1b: Authenticate both players ────────────────────────────
+    console.log("[step-1b] Authenticating players...");
+    const [tokenA, tokenB] = await Promise.all([
+      authenticate(devnetConfig.fairnessBackendUrl, PLAYER_A),
+      authenticate(devnetConfig.fairnessBackendUrl, PLAYER_B),
+    ]);
+    console.log("[step-1b] Both players authenticated");
+
     // ── Step 2: Player A bets GREEN ──────────────────────────────────
     console.log("[step-2] Player A placing GREEN bet...");
     const betA = await placeBetViaApi(
@@ -300,6 +313,7 @@ test.describe("closecall devnet E2E", () => {
       PLAYER_A,
       "green",
       BET_AMOUNT_LAMPORTS,
+      tokenA,
     );
     console.log(
       `[step-2] Player A GREEN bet confirmed: tx=${betA.signature.slice(0, 16)}..., ` +
@@ -326,6 +340,7 @@ test.describe("closecall devnet E2E", () => {
       PLAYER_B,
       "red",
       BET_AMOUNT_LAMPORTS,
+      tokenB,
     );
     console.log(
       `[step-3] Player B RED bet confirmed: tx=${betB.signature.slice(0, 16)}...`,
@@ -377,19 +392,19 @@ test.describe("closecall devnet E2E", () => {
     // ── Step 6: Verify fairness results page ─────────────────────────
     console.log("[step-6] Checking fairness results endpoint...");
     const fairnessResp = await fetch(
-      `${devnetConfig.fairnessBackendUrl}/fairness/rounds/by-id/${roundId}`,
+      `${devnetConfig.fairnessBackendUrl}/rounds/by-id/${roundId}`,
     );
     // This endpoint may or may not exist — if it does, verify shape
     if (fairnessResp.ok) {
       const fairnessData = (await fairnessResp.json()) as Record<string, unknown>;
       console.log(
-        `[step-6] GET /fairness/rounds/by-id/${roundId}: OK`,
+        `[step-6] GET /rounds/by-id/${roundId}: OK`,
       );
       expect(fairnessData).toBeDefined();
     } else {
       // If endpoint is 404, that's acceptable — the round data is in history
       console.log(
-        `[step-6] GET /fairness/rounds/by-id/${roundId}: ${fairnessResp.status} (may not be implemented for closecall yet)`,
+        `[step-6] GET /rounds/by-id/${roundId}: ${fairnessResp.status} (may not be implemented for closecall yet)`,
       );
     }
 

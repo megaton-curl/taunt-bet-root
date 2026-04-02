@@ -161,7 +161,8 @@ test.beforeAll(async () => {
   await ensureFunded(connection, PLAYER_B.publicKey, "Player B");
 });
 
-test("coinflip devnet lifecycle: create → join → backend settle → verify", async ({
+// Skipped: requires frontend app (separate project, not yet available)
+test.skip("coinflip devnet lifecycle: create → join → backend settle → verify", async ({
   playerAPage,
   playerBPage,
   connection,

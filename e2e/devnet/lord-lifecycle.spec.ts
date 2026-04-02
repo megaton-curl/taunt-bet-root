@@ -163,7 +163,8 @@ test.beforeAll(async () => {
 
 // ── Full lifecycle test ───────────────────────────────────────────────
 
-test("lord lifecycle: UI create → UI join → countdown → backend settle → verify", async ({
+// Skipped: requires frontend app (separate project, not yet available)
+test.skip("lord lifecycle: UI create → UI join → countdown → backend settle → verify", async ({
   playerAPage,
   playerBPage,
   connection,

@@ -7,7 +7,8 @@
 import { test, expect } from "./fixtures";
 import { verifyDevnetDeployments } from "./helpers/env";
 
-test.describe("devnet smoke", () => {
+// Skipped: requires frontend app (separate project, not yet available)
+test.describe.skip("devnet smoke", () => {
   test("devnet deployments are reachable and valid", async ({
     devnetConfig,
   }) => {
