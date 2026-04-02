@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>TAUNT Chat Test Tool</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="layout">
+      <header class="panel header">
+        <div>
+          <p class="eyebrow">Development only</p>
+          <h1>TAUNT Chat Test Tool</h1>
+          <p class="subtle">
+            Split-pane harness for the public global room plus a separate lobby feed lane.
+          </p>
+        </div>
+        <div class="global-status">
+          <span class="status-label">Service status</span>
+          <span id="service-status" class="status-chip neutral">Waiting</span>
+        </div>
+      </header>
+
+      <section class="panel controls">
+        <label>
+          Chat base URL
+          <input id="chat-base-url" type="url" value="http://localhost:3200" />
+        </label>
+        <label>
+          Feed topic
+          <input id="feed-topic" type="text" value="lobby" />
+        </label>
+        <label>
+          Feed publish token
+          <input id="feed-token" type="text" placeholder="CHAT_FEED_TOKEN" />
+        </label>
+        <div class="button-row">
+          <button id="connect-all" type="button">Start Streams</button>
+          <button id="disconnect-all" type="button" class="secondary">Stop Streams</button>
+          <button id="refresh-all" type="button" class="secondary">Refresh History</button>
+        </div>
+      </section>
+
+      <section class="panes">
+        <article class="panel pane" data-pane="a">
+          <div class="pane-header">
+            <h2>User A</h2>
+            <span id="pane-a-status" class="status-chip neutral">Idle</span>
+          </div>
+          <label>
+            Access token
+            <textarea id="pane-a-token" rows="3" placeholder="Paste a platform access token"></textarea>
+          </label>
+          <div class="message-list-wrap">
+            <h3>Global room</h3>
+            <ul id="pane-a-messages" class="message-list"></ul>
+          </div>
+          <form id="pane-a-form" class="message-form">
+            <textarea id="pane-a-body" rows="3" placeholder="Type a chat message"></textarea>
+            <button type="submit">Send as User A</button>
+          </form>
+        </article>
+
+        <article class="panel pane" data-pane="b">
+          <div class="pane-header">
+            <h2>User B</h2>
+            <span id="pane-b-status" class="status-chip neutral">Idle</span>
+          </div>
+          <label>
+            Access token
+            <textarea id="pane-b-token" rows="3" placeholder="Paste a second platform access token"></textarea>
+          </label>
+          <div class="message-list-wrap">
+            <h3>Global room</h3>
+            <ul id="pane-b-messages" class="message-list"></ul>
+          </div>
+          <form id="pane-b-form" class="message-form">
+            <textarea id="pane-b-body" rows="3" placeholder="Type a chat message"></textarea>
+            <button type="submit">Send as User B</button>
+          </form>
+        </article>
+      </section>
+
+      <section class="panel feed-panel">
+        <div class="pane-header">
+          <div>
+            <p class="eyebrow">Separate domain</p>
+            <h2>Lobby Feed</h2>
+          </div>
+          <span id="feed-status" class="status-chip neutral">Idle</span>
+        </div>
+
+        <div class="feed-grid">
+          <div>
+            <h3>Feed timeline</h3>
+            <ul id="feed-events" class="message-list feed-list"></ul>
+          </div>
+
+          <form id="feed-form" class="feed-form">
+            <label>
+              Event kind
+              <input id="feed-kind" type="text" value="dogpile.started" />
+            </label>
+            <label>
+              Title
+              <input id="feed-title" type="text" value="Dogpile started" />
+            </label>
+            <label>
+              Body
+              <textarea id="feed-body" rows="4">A new dogpile just opened.</textarea>
+            </label>
+            <button type="submit">Publish feed event</button>
+          </form>
+        </div>
+      </section>
+    </main>
+
+    <script type="module" src="./app.js"></script>
+  </body>
+</html>

@@ -10,6 +10,7 @@
   - `docs/` — specs, decisions, lessons, solutions
   - `scripts/` — cross-repo orchestration (verify, deploy, IDL sync, fee checks)
   - `e2e/` — devnet E2E tests (Playwright)
+  - `test-tools/` — development-only diagnostics and local harnesses
 - **Source of Truth**:
   - Capability baseline: `docs/SCOPE.md`
   - Decisions: `docs/DECISIONS.md`
@@ -31,10 +32,10 @@
 - **`DEBUG_prompt.md`**: Structured debugging sessions.
 
 ## Definition of Done (Non-Negotiable)
-1. **Verification Passed**: `./scripts/verify` must run successfully.
+1. **Verification Passed**: Run the verification command(s) for the surface you changed.
    - **When to run full verify**: before commits/PRs, after multi-file structural changes, or when a task is "done".
-   - **During iterative chat**: skip full verify — run only the relevant check (e.g., `cd backend && pnpm lint` for TS changes, `cd solana && anchor test` for Rust changes, nothing for docs-only changes).
-   - **Success Criteria**: The task is ONLY successful if verification returns `exit code 0`.
+   - **During iterative chat**: skip full verify — run only the relevant check (e.g., `cd backend && pnpm lint` for TS changes, `cd solana && anchor test` for Rust changes, `cd chat && pnpm verify` for chat changes, nothing for docs-only changes).
+   - **Success Criteria**: The task is ONLY successful if the relevant verification command(s) return `exit code 0`.
 2. **Proof Included**: Every task completion must include the "Completion Report" with all template sections, including **Compound**.
 3. **Debt Logged**: If you relax rules or use temporary fixes, you MUST log it in `docs/TECH_DEBT.md`.
 4. **Lesson Logged (Compact)**: For important mistakes, add one row to `docs/LESSONS.md` (single line only). Include why it happened and what prevents the category.
@@ -43,6 +44,7 @@
 
 ## Cross-Repo Commands
 - **Verify**: `./scripts/verify`
+- **Chat verify**: `cd chat && pnpm verify`
 - **Deploy program**: `./scripts/deploy-devnet.sh <program>` — full lifecycle: build → deploy → copy IDL to backend → init config → verify ID sync. Use `--fresh` when struct layouts changed.
 - **Check program IDs**: `./scripts/check-program-ids.sh` — verifies Anchor.toml, `declare_id!()`, and IDL JSON addresses match.
 - **Sync IDLs**: `./scripts/sync-idl` — copies built IDLs from solana/target/ to backend/packages/anchor-client/src/.
@@ -88,7 +90,7 @@ For cross-repo changes (e.g., deploying new program → updating IDLs):
 - **Commit and push promptly when asked**: Don't delay with extra exploration.
 
 ## Scope Boundary
-- **In scope**: `solana/` (on-chain programs), `backend/` (API + settlement), `chat/` (chat service), `docs/`, `scripts/`, `e2e/`
+- **In scope**: `solana/` (on-chain programs), `backend/` (API + settlement), `chat/` (chat service), `docs/`, `scripts/`, `e2e/`, `test-tools/` (dev-only diagnostics)
 - **Out of scope**: Frontend is a **separate project** handled by a separate team. Do NOT write frontend code, specs, or acceptance criteria unless specifically asked. Frontend repo may be checked out as read-only reference (like `waitlist/`). Backend provides API contracts; frontend team consumes them.
 - **Spec implications**: When writing or reviewing specs, exclude frontend UI criteria. Existing frontend items in specs are marked "out of scope — separate frontend project."
 

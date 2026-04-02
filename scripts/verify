@@ -10,6 +10,11 @@ export CI=true
 #   ./scripts/verify --anchor     Anchor programs only (build + test)
 #   ./scripts/verify --ts         TypeScript only (lint + typecheck + test)
 #   ./scripts/verify --devnet     Devnet E2E tests (non-blocking, skips if env vars missing)
+#
+# Note:
+#   Chat verification currently lives in the `chat/` submodule as `pnpm verify`.
+#   Root verify intentionally remains limited to `backend/` and `solana/` until
+#   the chat service contract stabilizes.
 # =============================================================================
 
 # Color codes

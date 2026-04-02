@@ -13,6 +13,7 @@ chat/            — git submodule (taunt-bet/chat.git): Chat service + realtime
 docs/            — Specs, decisions, lessons, architecture
 scripts/         — Cross-repo: verify, deploy, IDL sync, fee checks
 e2e/             — Devnet E2E tests (Playwright)
+test-tools/      — Development-only local diagnostics and harnesses
 CLAUDE.md        — AI behavior rules and project context
 ```
 
@@ -23,8 +24,10 @@ CLAUDE.md        — AI behavior rules and project context
 ```bash
 git submodule update --init --recursive
 cd backend && pnpm install && cd ..
+cd chat && pnpm install && cd ..
 cd solana && pnpm install --ignore-workspace && cd ..
 ./scripts/verify
+cd chat && pnpm verify && cd ..
 ```
 
 ---
@@ -44,5 +47,7 @@ cd solana && pnpm install --ignore-workspace && cd ..
 - **Scope**: `docs/SCOPE.md`
 - **Decisions**: `docs/DECISIONS.md`
 - **Verification**: `./scripts/verify`
+- **Chat Verification**: `cd chat && pnpm verify`
 - **Deploy**: `./scripts/deploy-devnet.sh <program>`
 - **IDL Sync**: `./scripts/sync-idl`
+- **Chat Test Tool**: `test-tools/chat/`

@@ -9,7 +9,9 @@ Execution defaults for humans and AI agents. Use this file for day-to-day implem
 - Prefer editing only files directly relevant to the task.
 - Solana programs: `solana/` submodule
 - Backend services + shared TS packages: `backend/` submodule
+- Chat service: `chat/` submodule
 - Docs, scripts, e2e: root repo
+- Dev-only local diagnostics: `test-tools/`
 - Do not edit generated/build outputs (`dist/`, compiled artifacts, coverage outputs).
 - If a task requires crossing submodule boundaries, state why in the final report.
 
@@ -19,7 +21,9 @@ Execution defaults for humans and AI agents. Use this file for day-to-day implem
 
 - Completion gate: `./scripts/verify` (runs lint + typecheck + test on backend, builds + tests solana programs).
 - Backend: `cd backend && pnpm lint && pnpm typecheck && pnpm test`
+- Chat: `cd chat && pnpm verify`
 - Solana: `cd solana && anchor build && mocha tests`
+- Root `./scripts/verify` currently excludes `chat/` by design while the chat service contract stabilizes. Run the chat verification command separately when touching `chat/`.
 
 ---
 
@@ -31,7 +35,7 @@ Execution defaults for humans and AI agents. Use this file for day-to-day implem
 - Tests must validate the intended behavior path. Do not keep alternate "success" paths in the same test when the primary assertion flow fails.
 - If a test flow fails, investigate root cause first. You may temporarily split checks into smaller diagnostic tests, but final committed tests must assert the canonical behavior path.
 - Conditional branches in tests are only for explicit preconditions (missing env var, unavailable external service) and must fail/skip with a clear reason.
-- `./scripts/verify` must pass (`exit code 0`) before task completion.
+- Verification must pass before task completion using the command set relevant to the touched surface: `./scripts/verify` for root/backend/solana work, `cd chat && pnpm verify` for chat work, or both when a task spans those boundaries.
 
 ---
 
