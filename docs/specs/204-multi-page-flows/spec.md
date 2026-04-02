@@ -45,6 +45,8 @@ Playwright E2E tests that verify state consistency across multiple pages. After 
 
 ## Functional Requirements
 
+> **Scope note (2026-04-02)**: Frontend UI is handled by a separate team in a separate repo. Acceptance criteria below cover on-chain programs, backend API, settlement, game engine, and tests only. Frontend items are marked out of scope.
+
 ### FR-1: Game Result → Profile Stats
 
 After completing a coinflip match, the player's profile page must reflect the outcome.

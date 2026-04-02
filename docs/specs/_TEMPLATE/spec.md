@@ -40,7 +40,13 @@
 ## Functional Requirements
 
 <!-- FR acceptance criteria checkboxes are audited by /gap-analysis after completion.
-     Each checkbox gets an HTML comment annotation: satisfied/deferred/gap with evidence. -->
+     Each checkbox gets an HTML comment annotation: satisfied/deferred/gap with evidence.
+     
+     SCOPE NOTE: Frontend UI is handled by a separate team in a separate repo.
+     Do NOT include frontend acceptance criteria here. This spec covers:
+     on-chain programs, backend API, settlement, game engine, and tests only.
+     If an FR needs frontend work, note it as a data contract requirement
+     (what the API provides) not a UI requirement (what the screen shows). -->
 
 ### FR-1: [Requirement Name]
 
@@ -111,31 +117,10 @@ The agent MUST complete ALL before outputting the completion signal:
 - [ ] Edge cases handled
 - [ ] Error states handled
 
-#### Visual Regression
-- [ ] `pnpm test:visual` passes (all baselines match)
-- [ ] If this spec changes UI: affected baselines regenerated and committed
-- [ ] Local deterministic E2E passes (`pnpm test:e2e`) for user-facing flows, or N/A documented
-- [ ] Devnet real-provider E2E passes (`pnpm test:e2e:devnet`) when provider-backed flows are included
-
-#### Visual Verification (if UI)
-- [ ] Desktop view correct
-- [ ] Mobile view correct
-
-#### Console/Network Check (if web)
-- [ ] No JS console errors
-- [ ] No failed network requests
-
-#### Smoke Test (Human-in-the-Loop)
-
-Before declaring done, trace every user-facing flow and verify the experience
-makes sense from a player's perspective. Customize this list per spec.
-
-- [ ] Primary flow works end-to-end (create → play → result)
-- [ ] Wallet prompts show expected amounts (no surprise rent/fee charges)
-- [ ] UI state is correct at each phase transition
-- [ ] Win/loss outcomes display correct payouts
-- [ ] Error states show meaningful messages, not raw codes
-- [ ] [Add spec-specific checks here]
+#### Integration Verification
+- [ ] Devnet E2E passes (if applicable) — `pnpm test:e2e:devnet`
+- [ ] API contracts documented (endpoints, request/response shapes)
+- [ ] Settlement flow tested end-to-end (on-chain → backend → DB)
 
 ### Iteration Instructions
 

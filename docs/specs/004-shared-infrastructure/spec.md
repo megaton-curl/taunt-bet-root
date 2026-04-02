@@ -72,6 +72,8 @@ Historical VRF-era material below is retained as implementation history, but it 
 
 ## Functional Requirements
 
+> **Scope note (2026-04-02)**: Frontend UI is handled by a separate team in a separate repo. Acceptance criteria below cover on-chain programs, backend API, settlement, game engine, and tests only. Frontend items are marked out of scope.
+
 ### FR-1: Shared Crate — Escrow Helpers (Claim-Based Payout)
 
 Reusable functions for depositing SOL to a round PDA and letting participants claim their funds. Uses a **claim-based payout pattern**: for VRF games, the `claim_payout` instruction reads the VRF result at claim time (no separate settle tx), derives the winner, and transfers funds — all in one tx. For commit-reveal games, the server's reveal instruction writes the outcome, then players claim. Either way, the claim instruction is what moves funds.

@@ -112,6 +112,17 @@ Track key architectural and product decisions as they're made.
 
 ---
 
+## 2026-04-02 - Frontend Separation
+
+### Decision: Frontend is a Separate Project
+**Date**: 2026-04-02
+**Decision**: Frontend development is handled by a separate team in a separate repository. This repo (root + solana + backend) does not spec, implement, or modify frontend code unless specifically asked. Frontend repo may be checked out as a read-only reference (like `waitlist/`).
+**Rationale**: Team split — frontend rework happening in parallel by different developers. Clear ownership boundary prevents scope creep and conflicting changes.
+**Impact**: All existing specs with frontend acceptance criteria are marked "out of scope — separate frontend project". Spec template updated to exclude frontend sections. CLAUDE.md updated to reflect scope boundary. Backend provides API contracts; frontend team consumes them.
+**Status**: ✅ Locked
+
+---
+
 ## Template for New Decisions
 
 ```markdown

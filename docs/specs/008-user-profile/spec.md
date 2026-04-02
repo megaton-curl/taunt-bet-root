@@ -70,6 +70,8 @@ No on-chain footprint. No social accounts (X/Discord) — deferred TBD.
 
 ## Functional Requirements
 
+> **Note (2026-04-02)**: Frontend is now a separate project. Frontend criteria below were satisfied at completion time but are no longer maintained in this repo.
+
 ### FR-1: Transaction Ledger Table
 
 The `transactions` table stores one row per real on-chain SOL movement

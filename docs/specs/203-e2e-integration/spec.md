@@ -52,6 +52,8 @@ Both suites use the TestWalletProvider (from spec 205) to inject test keypairs a
 
 ## Functional Requirements
 
+> **Scope note (2026-04-02)**: Frontend UI is handled by a separate team in a separate repo. Acceptance criteria below cover on-chain programs, backend API, settlement, game engine, and tests only. Frontend items are marked out of scope.
+
 ### FR-1: Local Deterministic Infrastructure
 
 Set up the deterministic local E2E environment with Playwright, a local Solana validator, Postgres, and the fairness backend.
@@ -71,15 +73,15 @@ Set up the deterministic local E2E environment with Playwright, a local Solana v
 Test the complete coinflip flow through the UI.
 
 **Acceptance Criteria:**
-- [ ] Test wallet A connects, navigates to /coinflip, enters a custom amount, picks Heads, creates a match
-- [ ] Create path signs the canonical payload and calls `POST /fairness/coinflip/create` before wallet submission
+- [ ] Test wallet A connects, navigates to /coinflip, enters a custom amount, picks Heads, creates a match <!-- out of scope: frontend is a separate project -->
+- [ ] Create path signs the canonical payload and calls `POST /fairness/coinflip/create` before wallet submission <!-- out of scope: frontend is a separate project -->
 - [x] Match appears in the open lobby <!-- satisfied: e2e/local/03-lifecycle.spec.ts:72 — waitForLobbyMatch(playerBPage) confirms match visible to Player B -->
 - [x] Test wallet B connects (second browser context), sees the match, joins it <!-- satisfied: e2e/local/03-lifecycle.spec.ts:71-75 — Player B navigates, sees match, joinMatch(playerBPage) -->
 - [x] Match transitions to locked phase in both contexts <!-- satisfied: e2e/local/03-lifecycle.spec.ts:87-90 — Promise.all([waitForResult(playerAPage), waitForResult(playerBPage)]) — both contexts transition through locked to result -->
 - [ ] Backend worker settles the match automatically after join/lock; the test does not resolve the result via a VRF shortcut
 - [x] Winner sees "You won" result, loser sees "You lost" <!-- satisfied: e2e/local/03-lifecycle.spec.ts:93-94 — expect(resultA).toBe("won"); expect(resultB).toBe("lost") -->
-- [ ] Public verification endpoint / fairness page confirms the settled result from backend-served payloads
-- [ ] Match disappears from lobby after automatic settlement
+- [ ] Public verification endpoint / fairness page confirms the settled result from backend-served payloads <!-- out of scope: frontend is a separate project; backend verification endpoint is in scope -->
+- [ ] Match disappears from lobby after automatic settlement <!-- out of scope: frontend is a separate project -->
 
 ### FR-3: Cancel Flow
 
@@ -89,14 +91,14 @@ Test match cancellation.
 - [x] Creator creates a match, then cancels before anyone joins <!-- satisfied: e2e/local/02-cancel-flow.spec.ts:46-69 — creates match, verifies waiting state, cancels -->
 - [x] Creator's balance is refunded (entry amount + rent) <!-- satisfied: e2e/local/02-cancel-flow.spec.ts:79-88 — balance after cancel > after create, net cost < 10M lamports (tx fees only) -->
 - [x] Match disappears from the lobby <!-- satisfied: e2e/local/02-cancel-flow.spec.ts:72-73 — waitForLobby + assertLobbyEmpty -->
-- [ ] Creator can create a new match after cancellation using a custom amount
+- [ ] Creator can create a new match after cancellation using a custom amount <!-- out of scope: frontend is a separate project -->
 
 ### FR-4: Error Scenarios
 
 Test that error states surface correctly in the UI.
 
 **Acceptance Criteria:**
-- [ ] Creating a match below the minimum amount or above wallet balance shows an error message
+- [ ] Creating a match below the minimum amount or above wallet balance shows an error message <!-- out of scope: frontend is a separate project -->
 - [x] Joining an already-locked match shows an error message <!-- satisfied: e2e/local/01-error-flow.spec.ts:65-99 — Player B clicks stale join on cancelled match, error toast visible -->
 - [x] Claiming as the loser shows an error message <!-- satisfied: e2e/local/01-error-flow.spec.ts:103-143 — A wins + claims, B clicks settle on closed PDA, error toast visible -->
 

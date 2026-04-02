@@ -43,6 +43,8 @@ A team-based tap game where players are assigned to either Surfers (bulls) or An
 
 ## Functional Requirements
 
+> **Scope note (2026-04-02)**: Frontend UI is handled by a separate team in a separate repo. Acceptance criteria below cover on-chain programs, backend API, settlement, game engine, and tests only. Frontend items are marked out of scope.
+
 ### FR-1: Team Assignment
 
 Players are automatically assigned to Surfers or Anchors upon joining.

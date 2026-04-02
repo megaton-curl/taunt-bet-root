@@ -61,6 +61,8 @@ These invariants are non-negotiable for correctness and abuse resistance:
 
 ## Functional Requirements
 
+> **Note (2026-04-02)**: Frontend is now a separate project. Frontend criteria below were satisfied at completion time but are no longer maintained in this repo.
+
 ### FR-1: Referral Code Generation
 
 Any player with a connected wallet can set a referral code. No eligibility gate — open from day one.

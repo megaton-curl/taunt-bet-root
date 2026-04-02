@@ -42,6 +42,8 @@ A multiplayer trading competition where players pay an entry fee and compete on 
 
 ## Functional Requirements
 
+> **Scope note (2026-04-02)**: Frontend UI is handled by a separate team in a separate repo. Acceptance criteria below cover on-chain programs, backend API, settlement, game engine, and tests only. Frontend items are marked out of scope.
+
 ### FR-1: Round Entry
 
 Players pay a custom-amount entry fee to join a trading competition round.

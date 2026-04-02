@@ -60,6 +60,8 @@ and have no public users yet.
 
 ## Functional Requirements
 
+> **Note (2026-04-02)**: Frontend is now a separate project. Frontend criteria below were satisfied at completion time but are no longer maintained in this repo.
+
 ### FR-1: Challenge-Response Authentication
 
 The backend issues a challenge containing a human-readable message. The wallet signs

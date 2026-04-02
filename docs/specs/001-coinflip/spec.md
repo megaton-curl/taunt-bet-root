@@ -75,6 +75,8 @@ Coinflip is the simplest game on the platform and the first end-to-end delivery 
 
 ## Functional Requirements
 
+> **Scope note (2026-04-02)**: Frontend UI is handled by a separate team in a separate repo. Acceptance criteria below cover on-chain programs, backend API, settlement, game engine, and tests only. Frontend items are marked out of scope.
+
 ### FR-1: Match Creation
 
 A player can create a new coinflip match by entering a custom SOL amount (minimum 0.0026 SOL) and a side (Heads or Tails). The frontend requests a backend-generated partial transaction via JWT-authenticated endpoint, the player co-signs once in-wallet, and the match appears in the open games list for other players to join. The on-chain `create_match` instruction takes `amount: u64` (not a tier index). The backend request body uses `amountLamports`.
@@ -84,7 +86,7 @@ A player can create a new coinflip match by entering a custom SOL amount (minimu
 - [x] Player can choose Heads or Tails <!-- satisfied: shared/src/constants.rs:2-3 SIDE_HEADS/TAILS, CoinSideSelector.tsx:19 -->
 - [x] Create flow uses `POST /fairness/coinflip/create` to obtain a server-partially-signed transaction, `matchPda`, and commitment before wallet submission <!-- satisfied: create.ts returns {transaction, matchPda, matchId, commitment, lastValidBlockHeight} -->
 - [x] Create request is authenticated by JWT Bearer token (wallet read from `sub` claim); body includes `{wallet, amountLamports, side}` <!-- satisfied: jwt-auth.ts middleware + create.ts defense-in-depth wallet===jwtWallet check -->
-- [ ] Created match appears in the lobby browser with creator name, entered amount, and side chosen
+- [ ] Created match appears in the lobby browser with creator name, entered amount, and side chosen <!-- out of scope: frontend is a separate project -->
 - [x] Match creation requires a connected wallet with sufficient balance <!-- satisfied: CoinflipContext.tsx:169 createMatch, error.rs:19 InsufficientFunds -->
 - [x] Duplicate create attempts with the same match PDA are rejected cleanly (HTTP 409 / actionable UI error) <!-- satisfied: create.ts checks db.getRoundByPda + unique constraint race handling, returns 409 -->
 
@@ -93,7 +95,7 @@ A player can create a new coinflip match by entering a custom SOL amount (minimu
 A second player can join an open match. The joiner is automatically assigned the opposite side. The joiner must deposit the exact same `entry_amount` stored on the match PDA. No tier-based filtering — the lobby shows all open matches with their custom entry amounts.
 
 **Acceptance Criteria:**
-- [ ] Player can browse open matches sorted by newest/oldest/amount (no tier-based filtering)
+- [ ] Player can browse open matches sorted by newest/oldest/amount (no tier-based filtering) <!-- out of scope: frontend is a separate project -->
 - [x] Joining assigns the opposite side automatically <!-- satisfied: join_match.rs opponent set, chain.ts onChainMatchToUI -->
 - [x] Both players' wagers are equal (joiner deposits exact `entry_amount` from match PDA) <!-- satisfied: join_match.rs:47 `entry_amount = coinflip_match.entry_amount` transferred from opponent -->
 - [x] Amount is locked on-chain at create time (entry_amount stored on match PDA, immutable after init) <!-- satisfied: create_match.rs:74 m.entry_amount = entry_amount -->
@@ -141,7 +143,7 @@ Players can verify the outcome of any completed match by inspecting the MatchSet
 **Acceptance Criteria:**
 - [ ] Settled rounds are verifiable via `GET /fairness/rounds/:pda`, including commitment, secret, target slot / entropy details, result side, winner, and settlement tx
 - [ ] Unsettled rounds never expose the secret via the verification endpoint
-- [ ] Verification is accessible from the result screen and match-history-style entry points, using the backend payload and/or on-chain MatchSettled event data
+- [ ] Verification is accessible from the result screen and match-history-style entry points, using the backend payload and/or on-chain MatchSettled event data <!-- out of scope: frontend is a separate project -->
 
 ### FR-5b: Backend Operations and Testability
 
@@ -158,9 +160,9 @@ Coinflip V1 requires a documented, repeatable backend run path for local develop
 A browsable list of open coinflip matches with creation controls. No tier-based filtering — lobby shows all open matches with their custom entry amounts.
 
 **Acceptance Criteria:**
-- [ ] Open games list shows creator name/avatar, wager amount, side, and join button
+- [ ] Open games list shows creator name/avatar, wager amount, side, and join button <!-- out of scope: frontend is a separate project -->
 - [x] Sort by newest/oldest/amount <!-- satisfied: OpenMatchesList.tsx:18 sortMatches, :79 sort dropdown -->
-- [ ] Create Game panel with WagerInput (numeric input + quick-select preset buttons: 0.005, 0.01, 0.05, 0.1, 0.25, 0.5, 1.0 SOL) and Heads/Tails toggle
+- [ ] Create Game panel with WagerInput (numeric input + quick-select preset buttons: 0.005, 0.01, 0.05, 0.1, 0.25, 0.5, 1.0 SOL) and Heads/Tails toggle <!-- out of scope: frontend is a separate project -->
 - [x] ~~Estimated wait time shown (derived from recent match fill rate — deferred to post-MVP polish if data unavailable)~~ [DEFERRED] <!-- deferred: self-deferred in criterion text, no match fill-rate data available -->
 
 ### FR-7: Active Game and Result UI
@@ -173,7 +175,7 @@ The in-match view showing both players, coin flip animation, and result. UI phas
 - [x] Winning side highlighted with glow effect <!-- satisfied: ActiveMatchView.tsx result color + textShadow glow -->
 - [x] "YOU WIN!" or "YOU LOSE" overlay displayed <!-- satisfied: ActiveMatchView.tsx "You Won!", "You Lost" with heart+shards animation -->
 - [x] Payout amount shown for winner <!-- satisfied: ActiveMatchView.tsx match.payoutAmount.toFixed(4) SOL -->
-- [ ] Quick rematch option available after result using the same amount and side
+- [ ] Quick rematch option available after result using the same amount and side <!-- out of scope: frontend is a separate project -->
 
 ### FR-8: Audio Feedback
 
@@ -305,7 +307,7 @@ Phases 1-2 below capture the historical implementation work that previously mark
 - [x] [frontend] Build fairness verification UI — "Verify Fairness" button in ActiveMatchView (visible in completed phase), shows commitment, secret, entropy, result hash, derived result, winner, verification status badge (done: iteration 17)
 
 **Phase 2: Quick Rematch (FR-7.6)**
-- [ ] [frontend] Add / update rematch flow so `ActiveMatchView` can recreate a match with the same amount and the player's original side choice. Creates a new open match in the lobby — the opponent must find and join it manually (no forced rematch). Button text: "Play Again". Reuses the existing `createMatch` context action.
+- [ ] [frontend] Add / update rematch flow so `ActiveMatchView` can recreate a match with the same amount and the player's original side choice. Creates a new open match in the lobby — the opponent must find and join it manually (no forced rematch). Button text: "Play Again". Reuses the existing `createMatch` context action. <!-- out of scope: frontend is a separate project -->
 
 **Phase 2: Validation & Cleanup**
 - [x] [test] Validate carry-forward invariants — verified: (a) commitment stored on CoinflipMatch + emitted in MatchSettled, (b) result_hash[0]%2 is pure deterministic side derivation, (c) timeout_refund uses `is_expired(resolve_deadline, now)`, (d) join_match rejects non-WAITING phase, settle rejects non-LOCKED phase, (e) create_match calls `check_not_paused()`. (done: iteration 19)
@@ -317,7 +319,7 @@ Phases 1-2 below capture the historical implementation work that previously mark
 - [x] [backend] JWT auth system — challenge/verify/refresh/logout routes at `/auth/*`, JWT middleware on POST requests, wallet read from `sub` claim (done: auth.ts + jwt-auth.ts)
 - [x] [backend] Create endpoint — `POST /fairness/coinflip/create` (JWT-authenticated), generates secret+commitment+matchId, builds partially-signed create_match tx, stores round in DB, returns {transaction, matchPda, matchId, commitment, lastValidBlockHeight} (done: create.ts + tx-builder.ts)
 - [x] [backend] Settlement worker — polls every 1s for LOCKED matches where target_slot reached, submits settle tx with secret reveal, uses PermanentSettleError/TransientSettleError for retry classification (done: settlement.ts + settle-tx.ts + retry.ts)
-- [ ] [frontend] Replace any remaining client-side coinflip create secret flow with the backend create contract: JWT Bearer auth, call `POST /fairness/coinflip/create` with `{wallet, amountLamports, side}`, wallet co-signs returned transaction, surface auth / rate-limit / duplicate errors clearly.
+- [ ] [frontend] Replace any remaining client-side coinflip create secret flow with the backend create contract: JWT Bearer auth, call `POST /fairness/coinflip/create` with `{wallet, amountLamports, side}`, wallet co-signs returned transaction, surface auth / rate-limit / duplicate errors clearly. <!-- out of scope: frontend is a separate project -->
 - [x] [frontend] Align fairness verification UX with `GET /fairness/rounds/:pda` so post-settlement verification uses backend-served secret / result payloads and unsettled rounds never expose secret material. <!-- satisfied: result-screen fairness payload + backend `rounds` endpoint gating -->
 - [ ] [infra] Add a documented local backend run path for coinflip development: env template/profile, Postgres migration step, `pnpm --filter @rng-utopia/backend dev`, frontend backend base URL wiring, and `/health` verification.
 - [x] [infra] Add a documented devnet backend run path for coinflip: funded server keypair, devnet RPC/program config, backend startup, and `/health` verification before tests. <!-- satisfied: Backend Run Modes / Devnet + `run-e2e-devnet.sh` -->

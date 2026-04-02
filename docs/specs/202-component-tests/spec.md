@@ -47,6 +47,8 @@ Add React component and hook tests using vitest + @testing-library/react. These 
 
 ## Functional Requirements
 
+> **Scope note (2026-04-02)**: Frontend UI is handled by a separate team in a separate repo. Acceptance criteria below cover on-chain programs, backend API, settlement, game engine, and tests only. Frontend items are marked out of scope.
+
 ### FR-1: CoinflipContext State Transitions
 
 Test the context's state machine by mocking the backend-backed create flow plus the direct on-chain follow-up helpers.

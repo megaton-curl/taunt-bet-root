@@ -46,6 +46,8 @@ Close Call is a pari-mutuel prediction game where players bet on whether a one-m
 
 ## Functional Requirements
 
+> **Note (2026-04-02)**: Frontend is now a separate project. Frontend criteria below were satisfied at completion time but are no longer maintained in this repo.
+
 ### FR-1: Round Structure
 
 Rounds follow a fixed 60-second cycle synchronized to minute boundaries. Each round has a 30-second betting window followed by a 30-second lock period. The backend creates rounds at minute boundaries.

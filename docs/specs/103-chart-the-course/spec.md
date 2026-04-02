@@ -43,6 +43,8 @@ A prediction game where players draw expected price trajectories on historical c
 
 ## Functional Requirements
 
+> **Scope note (2026-04-02)**: Frontend UI is handled by a separate team in a separate repo. Acceptance criteria below cover on-chain programs, backend API, settlement, game engine, and tests only. Frontend items are marked out of scope.
+
 ### FR-1: Chart Presentation
 
 Players see a historical chart with the asset identity hidden.

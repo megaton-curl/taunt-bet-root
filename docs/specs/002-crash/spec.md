@@ -50,6 +50,8 @@ Crash is a competitive P2P multiplayer game where players watch a multiplier cli
 
 ## Functional Requirements
 
+> **Scope note (2026-04-02)**: Frontend UI is handled by a separate team in a separate repo. Acceptance criteria below cover on-chain programs, backend API, settlement, game engine, and tests only. Frontend items are marked out of scope.
+
 ### FR-1: Betting Phase
 
 Players have a 20-second window to enter a custom amount and place their wager. One bet per player per round.

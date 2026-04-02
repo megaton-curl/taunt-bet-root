@@ -188,6 +188,8 @@ Two tables — `rounds` for state, `operator_events` for append-only audit trail
 
 ## Functional Requirements
 
+> **Note (2026-04-02)**: Frontend is now a separate project. Frontend criteria below were satisfied at completion time but are no longer maintained in this repo.
+
 <!-- FR acceptance criteria checkboxes are audited by /gap-analysis after completion.
      Each checkbox gets an HTML comment annotation: satisfied/deferred/gap with evidence. -->
 

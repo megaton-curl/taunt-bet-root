@@ -43,6 +43,8 @@ A peer-to-peer slot game with high RTP. Players contribute to a shared pot via c
 
 ## Functional Requirements
 
+> **Scope note (2026-04-02)**: Frontend UI is handled by a separate team in a separate repo. Acceptance criteria below cover on-chain programs, backend API, settlement, game engine, and tests only. Frontend items are marked out of scope.
+
 ### FR-1: Loyalty Gate
 
 Access restricted to players meeting a monthly wagering threshold.

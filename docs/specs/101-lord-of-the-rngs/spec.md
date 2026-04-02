@@ -72,6 +72,8 @@ The target V1 architecture is the backend-assisted hybrid fairness model used by
 
 ## Functional Requirements
 
+> **Scope note (2026-04-02)**: Frontend UI is handled by a separate team in a separate repo. Acceptance criteria below cover on-chain programs, backend API, settlement, game engine, and tests only. Frontend items are marked out of scope.
+
 ### FR-1: Waiting Phase
 
 Round is open but waiting for minimum 2 distinct wallets to each have at least one entry before countdown begins.
@@ -249,9 +251,9 @@ The completed phases below capture the current commit-reveal implementation. The
 
 #### Phase D: Frontend Wiring (Replace Mocks)
 
-- [ ] [frontend] Update `features/lord-of-rngs/utils/chain.ts` for round-number-keyed rounds: `buildJoinRoundTx`, `buildBuyMoreEntriesTx`, `buildStartSpinTx`, `fetchRound`, `fetchActiveRounds`. Backend handles `create_round` and `claim_payout` (server co-sign required). Pattern: mirror coinflip `chain.ts`. Verify: TypeScript compiles.
-- [ ] [frontend] Update `LordOfRngsContext.tsx` — replace mock-simulation imports with chain.ts calls. Wire join/buyMore actions around round-number-keyed rounds. Poll/subscribe round account so all clients detect phase transitions (Active → Settled). `start_spin` is a deprecated shim kept for frontend compatibility but performs no state transition. Verify: TypeScript compiles, `pnpm lint` clean.
-- [ ] [frontend] Replace tier types / selectors with amount input + round state. Ensure `ActiveRoundView` and lobby views display the entered SOL amount and enforce the `0.0026 SOL` minimum. Verify: `pnpm lint` clean.
+- [ ] [frontend] Update `features/lord-of-rngs/utils/chain.ts` for round-number-keyed rounds: `buildJoinRoundTx`, `buildBuyMoreEntriesTx`, `buildStartSpinTx`, `fetchRound`, `fetchActiveRounds`. Backend handles `create_round` and `claim_payout` (server co-sign required). Pattern: mirror coinflip `chain.ts`. Verify: TypeScript compiles. <!-- out of scope: frontend is a separate project -->
+- [ ] [frontend] Update `LordOfRngsContext.tsx` — replace mock-simulation imports with chain.ts calls. Wire join/buyMore actions around round-number-keyed rounds. Poll/subscribe round account so all clients detect phase transitions (Active → Settled). `start_spin` is a deprecated shim kept for frontend compatibility but performs no state transition. Verify: TypeScript compiles, `pnpm lint` clean. <!-- out of scope: frontend is a separate project -->
+- [ ] [frontend] Replace tier types / selectors with amount input + round state. Ensure `ActiveRoundView` and lobby views display the entered SOL amount and enforce the `0.0026 SOL` minimum. Verify: `pnpm lint` clean. <!-- out of scope: frontend is a separate project -->
 - [x] [frontend] Wire fairness verification — update sidebar fairness section to show commit-reveal data from RoundSettled event (commitment, secret, entropy, result_hash). Add Lord of the RNGs section to `/fairness` page (paste tx signature → verify winning offset). Verify: TypeScript compiles. (done: iteration 17)
 - [x] [frontend] Delete `mock-simulation.ts` once all context actions use chain.ts. Verify: `pnpm build:all` succeeds, no imports of mock-simulation remain. (done: iteration 18)
 

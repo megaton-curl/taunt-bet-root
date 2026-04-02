@@ -44,6 +44,8 @@ Establish Playwright-based visual regression testing that captures pixel-accurat
 
 ## Functional Requirements
 
+> **Note (2026-04-02)**: Frontend is now a separate project. Frontend criteria below were satisfied at completion time but are no longer maintained in this repo.
+
 ### FR-1: Playwright Configuration
 
 Set up Playwright for screenshot testing in the platform app.

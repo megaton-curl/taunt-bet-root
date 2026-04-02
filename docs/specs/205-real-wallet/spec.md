@@ -91,6 +91,8 @@ Replace the MockWalletProvider with a real Solana wallet adapter so players can 
 
 ## Functional Requirements
 
+> **Note (2026-04-02)**: Frontend is now a separate project. Frontend criteria below were satisfied at completion time but are no longer maintained in this repo.
+
 ### FR-1: Real Wallet Connection
 
 Replace MockWalletProvider with Unified Wallet Kit (`@jup-ag/wallet-adapter`). The kit wraps `@solana/wallet-adapter-react` and provides a themed modal + connect button out of the box. Pass `wallets: []` to use Wallet Standard auto-detection — no manual adapter instantiation needed.

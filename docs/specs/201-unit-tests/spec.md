@@ -47,6 +47,8 @@ Add vitest unit tests for the shared TypeScript packages (game-engine, fairness,
 
 ## Functional Requirements
 
+> **Scope note (2026-04-02)**: Frontend UI is handled by a separate team in a separate repo. Acceptance criteria below cover on-chain programs, backend API, settlement, game engine, and tests only. Frontend items are marked out of scope.
+
 ### FR-1: Game Engine — Payout Math
 
 Test that payout calculations match the on-chain settlement math exactly.

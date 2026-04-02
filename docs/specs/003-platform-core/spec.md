@@ -51,6 +51,8 @@ Platform Core covers the shared systems that all V1 games depend on: wallet conn
 
 ## Functional Requirements
 
+> **Scope note (2026-04-02)**: Frontend UI is handled by a separate team in a separate repo. Acceptance criteria below cover on-chain programs, backend API, settlement, game engine, and tests only. Frontend items are marked out of scope.
+
 ### FR-1: Wallet Connection
 
 V1 ships normal Solana wallet flow using external wallets. Players connect, sign transactions, and disconnect.

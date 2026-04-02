@@ -254,6 +254,8 @@ Timeout is the **sole user protection** against a dishonest or offline server.
 
 ## Functional Requirements
 
+> **Scope note (2026-04-02)**: Frontend UI is handled by a separate team in a separate repo. Acceptance criteria below cover on-chain programs, backend API, settlement, game engine, and tests only. Frontend items are marked out of scope.
+
 ### FR-1: On-Chain Commitment Storage
 
 The program must store a server commitment on the round/match PDA at creation time,

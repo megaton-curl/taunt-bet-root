@@ -86,6 +86,11 @@ For cross-repo changes (e.g., deploying new program → updating IDLs):
 - **Batch operations — align first**: Do the first item, show result, get confirmation.
 - **Commit and push promptly when asked**: Don't delay with extra exploration.
 
+## Scope Boundary
+- **In scope**: `solana/` (on-chain programs), `backend/` (API + settlement), `docs/`, `scripts/`, `e2e/`
+- **Out of scope**: Frontend is a **separate project** handled by a separate team. Do NOT write frontend code, specs, or acceptance criteria unless specifically asked. Frontend repo may be checked out as read-only reference (like `waitlist/`). Backend provides API contracts; frontend team consumes them.
+- **Spec implications**: When writing or reviewing specs, exclude frontend UI criteria. Existing frontend items in specs are marked "out of scope — separate frontend project."
+
 ## Access
 This is the **owner workspace**. Full read/write access to all submodules.
 Prefer small diffs, don't break things carelessly, but no hard blocks.
