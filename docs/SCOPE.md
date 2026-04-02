@@ -1,5 +1,9 @@
 # Taunt Bet - Capability Baseline
 
+> Temporary status note: `docs/SCOPE.md` is currently out of date during active replanning.
+> Treat implementation, active game/backend specs, `docs/DECISIONS.md`, and `docs/DESIGN_REFERENCE.md` as the current source of truth until this document is rewritten.
+> For now, this file should be considered informational only and may lag behind reality.
+
 Non-custodial P2P gaming platform on Solana. This document captures current implementation boundaries, architectural constraints, and planning direction without release labels.
 
 ---
@@ -197,7 +201,8 @@ Secondary:
 
 ## 12) Governance
 
-- Treat this document as the authoritative capability baseline.
+- Temporary override: this document is currently non-authoritative while replanning is in progress and should be ignored when it conflicts with implementation or newer decision/spec docs.
+- Until `docs/SCOPE.md` is rewritten, use implementation, active specs, `docs/DECISIONS.md`, and `docs/DESIGN_REFERENCE.md` as the operational source of truth.
 - New features require explicit decision records before broad rollout.
 - Architecture model changes require a dedicated decision memo.
 
