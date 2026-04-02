@@ -13,12 +13,8 @@ Track temporary hacks, relaxed rules, and shortcuts here.
 
 ## Medium Priority (Before Launch)
 
-### [Jackpot] Backend game-engine PDA helper uses stale `roundNumber` seed
-- **Date**: 2026-03-13 (identified), 2026-03-30 (updated)
-- **Location**: `backend/packages/game-engine/src/lordofrngs.ts:17-26`
-- **What**: `getRoundPda(roundNumber)` derives PDAs using sequential round counter, but on-chain program uses `["jackpot_round", match_id]` (random 8-byte ID). `tx-builder.ts` has the correct `deriveLordRoundPda(matchId)`.
-- **Why**: On-chain PDA redesign completed (tier→match_id) but game-engine helper wasn't updated.
-- **Fix Criteria**: Update `getRoundPda` to accept `matchId: Buffer` instead of `roundNumber`, or remove it in favor of `tx-builder.deriveLordRoundPda`.
+### ~~[Jackpot] Backend game-engine PDA helper uses stale `roundNumber` seed~~
+- **Resolved**: 2026-04-02 — `getRoundPda(matchId: Buffer)` already uses correct seed. Confirmed in gap analysis for spec 101.
 
 ---
 
