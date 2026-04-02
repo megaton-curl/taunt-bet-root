@@ -1,9 +1,8 @@
 import { defineConfig, devices } from "@playwright/test";
 
-const baseUrl = process.env.PLAYWRIGHT_BASE_URL ?? "http://127.0.0.1:3003";
+const baseUrl = process.env.PLAYWRIGHT_BASE_URL ?? "http://127.0.0.1:5173";
 
 export default defineConfig({
-  testDir: "./devnet",
   fullyParallel: false,
   forbidOnly: !!process.env.CI,
   retries: 1,
@@ -20,11 +19,14 @@ export default defineConfig({
 
   projects: [
     {
+      name: "local",
+      testDir: "./local",
+      testMatch: "**/*.spec.ts",
+    },
+    {
       name: "devnet",
+      testDir: "./devnet",
       testMatch: "**/*.spec.ts",
     },
   ],
-
-  // No webServer block — frontend must be started externally.
-  // Start the platform frontend before running: PLAYWRIGHT_BASE_URL=http://localhost:3003 pnpm exec playwright test
 });
