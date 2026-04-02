@@ -8,3 +8,6 @@
 	path = waitlist
 	url = https://github.com/taunt-bet/waitlist.git
 	branch = dev
+[submodule "chat"]
+	path = chat
+	url = https://github.com/taunt-bet/chat.git

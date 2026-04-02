@@ -9,6 +9,7 @@
 ```
 solana/          — git submodule (taunt-bet/solana.git): Anchor programs
 backend/         — git submodule (taunt-bet/backend.git): Hono API + shared packages
+chat/            — git submodule (taunt-bet/chat.git): Chat service + realtime/event feeds
 docs/            — Specs, decisions, lessons, architecture
 scripts/         — Cross-repo: verify, deploy, IDL sync, fee checks
 e2e/             — Devnet E2E tests (Playwright)
@@ -34,6 +35,7 @@ cd solana && pnpm install --ignore-workspace && cd ..
 |------|------|---------|
 | `solana/` | `taunt-bet/solana.git` | Anchor programs (coinflip, closecall, lordofrngs, platform) + shared Rust crate |
 | `backend/` | `taunt-bet/backend.git` | Hono REST API, settlement workers, shared TS packages (anchor-client, game-engine, fairness) |
+| `chat/` | `taunt-bet/chat.git` | Dedicated chat service, room/message domain, and separate event-feed transport |
 
 ---
 

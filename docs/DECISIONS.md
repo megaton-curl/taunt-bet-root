@@ -35,6 +35,7 @@ Track key architectural and product decisions as they're made.
 **Decision**: Split monorepo into independent repos with root orchestration:
 - `solana/` — submodule → `taunt-bet/solana.git` (Anchor programs + shared Rust crate)
 - `backend/` — submodule → `taunt-bet/backend.git` (Hono API + shared TS packages)
+- `chat/` — submodule → `taunt-bet/chat.git` (dedicated chat service + event-feed transport)
 - Root repo → `megaton-curl/taunt-bet-root.git` (docs, scripts, e2e tests, submodule orchestration)
 - Frontend and waitlist — separate repos (being reworked independently)
 **Rationale**: Independent deploy cycles per domain. Backend deploys without touching programs. Solana builds without Node backend. Eliminates monorepo install bloat. Each repo is self-contained and deployable.
