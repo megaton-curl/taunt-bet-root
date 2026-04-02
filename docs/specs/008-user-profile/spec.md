@@ -4,7 +4,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | Ready |
+| Status | Done |
 | Priority | P1 |
 | Phase | 3 |
 | NR_OF_TRIES | 26 |
