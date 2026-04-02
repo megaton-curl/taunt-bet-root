@@ -81,7 +81,8 @@ refresh token.
 
 **Acceptance Criteria:**
 - [x] `POST /auth/verify` accepts `{ nonce, wallet, signature }` and returns both tokens
-- [x] Access token is a HS256 JWT with `sub` claim set to the wallet address
+- [x] Access token is a HS256 JWT with `sub` claim set to the player's `user_id`
+- [x] Access token carries ONLY `sub=userId` — no wallet claim. Wallet is resolved from player profile via `db.getProfileByUserId(userId)` when needed for chain-bound checks
 - [x] Access token TTL is configurable (default 24 hours)
 - [x] Refresh token is an opaque random string, stored hashed (SHA-256) in the database
 - [x] Refresh token TTL is configurable (default 14 days)
@@ -115,9 +116,9 @@ Ed25519 signatures.
 **Acceptance Criteria:**
 - [x] POST requests to `/fairness/*` require `Authorization: Bearer <token>` header
 - [x] GET requests pass through without authentication (same as before)
-- [x] Middleware sets `wallet` in Hono context for downstream handlers
+- [x] Middleware sets `userId` in Hono context from JWT `sub`; wallet resolved from player profile when needed (no wallet claim in JWT)
 - [x] 401 returned for missing, invalid, or expired tokens
-- [x] Create endpoint validates body `wallet` matches JWT `sub` (defense-in-depth)
+- [x] Create endpoint validates body `wallet` matches the profile-resolved wallet (defense-in-depth)
 
 ### FR-6: Frontend Session Management
 
@@ -139,9 +140,9 @@ reconnect, refresh proactively, clear on disconnect.
 Rate limiting works with both JWT-authenticated and pre-auth routes.
 
 **Acceptance Criteria:**
-- [x] For authenticated routes: wallet read from JWT context
+- [x] For authenticated routes: rate limit keys on authenticated `userId`, falling back to IP where needed
 - [x] For pre-auth routes (`/auth/*`): rate limit keyed on IP address
-- [x] Fallback chain: JWT context → request body → IP address
+- [x] Fallback chain: JWT userId → IP address
 
 ---
 
@@ -178,7 +179,7 @@ Rate limiting works with both JWT-authenticated and pre-auth routes.
 | 3 | Refresh rotation works | Unit test (old token rejected) | auth-routes.test.ts |
 | 4 | Reuse detection revokes family | Unit test | auth-routes.test.ts |
 | 5 | JWT middleware rejects invalid tokens | Unit test | auth.test.ts |
-| 6 | Create endpoint uses JWT wallet | Unit test | endpoints.test.ts |
+| 6 | Create endpoint uses profile-resolved wallet from JWT userId | Unit test | endpoints.test.ts |
 | 7 | Full lifecycle with JWT | Integration test | integration.test.ts |
 | 8 | Frontend builds clean | Build check | `pnpm build` exit 0 |
 | 9 | Lint passes | Lint check | `pnpm lint` 0 errors |
@@ -255,7 +256,7 @@ Rate limiting works with both JWT-authenticated and pre-auth routes.
   - `auth_challenges` (PK: `nonce`) -- single-use challenge nonces. Key columns: `wallet`, `cluster`, `message`, `expires_at`, `used`
   - `refresh_tokens` (PK: `id`) -- hashed refresh tokens with family-based rotation. Key columns: `wallet`, `token_hash` (BYTEA, UNIQUE), `family_id`, `expires_at`, `revoked`
 - **Middleware**:
-  - JWT middleware on `POST /fairness/*` -- verifies HS256 Bearer token, sets `c.set("wallet", payload.sub)`
+  - JWT middleware on `POST /fairness/*` -- verifies HS256 Bearer token, sets `c.set("userId", payload.sub)`; wallet resolved from player profile when needed (no wallet claim in JWT)
   - JWT middleware on `/profile/*` and `/referral/*` -- `requireAllMethods: true` (GET and POST)
   - JWT middleware on `POST /closecall/bet` -- same as fairness
   - Rate limiting on `/auth/*` -- keyed by IP (pre-auth, no wallet available)
@@ -263,7 +264,7 @@ Rate limiting works with both JWT-authenticated and pre-auth routes.
   - `services/backend/src/routes/auth.ts` -- challenge/verify/refresh/logout handlers
   - `services/backend/src/middleware/jwt-auth.ts` -- `createJwtAuthMiddleware()` (HS256 via `jose`)
   - `services/backend/src/middleware/auth.ts` -- legacy Ed25519 per-request auth (replaced, kept for reference)
-  - `services/backend/src/middleware/rate-limit.ts` -- context-aware rate limiting (JWT wallet or IP fallback)
+  - `services/backend/src/middleware/rate-limit.ts` -- context-aware rate limiting (JWT userId or IP fallback)
   - `services/backend/src/auth-db.ts` -- DB operations for challenges + refresh tokens
   - `services/backend/migrations/002_auth_sessions.sql` -- auth_challenges + refresh_tokens tables
 

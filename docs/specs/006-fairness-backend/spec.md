@@ -201,8 +201,9 @@ to the requesting wallet for co-signing and submission.
 
 **Endpoint**: `POST /fairness/coinflip/create`
 
-**Authentication**: JWT Bearer token (see FR-5). The backend reads the wallet address from
-the JWT `sub` claim and cross-checks it against the `wallet` field in the request body.
+**Authentication**: JWT Bearer token (see FR-5). The backend reads `userId` from the
+JWT `sub` claim, resolves the wallet from the player profile, and cross-checks it against
+the `wallet` field in the request body.
 
 **Request body**:
 ```json
@@ -318,12 +319,12 @@ is the active authentication middleware.
 2. Wallet signs the human-readable `message` (Ed25519 over plaintext, one-time nonce)
 3. `POST /auth/verify` — client sends `{ nonce, wallet, signature }`, backend returns `{ accessToken, refreshToken, accessExpiresAt, refreshExpiresAt }`
 4. Subsequent `POST /fairness/*` requests include `Authorization: Bearer <accessToken>`
-5. Backend reads wallet from JWT `sub` claim — no per-request wallet signature needed
+5. Backend reads `userId` from JWT `sub` and resolves wallet from the player profile via `db.getProfileByUserId(userId)` — no wallet claim in JWT, no per-request wallet signature needed
 
 **Acceptance Criteria:**
 - [x] `POST /fairness/coinflip/create` requires a valid JWT Bearer token in the `Authorization` header <!-- satisfied: middleware/jwt-auth.ts wired at index.ts:65-68 on /fairness/* -->
-- [x] JWT is verified as HS256, and `sub` claim (wallet address) is extracted and set on the request context <!-- satisfied: middleware/jwt-auth.ts:35-46 — jwtVerify with HS256, c.set("wallet", payload.sub) -->
-- [x] Create endpoint cross-checks the JWT `sub` wallet against the `wallet` field in the request body (defense-in-depth) <!-- satisfied: routes/create.ts:91-98 — jwtWallet !== body.wallet → 403 -->
+- [x] JWT is verified as HS256, `sub` (`userId`) is extracted as the canonical request identity, and wallet is resolved from player profile <!-- satisfied: middleware/jwt-auth.ts — jwtVerify with HS256, c.set("userId", payload.sub); wallet resolved via db.getProfileByUserId(userId) -->
+- [x] Create endpoint cross-checks the profile-resolved wallet against the `wallet` field in the request body (defense-in-depth) <!-- satisfied: routes/create.ts — resolved wallet !== body.wallet → 403 -->
 - [x] Requests with missing, malformed, or expired tokens return 401 Unauthorized <!-- satisfied: middleware/jwt-auth.ts:26-30 (missing), jwt-auth.ts:48-53 (invalid/expired). Tests: auth.test.ts, endpoints.test.ts -->
 - [x] `GET` endpoints (rounds, health) require no authentication <!-- satisfied: middleware/jwt-auth.ts:21-23 — if (c.req.method !== "POST") return next() -->
 - [x] Auth endpoints (`/auth/*`) are not behind JWT middleware — they are the login flow <!-- satisfied: index.ts:41-62 — /auth routes mounted before /fairness JWT middleware -->
@@ -362,13 +363,13 @@ Operational endpoints and structured logging for monitoring service health.
 
 ### FR-7: Rate Limiting
 
-Per-wallet and global rate limits to prevent abuse of the create endpoint.
+Per-userId and global rate limits to prevent abuse of the create endpoint.
 
 **Acceptance Criteria:**
-- [x] `POST /fairness/coinflip/create` is rate-limited per wallet (default: 10 requests per minute) <!-- satisfied: middleware/rate-limit.ts:74-86 per-wallet window; config.ts:45-48 RATE_LIMIT_PER_WALLET default 10 -->
+- [x] `POST /fairness/coinflip/create` is rate-limited per userId (default: 10 requests per minute) <!-- satisfied: middleware/rate-limit.ts:74-86 per-userId window; config.ts:45-48 RATE_LIMIT_PER_WALLET default 10 -->
 - [x] A global rate limit caps total create requests (default: 100 requests per minute) <!-- satisfied: middleware/rate-limit.ts:56-60 global window; config.ts:49-52 RATE_LIMIT_GLOBAL default 100 -->
 - [x] Rate limiting is in-memory (no Redis dependency for MVP) <!-- satisfied: middleware/rate-limit.ts:44-45 — Map + SlidingWindow object, no external deps -->
-- [x] Exceeded limits return HTTP 429 with a `Retry-After` header <!-- satisfied: middleware/rate-limit.ts:58-59 (global) and 82-83 (per-wallet) — Retry-After header + 429. Test: rate-limit.test.ts -->
+- [x] Exceeded limits return HTTP 429 with a `Retry-After` header <!-- satisfied: middleware/rate-limit.ts:58-59 (global) and 82-83 (per-userId) — Retry-After header + 429. Test: rate-limit.test.ts -->
 - [x] `GET` endpoints are not rate-limited for MVP <!-- satisfied: middleware/rate-limit.ts:48-50 — if (c.req.method !== "POST") return next(). Test: rate-limit.test.ts -->
 - [x] Rate limit windows and thresholds are configurable via environment variables <!-- satisfied: config.ts:45-52 — RATE_LIMIT_PER_WALLET and RATE_LIMIT_GLOBAL env vars -->
 
@@ -434,7 +435,7 @@ Per-wallet and global rate limits to prevent abuse of the create endpoint.
 | 5 | Settlement retries on transient failure | Unit test: mock RPC failure, verify retry with backoff, verify max retries respected | Test output + operator_events |
 | 6 | Rounds endpoint redacts secret pre-settlement | HTTP test: GET round before settlement → no secret; after → secret present | Response body |
 | 7 | Auth rejects invalid/expired JWT tokens | HTTP test: submit with missing token → 401; submit with expired token → 401; submit with valid token → 200 | Response status |
-| 8 | Rate limiter enforces per-wallet and global limits | HTTP test: exceed per-wallet limit → 429; exceed global limit → 429 | Response status + Retry-After header |
+| 8 | Rate limiter enforces per-userId and global limits | HTTP test: exceed per-userId limit → 429; exceed global limit → 429 | Response status + Retry-After header |
 | 9 | Health endpoint reports accurate state | HTTP test: check health with DB up/down, check balance reporting | Response body |
 | 10 | Duplicate match ID returns 409 | HTTP test: create with colliding match PDA → 409 | Response status |
 
@@ -458,8 +459,8 @@ Per-wallet and global rate limits to prevent abuse of the create endpoint.
 - [x] [backend] `POST /fairness/coinflip/create` endpoint handler (`src/routes/create.ts`): validate request body, generate secret, compute commitment, derive PDA, check for duplicate PDA in DB (409 Conflict), build + partial-sign tx, store round in DB (phase `created`), write `secret_generated` operator event, return `{transaction, matchPda, commitment}`. Wire into Hono router. (done: iteration 6)
 
 #### Authentication & Rate Limiting
-- [x] [backend] JWT auth middleware (`src/middleware/jwt-auth.ts`): verify HS256 JWT Bearer token on POST requests. Extract wallet from `sub` claim, set on request context. Skip for GET routes. Old Ed25519 per-request signature middleware (`src/middleware/auth.ts`) retained but not mounted. Auth endpoints (`/auth/*`: challenge, verify, refresh, logout) in `src/routes/auth.ts` with challenge DB in `src/auth-db.ts`. (done: jwt-auth.ts + auth.ts routes)
-- [x] [backend] Rate limiting middleware (`src/middleware/rate-limit.ts`): in-memory sliding window, per-wallet limit (default 10/min via `RATE_LIMIT_PER_WALLET`), global limit (default 100/min via `RATE_LIMIT_GLOBAL`). Return 429 with `Retry-After` header. Apply only to POST routes. Counters reset on service restart (acceptable for MVP). (done: iteration 8)
+- [x] [backend] JWT auth middleware (`src/middleware/jwt-auth.ts`): verify HS256 JWT Bearer token on POST requests. Extract `userId` from `sub` claim, set on request context; wallet resolved from player profile when needed. Skip for GET routes. Old Ed25519 per-request signature middleware (`src/middleware/auth.ts`) retained but not mounted. Auth endpoints (`/auth/*`: challenge, verify, refresh, logout) in `src/routes/auth.ts` with challenge DB in `src/auth-db.ts`. (done: jwt-auth.ts + auth.ts routes)
+- [x] [backend] Rate limiting middleware (`src/middleware/rate-limit.ts`): in-memory sliding window, per-userId limit (default 10/min via `RATE_LIMIT_PER_WALLET`), global limit (default 100/min via `RATE_LIMIT_GLOBAL`). Return 429 with `Retry-After` header. Apply only to POST routes. Counters reset on service restart (acceptable for MVP). (done: iteration 8)
 
 #### Settlement Worker
 - [x] [backend] Settlement worker poll loop (`src/worker/settlement.ts`): poll chain via `getProgramAccounts` for `CoinflipMatch` accounts in `PHASE_LOCKED` where `server` field matches service keypair. Check `target_slot` reached (current slot >= target_slot). Configurable poll interval (default 1s via `WORKER_POLL_INTERVAL_MS`). Start worker on service boot. Log `match_detected` operator event for newly discovered locked matches. (done: iteration 9)
@@ -471,7 +472,7 @@ Per-wallet and global rate limits to prevent abuse of the create endpoint.
 - [x] [backend] `GET /health` endpoint (`src/routes/health.ts`) + structured logging (`src/logger.ts`): health returns service version, server pubkey, SOL balance, DB connectivity, worker running status, unsettled count, oldest unsettled age. All log output structured JSON (timestamp, level, message, optional PDA context). SOL balance below threshold (default 0.1 SOL via `MIN_SOL_BALANCE`) triggers warning log. No secrets or private keys in logs at any level. (done: iteration 13)
 
 #### Testing
-- [x] [test] Unit tests (`src/__tests__/`): secret generation produces 32 bytes, commitment matches `packages/fairness` algorithm, PDA derivation matches on-chain seeds, auth middleware rejects invalid/expired signatures and accepts valid ones, rate limiter enforces per-wallet and global limits and returns correct `Retry-After` header. (done: iteration 15)
+- [x] [test] Unit tests (`src/__tests__/`): secret generation produces 32 bytes, commitment matches `packages/fairness` algorithm, PDA derivation matches on-chain seeds, auth middleware rejects invalid/expired signatures and accepts valid ones, rate limiter enforces per-userId and global limits and returns correct `Retry-After` header. (done: iteration 15)
 - [x] [test] Integration tests for full create → join → settle lifecycle against bankrun: create match via POST endpoint → verify DB state → simulate join on-chain (bankrun) → trigger worker poll → verify settlement tx lands → verify DB updated to `settled` → verify GET /rounds/:pda returns secret and verification payload. (done: iteration 16)
 - [x] [test] HTTP endpoint tests: POST /create with valid JWT → 200, missing/expired JWT → 401, wallet mismatch → 403, duplicate match ID → 409, rate limit exceeded → 429. GET /rounds/:pda → 200 for known, 404 for unknown. GET /health → 200 with expected fields. (done: iteration 17)
 - [x] [test] Add local deterministic E2E coverage for primary user flow(s) in `e2e/local/**` (or mark N/A with reason for non-web/non-interactive specs) (done: iteration 18 — N/A: backend-only HTTP service, no browser UI. Full HTTP lifecycle covered by integration tests in `services/backend/src/__tests__/integration.test.ts`)
