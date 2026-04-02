@@ -110,7 +110,7 @@ token itself is verified.
 - [ ] Global-room message history can be fetched without authentication
 - [ ] Global-room realtime stream can be consumed without authentication
 - [ ] Posting a chat message requires `Authorization: Bearer <token>`
-- [ ] Chat token verification mirrors the platform JWT contract (`HS256`, `sub = wallet`)
+- [ ] Chat token verification mirrors the platform JWT contract (`HS256`, `sub = user_id`, wallet as secondary claim)
 - [ ] Invalid or expired tokens are rejected with 401
 - [ ] Logout limitations are documented: already-issued access tokens remain valid until expiry
 
@@ -122,7 +122,7 @@ posting must resolve a username before a message is accepted.
 **Acceptance Criteria:**
 - [ ] Message payloads expose `username` as the author identity
 - [ ] Message payloads do not expose the raw wallet address in public responses
-- [ ] Posting is rejected if the service cannot resolve a username for the authenticated wallet
+- [ ] Posting is rejected if the service cannot resolve a username for the authenticated user
 - [ ] Username resolution path and trust boundary are documented
 
 ### FR-5: Message Lifecycle and Moderation
