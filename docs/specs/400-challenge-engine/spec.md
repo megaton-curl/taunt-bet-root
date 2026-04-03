@@ -7,7 +7,7 @@
 | Status | Ready |
 | Priority | P1 |
 | Track | Core |
-| NR_OF_TRIES | 12 |
+| NR_OF_TRIES | 13 |
 
 ---
 
@@ -867,7 +867,7 @@ Each item is one autonomous iteration (one `claude -p` invocation). Tests are bu
 
 - [x] [backend] Implement `GET /points/mine` (JWT auth, returns `{balance, lifetimeEarned}` from player_points — return zeros if no row), `GET /points/mine/history` (JWT auth, paginated point_grants rows DESC by created_at with source_type, source_id, amount, metadata, created_at), `GET /crates/mine` (JWT auth, paginated crate_drops rows DESC by created_at with crate_type, contents_amount, status, created_at, granted_at). Use standard pagination pattern (cursor or offset+limit). Integration test: seed test data, verify response shapes; verify pagination; verify empty state returns correctly. Verify: `cd backend && pnpm lint && pnpm typecheck && pnpm test` (FR-14) (done: iteration 12)
 
-- [ ] [backend] Implement `GET /challenges/mine/history` (JWT auth, paginated completed challenge_assignments with challenge title, description, completed_at, reward — JOIN challenges for metadata). Implement `GET /dogpile/current` (active dogpile_events row with countdown to ends_at, or next scheduled with countdown to starts_at, or null), `GET /dogpile/schedule` (upcoming dogpile_events ordered by starts_at). Integration test: verify response shapes; dogpile/current returns active > next-scheduled > null priority. Verify: `cd backend && pnpm lint && pnpm typecheck && pnpm test` (FR-14)
+- [x] [backend] Implement `GET /challenges/mine/history` (JWT auth, paginated completed challenge_assignments with challenge title, description, completed_at, reward — JOIN challenges for metadata). Implement `GET /dogpile/current` (active dogpile_events row with countdown to ends_at, or next scheduled with countdown to starts_at, or null), `GET /dogpile/schedule` (upcoming dogpile_events ordered by starts_at). Integration test: verify response shapes; dogpile/current returns active > next-scheduled > null priority. Verify: `cd backend && pnpm lint && pnpm typecheck && pnpm test` (FR-14) (done: iteration 13)
 
 **Phase 5: Admin API**
 

@@ -187,3 +187,21 @@ of every iteration to understand prior context.
 ## Iteration 12 — 2026-04-03T21:02:57Z — OK
 - **Log**: iteration-012.log
 
+## Iteration 13 — Phase 4: GET /challenges/mine/history, GET /dogpile/current, GET /dogpile/schedule
+
+**Status**: Success
+
+**Changes**:
+- `backend/services/backend/src/routes/challenges.ts` — Added `GET /mine/history` endpoint with cursor-based pagination. Queries `challenge_assignments` JOINed with `challenges` WHERE `status='completed'`, returns `{items: [{id, title, description, completedAt, reward}], nextCursor}`. Added `parseIntParam` helper (same pattern as points.ts).
+- `backend/services/backend/src/routes/dogpile.ts` — New file. Implements two public endpoints: `GET /current` (returns active event with `endsIn` countdown, or next scheduled with `startsIn` countdown, or `null`), `GET /schedule` (returns all scheduled + active events ordered by `starts_at` ASC). Factory pattern with `createDogpileRoutes`.
+- `backend/services/backend/src/index.ts` — Imported `createDogpileRoutes`, registered at `/dogpile` (public, no JWT auth).
+- `backend/services/backend/src/__tests__/integration.test.ts` — Added 7 integration tests: (1) paginated completed assignments with cursor navigation; (2) empty history when no completed assignments; (3) dogpile/current returns active over scheduled; (4) dogpile/current returns next scheduled when no active; (5) dogpile/current returns null when no events; (6) dogpile/schedule returns ordered events (excludes ended); (7) dogpile/schedule returns empty when no upcoming events.
+
+**Verification**: eslint 0 errors (19 warnings — 2 pre-existing + 17 `any` in test assertions), tsc --noEmit clean, 44/44 integration tests pass, 134 total tests pass across 9 files. 5 pre-existing test files fail with `ECONNREFUSED ::1:5432` (Postgres connectivity issue — not caused by this change).
+
+## Iteration 13 — 2026-04-03T21:12:00Z — OK
+- **Log**: iteration-013.log
+
+## Iteration 13 — 2026-04-03T21:14:23Z — OK
+- **Log**: iteration-013.log
+
