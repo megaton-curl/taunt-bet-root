@@ -7,7 +7,7 @@
 | Status | Ready |
 | Priority | P1 |
 | Track | Core |
-| NR_OF_TRIES | 14 |
+| NR_OF_TRIES | 15 |
 
 ---
 
@@ -873,7 +873,7 @@ Each item is one autonomous iteration (one `claude -p` invocation). Tests are bu
 
 - [x] [backend] Implement admin auth middleware: check `X-Admin-Key` header against `ADMIN_API_KEY` env var, reject with 401 if missing or mismatched. Implement `GET /admin/reward-config` (all config key-value pairs), `PUT /admin/reward-config/:key` (update value — reject unknown keys with 400), `GET /admin/reward-pool` (balance_lamports, lifetime_funded, lifetime_paid from singleton row). Apply admin middleware to all `/admin/*` routes. Integration test: request without key → 401; request with wrong key → 401; GET config returns seeded defaults; PUT updates value; GET pool returns balance. Verify: `cd backend && pnpm lint && pnpm typecheck && pnpm test` (FR-13, FR-15) (done: iteration 14)
 
-- [ ] [backend] Implement admin campaign + challenge CRUD: `POST /admin/campaigns` (create with name, campaign_type, starts_at, ends_at, config), `PUT /admin/campaigns/:id` (update fields, toggle is_active — no delete, soft-disable only), `POST /admin/challenges` (create in campaign — validate scope against CHECK constraint, validate campaign exists), `PUT /admin/challenges/:id` (update fields, toggle is_active). All require admin auth. Integration test: create campaign, create challenge in it, update both, verify DB state; invalid scope rejected; deactivated challenge not selected for new assignments. Verify: `cd backend && pnpm lint && pnpm typecheck && pnpm test` (FR-15)
+- [x] [backend] Implement admin campaign + challenge CRUD: `POST /admin/campaigns` (create with name, campaign_type, starts_at, ends_at, config), `PUT /admin/campaigns/:id` (update fields, toggle is_active — no delete, soft-disable only), `POST /admin/challenges` (create in campaign — validate scope against CHECK constraint, validate campaign exists), `PUT /admin/challenges/:id` (update fields, toggle is_active). All require admin auth. Integration test: create campaign, create challenge in it, update both, verify DB state; invalid scope rejected; deactivated challenge not selected for new assignments. Verify: `cd backend && pnpm lint && pnpm typecheck && pnpm test` (FR-15) (done: iteration 15)
 
 - [ ] [backend] Implement admin dogpile endpoints: `POST /admin/dogpile` (schedule event with starts_at, ends_at, multiplier, optional campaign_id — validate no overlap with existing non-cancelled events), `PUT /admin/dogpile/:id` (cancel future/scheduled events — cannot modify active events), `GET /admin/dogpile` (list all events with status filter). Implement Dogpile status worker: periodic check (poll interval or lightweight cron) that transitions `scheduled→active` when `now() >= starts_at` and `active→ended` when `now() >= ends_at`. Integration test: schedule event, verify worker transitions status at correct times; cancel scheduled event; overlap rejected; cannot modify active event. Verify: `cd backend && pnpm lint && pnpm typecheck && pnpm test` (FR-6, FR-15)
 

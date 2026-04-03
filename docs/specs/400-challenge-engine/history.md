@@ -220,3 +220,16 @@ of every iteration to understand prior context.
 ## Iteration 14 — 2026-04-03T21:23:09Z — OK
 - **Log**: iteration-014.log
 
+## Iteration 15 — Phase 5: Admin campaign + challenge CRUD
+
+**Status**: Success
+
+**Changes**:
+- `backend/services/backend/src/routes/admin.ts` — Added 4 CRUD endpoints: `POST /campaigns` (create with name, campaignType, startsAt, endsAt, config — validates campaign_type against CHECK constraint set, returns 201), `PUT /campaigns/:id` (dynamic field update via `sql.unsafe()` for safe parameterized dynamic queries, toggle is_active for soft-disable, returns 404 for missing campaign), `POST /challenges` (create in campaign — validates scope against CHECK set, validates rewardType, validates campaign exists via FK lookup, returns 201), `PUT /challenges/:id` (dynamic field update, validates scope/rewardType if provided, returns 404 for missing challenge). All endpoints protected by existing admin auth middleware (X-Admin-Key header). No delete endpoints — soft-disable only via `isActive: false`.
+- `backend/services/backend/src/__tests__/integration.test.ts` — Added 7 integration tests in new `Admin API: campaign + challenge CRUD` describe block: (1) POST /admin/campaigns creates campaign with correct fields + config JSONB; (2) POST rejects invalid campaign_type with 400; (3) PUT updates campaign name + toggles isActive, verified in DB; (4) POST /admin/challenges creates challenge in campaign with all fields; (5) POST rejects invalid scope with 400; (6) POST rejects nonexistent campaign with 400 CAMPAIGN_NOT_FOUND; (7) PUT updates challenge title + deactivates, verified in DB. Tests use unique timestamp-based suffixes to avoid name collisions with seeded data.
+
+**Verification**: eslint 0 errors (37 warnings — 2 pre-existing + 35 `any` in test assertions), tsc --noEmit clean, 57/57 integration tests pass, 147 total tests pass across 9 files. 5 pre-existing test files fail with `ECONNREFUSED ::1:5432` (Postgres connectivity issue — not caused by this change).
+
+## Iteration 15 — 2026-04-03T21:42:55Z — OK
+- **Log**: iteration-015.log
+
