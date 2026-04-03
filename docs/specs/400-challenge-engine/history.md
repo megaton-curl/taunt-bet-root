@@ -205,3 +205,18 @@ of every iteration to understand prior context.
 ## Iteration 13 — 2026-04-03T21:14:23Z — OK
 - **Log**: iteration-013.log
 
+## Iteration 14 — Phase 5: Admin auth + reward-config + reward-pool endpoints
+
+**Status**: Success
+
+**Changes**:
+- `backend/services/backend/src/routes/admin.ts` — New file. Implements `createAdminRoutes` factory with admin auth middleware (X-Admin-Key header validated against injected `adminApiKey`). Three endpoints: `GET /reward-config` (returns all 11 config key-value pairs with updatedAt), `PUT /reward-config/:key` (validates key against VALID_CONFIG_KEYS set, rejects unknown with 400, updates value), `GET /reward-pool` (returns singleton pool row: balanceLamports, lifetimeFunded, lifetimePaid, updatedAt).
+- `backend/services/backend/src/config.ts` — Added `adminApiKey: string | undefined` field to Config interface + loadConfig, reads from `ADMIN_API_KEY` env var.
+- `backend/services/backend/src/index.ts` — Imported `createAdminRoutes`, registered at `/admin` (conditional on `config.adminApiKey` being set). Added `PUT` to CORS allowMethods and `X-Admin-Key` to allowHeaders.
+- `backend/services/backend/src/__tests__/integration.test.ts` — Added 6 integration tests: (1) request without X-Admin-Key → 401; (2) request with wrong key → 401; (3) GET /admin/reward-config returns all 11 seeded defaults with correct values and updatedAt; (4) PUT /admin/reward-config/:key updates value and persists; (5) PUT unknown key → 400 INVALID_KEY; (6) GET /admin/reward-pool returns balance/lifetimeFunded/lifetimePaid.
+
+**Verification**: eslint 0 errors (26 warnings — 2 pre-existing + 24 `any` in test assertions), tsc --noEmit clean, 50/50 integration tests pass, 140 total tests pass across 9 files. 5 pre-existing test files fail with `ECONNREFUSED ::1:5432` (Postgres connectivity issue — not caused by this change).
+
+## Iteration 14 — 2026-04-03T21:23:09Z — OK
+- **Log**: iteration-014.log
+
