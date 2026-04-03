@@ -35,3 +35,15 @@ of every iteration to understand prior context.
 ## Iteration 2 — 2026-04-03T19:17:30Z — OK
 - **Log**: iteration-002.log
 
+## Iteration 3 — Phase 1: Data Model & Seeds
+
+**Status**: Success
+
+**Changes**:
+- `backend/services/backend/migrations/011_challenge_engine.sql` — Created migration with all 14 FR-2 tables: `reward_config`, `player_points`, `point_grants`, `reward_pool`, `reward_pool_fundings`, `campaigns`, `challenges` (with `scope` CHECK and `eligible_if` JSONB), `challenge_assignments`, `progress_events` (with `metadata` JSONB), `completion_bonuses`, `bonus_completions`, `crate_drops`, `fraud_flags`, `dogpile_events`. All tables follow project conventions: BIGINT GENERATED ALWAYS AS IDENTITY, CHECK constraints on TEXT enums, TIMESTAMPTZ, snake_case. Foreign keys enforced (challenges→campaigns, assignments→challenges, progress_events→assignments, bonuses→campaigns, bonus_completions→bonuses, dogpile→campaigns). UNIQUE constraints on all idempotency keys. Indexes on hot queries (active assignments, points history, pending crates, active dogpile). Seed data: 11 `reward_config` rows (FR-13 defaults), `reward_pool` singleton (balance 0), 3 campaigns (daily/weekly/onboarding), 6 daily challenge templates, 4 weekly challenge templates, 3 onboarding challenge templates with `prerequisite_id` chain, 1 daily completion bonus (required_count=3, reward_type='crate').
+
+**Verification**: eslint 0 errors (2 pre-existing warnings), tsc --noEmit clean, vitest 125/125 tests pass (13 test files).
+
+## Iteration 3 — 2026-04-03T19:27:29Z — OK
+- **Log**: iteration-003.log
+

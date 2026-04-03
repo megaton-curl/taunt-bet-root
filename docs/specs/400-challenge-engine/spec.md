@@ -7,7 +7,7 @@
 | Status | Ready |
 | Priority | P1 |
 | Track | Core |
-| NR_OF_TRIES | 2 |
+| NR_OF_TRIES | 3 |
 
 ---
 
@@ -841,7 +841,7 @@ Each item is one autonomous iteration (one `claude -p` invocation). Tests are bu
 
 **Phase 1: Data Model & Seeds**
 
-- [ ] [backend] Create migration `011_challenge_engine.sql` with all tables from FR-2: `reward_config`, `player_points`, `point_grants`, `reward_pool`, `reward_pool_fundings`, `campaigns`, `challenges` (with `scope` CHECK constraint and `eligible_if` JSONB column), `challenge_assignments`, `progress_events` (with `metadata` JSONB column), `completion_bonuses`, `bonus_completions`, `crate_drops`, `fraud_flags`, `dogpile_events`. Seed `reward_config` with all FR-13 defaults. Seed `reward_pool` singleton (balance 0). Seed campaigns: daily, weekly, onboarding. Seed ~6 daily challenge templates + ~4 weekly challenge templates (from FR-11 examples, ordered by `sort_order`). Seed 3 onboarding challenge templates with `prerequisite_id` chain (FR-12). Seed daily completion bonus (required_count=3, reward_type='crate'). Test: migration runs cleanly on fresh DB, all seeds present, foreign keys enforced, UNIQUE constraints verified. Verify: `cd backend && pnpm lint && pnpm typecheck && pnpm test` (FR-2, FR-9, FR-11, FR-12, FR-13)
+- [x] [backend] Create migration `011_challenge_engine.sql` with all tables from FR-2: `reward_config`, `player_points`, `point_grants`, `reward_pool`, `reward_pool_fundings`, `campaigns`, `challenges` (with `scope` CHECK constraint and `eligible_if` JSONB column), `challenge_assignments`, `progress_events` (with `metadata` JSONB column), `completion_bonuses`, `bonus_completions`, `crate_drops`, `fraud_flags`, `dogpile_events`. Seed `reward_config` with all FR-13 defaults. Seed `reward_pool` singleton (balance 0). Seed campaigns: daily, weekly, onboarding. Seed ~6 daily challenge templates + ~4 weekly challenge templates (from FR-11 examples, ordered by `sort_order`). Seed 3 onboarding challenge templates with `prerequisite_id` chain (FR-12). Seed daily completion bonus (required_count=3, reward_type='crate'). Test: migration runs cleanly on fresh DB, all seeds present, foreign keys enforced, UNIQUE constraints verified. Verify: `cd backend && pnpm lint && pnpm typecheck && pnpm test` (FR-2, FR-9, FR-11, FR-12, FR-13) (done: iteration 3)
 
 **Phase 2: Reward Handlers**
 
