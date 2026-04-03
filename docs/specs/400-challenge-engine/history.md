@@ -233,3 +233,18 @@ of every iteration to understand prior context.
 ## Iteration 15 — 2026-04-03T21:42:55Z — OK
 - **Log**: iteration-015.log
 
+## Iteration 16 — Phase 5: Admin dogpile endpoints + status worker
+
+**Status**: Success
+
+**Changes**:
+- `backend/services/backend/src/routes/admin.ts` — Added 3 dogpile admin endpoints: `POST /dogpile` (schedule event with starts_at, ends_at, multiplier, optional campaign_id — validates no overlap with non-cancelled events via range overlap query, returns 409 on conflict), `PUT /dogpile/:id` (cancel scheduled events only — rejects active/ended/cancelled with 409, returns 404 for missing), `GET /dogpile` (list all events, optional `?status=` query filter, ordered by starts_at DESC). All endpoints protected by existing admin auth middleware.
+- `backend/services/backend/src/worker/dogpile-worker.ts` — New file. Implements `createDogpileWorker` factory with configurable poll interval (default 10s). `tick()` method runs two UPDATE queries: `scheduled→active` where `starts_at <= now()`, `active→ended` where `ends_at <= now()`. Returns counts for testing. Cancelled events are never transitioned.
+- `backend/services/backend/src/index.ts` — Imported and started dogpile worker with 10s poll interval.
+- `backend/services/backend/src/__tests__/integration.test.ts` — Added 7 integration tests: (1) POST schedules event with correct status/multiplier; (2) POST rejects overlapping events with 409; (3) PUT cancels scheduled event; (4) PUT rejects cancelling active event with 409; (5) GET lists events with optional status filter; (6) worker tick transitions scheduled→active and active→ended; (7) cancelled events not transitioned by worker.
+
+**Verification**: eslint 0 errors (44 warnings — 2 pre-existing + 42 `any` in test assertions), tsc --noEmit clean, 154 total tests pass across 9 files. 5 pre-existing test files fail with `ECONNREFUSED ::1:5432` (Postgres connectivity issue — not caused by this change).
+
+## Iteration 16 — 2026-04-03T21:49:49Z — OK
+- **Log**: iteration-016.log
+
