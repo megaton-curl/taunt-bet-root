@@ -78,3 +78,21 @@ of every iteration to understand prior context.
 ## Iteration 5 — 2026-04-03T19:48:59Z — OK
 - **Log**: iteration-005.log
 
+## Iteration 6 — Phase 2: POINTS_GRANT handler
+
+**Status**: Success
+
+**Changes**:
+- `backend/services/backend/src/queue/handlers/points-grant.ts` — New file. Implements `POINTS_GRANT` handler with factory pattern (`createPointsGrantHandler`). DB helpers: `insertPointGrant(db, userId, wallet, sourceType, sourceId, amount, metadata)` with `ON CONFLICT (user_id, source_type, source_id) DO NOTHING` for idempotency, `upsertPlayerPoints(db, userId, wallet, amount)` to create-or-increment `balance` + `lifetime_earned`, `getActiveDogpileMultiplier(db, timestamp)` to check for active dogpile events. Handler supports two modes: wager-based grants (calculates from amountLamports using SOL/USD price × points_per_dollar × dogpile multiplier) and pre-calculated grants (crate_points, challenge_completed, bonus_completed — uses `amount` directly). Price fetcher injected as dependency for testability. Reuses `readRewardConfig` from reward-pool-fund.ts.
+- `backend/services/backend/src/routes/price.ts` — Exported `fetchSolPrice()` function (was private) so production handler can use it directly.
+- `backend/services/backend/src/index.ts` — Registered `POINTS_GRANT` handler in event handler registry with injected `getSolPrice` wrapping `fetchSolPrice()`.
+- `backend/services/backend/src/__tests__/integration.test.ts` — Added `point_grants`, `player_points`, `dogpile_events` to TRUNCATE list. Added 3 integration tests: (1) wager-based points grant with $100 SOL price, verifies 2500 points (0.05 SOL × $100 × 500 pts/$), idempotency on duplicate, metadata with solPrice/pointsPerDollar/multiplier; (2) dogpile 2× multiplier — inserts active dogpile event, verifies 5000 points; (3) pre-calculated crate_points grant — verifies direct amount passthrough.
+
+**Verification**: eslint 0 errors (2 pre-existing warnings), tsc --noEmit clean, 103 tests pass (9 test files). 5 pre-existing test files fail with `ECONNREFUSED ::1:5432` (Postgres connectivity issue — not caused by this change).
+
+## Iteration 6 — 2026-04-03T19:59:00Z — OK
+- **Log**: iteration-006.log
+
+## Iteration 6 — 2026-04-03T20:00:55Z — OK
+- **Log**: iteration-006.log
+
