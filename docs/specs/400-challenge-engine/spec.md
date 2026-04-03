@@ -7,7 +7,7 @@
 | Status | Ready |
 | Priority | P1 |
 | Track | Core |
-| NR_OF_TRIES | 1 |
+| NR_OF_TRIES | 2 |
 
 ---
 
@@ -837,7 +837,7 @@ Each item is one autonomous iteration (one `claude -p` invocation). Tests are bu
 
 - [x] [backend] Add `GAME_SETTLED`, `REWARD_POOL_FUND`, `POINTS_GRANT`, `CRATE_DROP`, `CRATE_SOL_PAYOUT` event types to `event-types.ts`. Emit `game.settled` event in `settle-tx.ts` within the existing settlement DB transaction for both coinflip and lord (jackpot) rounds — payload must match FR-1 schema (roundId, roundPda, game, players[], feeLamports, settledAt). Integration test: settle a coinflip round, verify `game.settled` event row in `event_queue` with correct payload shape; duplicate settlement retry produces duplicate event rows safely. Verify: `cd backend && pnpm lint && pnpm typecheck && pnpm test` (FR-1) (done: iteration 1)
 
-- [ ] [backend] Emit `game.settled` event in `closecall-clock.ts` within the closecall settlement transaction — same payload schema as FR-1 with `game: "closecall"`. Integration test: settle a closecall round, verify event row in queue with correct payload. Verify: `cd backend && pnpm lint && pnpm typecheck && pnpm test` (FR-1)
+- [x] [backend] Emit `game.settled` event in `closecall-clock.ts` within the closecall settlement transaction — same payload schema as FR-1 with `game: "closecall"`. Integration test: settle a closecall round, verify event row in queue with correct payload. Verify: `cd backend && pnpm lint && pnpm typecheck && pnpm test` (FR-1) (done: iteration 2)
 
 **Phase 1: Data Model & Seeds**
 
