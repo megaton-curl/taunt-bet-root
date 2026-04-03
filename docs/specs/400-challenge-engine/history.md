@@ -173,3 +173,17 @@ of every iteration to understand prior context.
 ## Iteration 11 — 2026-04-03T20:50:38Z — OK
 - **Log**: iteration-011.log
 
+## Iteration 12 — Phase 4: GET /points/mine, GET /points/mine/history, GET /crates/mine
+
+**Status**: Success
+
+**Changes**:
+- `backend/services/backend/src/routes/points.ts` — New file. Implements two route factories: `createPointsRoutes` (GET /mine for balance + GET /mine/history for paginated point_grants) and `createCrateRoutes` (GET /mine for paginated crate_drops). Both use cursor-based keyset pagination (id < cursor, DESC order, limit clamped to 50 max). Points balance returns {balance: 0, lifetimeEarned: 0} when no player_points row exists. History endpoints return {items: [...], nextCursor: string|null}.
+- `backend/services/backend/src/index.ts` — Imported `createPointsRoutes` and `createCrateRoutes`. Registered routes at `/points` and `/crates` with JWT auth middleware (requireAllMethods: true).
+- `backend/services/backend/src/__tests__/integration.test.ts` — Added 6 integration tests: (1) GET /points/mine returns zeros when no row; (2) returns balance+lifetimeEarned from seeded row; (3) GET /points/mine/history returns paginated grants with cursor navigation (limit=2, verify DESC order, cursor pagination to second page); (4) empty history returns empty items + null cursor; (5) GET /crates/mine returns paginated drops with cursor (verifies crateType, contentsAmount, status, grantedAt fields); (6) empty crate history returns empty items + null cursor.
+
+**Verification**: eslint 0 errors (12 warnings — 2 pre-existing + 10 new `any` in test assertions), tsc --noEmit clean, 37/37 integration tests pass, 127 total tests pass across 9 files. 5 pre-existing test files fail with `ECONNREFUSED ::1:5432` (Postgres connectivity issue — not caused by this change).
+
+## Iteration 12 — 2026-04-03T21:02:57Z — OK
+- **Log**: iteration-012.log
+
