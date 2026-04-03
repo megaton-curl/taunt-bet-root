@@ -47,3 +47,19 @@ of every iteration to understand prior context.
 ## Iteration 3 — 2026-04-03T19:27:29Z — OK
 - **Log**: iteration-003.log
 
+## Iteration 4 — Phase 2: Quest Eligibility + Verification Adapters
+
+**Status**: Success
+
+**Changes**:
+- `backend/services/backend/src/queue/handlers/challenge-adapters.ts` — New file. Implements `questEligible(player)` function (returns `false` when `isWinner === null` for refunded games, `true` otherwise). Implements `VerificationAdapter` type interface and adapter registry (`Map<string, VerificationAdapter>`). Implements 3 M1 adapters: `game_completed` (scope-filtered participation check), `game_won` (scope + `isWinner === true`), `lobby_filled` (scope + `isCreator === true`). `getAdapter(action)` returns the matching adapter or a no-op adapter that logs a warning for unknown action types. Exports `GameSettledPayload`, `GameSettledPlayer`, `ChallengeAssignment`, `AdapterResult` types for use by downstream handlers.
+- `backend/services/backend/src/queue/__tests__/challenge-adapters.test.ts` — New file. 18 unit tests: `questEligible` (winner/loser/refund), `game_completed` adapter (scope='any', scope match, scope mismatch, closecall scope, loser still counts), `game_won` adapter (won+scope match, lost, scope mismatch, scope-specific win), `lobby_filled` adapter (creator+scope match, not creator, scope mismatch, scope-specific fill), unknown adapter type (returns no-progress, is a function not undefined).
+
+**Verification**: eslint 0 errors (2 pre-existing warnings), tsc --noEmit clean, 18/18 new tests pass. 5 pre-existing test files fail with `ECONNREFUSED ::1:5432` (Postgres connectivity issue in those specific test suites — not caused by this change; 9 test files / 99 other tests all pass).
+
+## Iteration 4 — 2026-04-03T19:35:00Z — OK
+- **Log**: iteration-004.log
+
+## Iteration 4 — 2026-04-03T19:36:48Z — OK
+- **Log**: iteration-004.log
+

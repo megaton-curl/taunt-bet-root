@@ -7,7 +7,7 @@
 | Status | Ready |
 | Priority | P1 |
 | Track | Core |
-| NR_OF_TRIES | 3 |
+| NR_OF_TRIES | 4 |
 
 ---
 
@@ -845,7 +845,7 @@ Each item is one autonomous iteration (one `claude -p` invocation). Tests are bu
 
 **Phase 2: Reward Handlers**
 
-- [ ] [backend] Implement `quest_eligible(event, player)` function: returns `false` when `isWinner === null` (refunded game), `true` otherwise. Implement adapter registry (Map from action string to adapter function). Implement 3 M1 adapters matching the `VerificationAdapter` interface from FR-7: `game_completed` (returns `shouldProgress: true` when game matches `scope` or scope='any'), `game_won` (additionally requires `isWinner === true`), `lobby_filled` (requires `isCreator === true`). Unknown action types log warning and return `shouldProgress: false`. Unit tests: each adapter with scope='any' and scope-specific cases; refund exclusion via quest_eligible; unknown adapter type. Verify: `cd backend && pnpm lint && pnpm typecheck && pnpm test` (FR-7, FR-10)
+- [x] [backend] Implement `quest_eligible(event, player)` function: returns `false` when `isWinner === null` (refunded game), `true` otherwise. Implement adapter registry (Map from action string to adapter function). Implement 3 M1 adapters matching the `VerificationAdapter` interface from FR-7: `game_completed` (returns `shouldProgress: true` when game matches `scope` or scope='any'), `game_won` (additionally requires `isWinner === true`), `lobby_filled` (requires `isCreator === true`). Unknown action types log warning and return `shouldProgress: false`. Unit tests: each adapter with scope='any' and scope-specific cases; refund exclusion via quest_eligible; unknown adapter type. Verify: `cd backend && pnpm lint && pnpm typecheck && pnpm test` (FR-7, FR-10) (done: iteration 4)
 
 - [ ] [backend] Implement `REWARD_POOL_FUND` handler and register in handler registry. DB helpers needed: `readRewardConfig(db, key)` to read from `reward_config`, `insertPoolFunding(db, roundId, feeLamports, fundedLamports)` with UNIQUE(round_id) idempotency, `incrementRewardPool(db, deltaLamports)` to atomically update `balance_lamports` + `lifetime_funded`. Handler logic: read `reward_pool_fee_share` from config, calculate `floor(feeLamports * share)`, insert funding record (if duplicate, return early), increment pool. Integration test: emit event, verify pool balance incremented + funding ledger row; re-emit same round_id, verify no duplicate funding + balance unchanged. Verify: `cd backend && pnpm lint && pnpm typecheck && pnpm test` (FR-4)
 
