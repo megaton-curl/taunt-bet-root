@@ -7,7 +7,7 @@
 | Status | Ready |
 | Priority | P1 |
 | Track | Core |
-| NR_OF_TRIES | 6 |
+| NR_OF_TRIES | 7 |
 
 ---
 
@@ -851,7 +851,7 @@ Each item is one autonomous iteration (one `claude -p` invocation). Tests are bu
 
 - [x] [backend] Implement `POINTS_GRANT` handler and register. DB helpers needed: `insertPointGrant(db, userId, wallet, sourceType, sourceId, amount, metadata)` with UNIQUE(user_id, source_type, source_id) idempotency, `upsertPlayerPoints(db, userId, wallet, amount)` to create-or-increment balance + lifetime_earned, `getActiveDogpileEvent(db, timestamp)` to check for active dogpile event. Handler logic: read `points_per_dollar` from config, fetch SOL/USD price from existing price service (`GET /price/sol-usd`, cached), calculate `floor(wagerUsd * pointsPerDollar * multiplier)`, insert ledger row (if duplicate, return early), upsert player_points. Integration test: emit event, verify point_grants row + player_points updated; test with active dogpile_events row for 2x multiplier; test idempotency. Verify: `cd backend && pnpm lint && pnpm typecheck && pnpm test` (FR-3, FR-6) (done: iteration 6)
 
-- [ ] [backend] Implement `CRATE_DROP` handler and register. DB helpers needed: `lockAndReadRewardPool(db)` (`SELECT ... FOR UPDATE` on singleton), `decrementRewardPool(db, payoutLamports)` to atomically decrement balance + increment lifetime_paid, `insertCrateDrop(db, userId, triggerType, triggerId, crateType, contentsAmount)` with UNIQUE(user_id, trigger_type, trigger_id) idempotency. Handler logic: read drop rates + sol_crate_pool_pct + sol_crate_min_value + points_crate_min/max from config, roll RNG. SOL path: lock pool, calculate `floor(balance * sol_crate_pool_pct)`, suppress if < min_value, decrement pool, insert crate_drops, emit `CRATE_SOL_PAYOUT`. Points path: random amount in [min, max], insert crate_drops, emit `POINTS_GRANT` with source_type='crate_points'. Miss: return without side-effects. Integration test with deterministic seeded RNG: SOL hit → verify pool decremented + crate row + sol_payout event emitted; points hit → verify crate row + points.grant event emitted; miss → verify no crate row; pool below min → verify SOL crate suppressed. Verify: `cd backend && pnpm lint && pnpm typecheck && pnpm test` (FR-5)
+- [x] [backend] Implement `CRATE_DROP` handler and register. DB helpers needed: `lockAndReadRewardPool(db)` (`SELECT ... FOR UPDATE` on singleton), `decrementRewardPool(db, payoutLamports)` to atomically decrement balance + increment lifetime_paid, `insertCrateDrop(db, userId, triggerType, triggerId, crateType, contentsAmount)` with UNIQUE(user_id, trigger_type, trigger_id) idempotency. Handler logic: read drop rates + sol_crate_pool_pct + sol_crate_min_value + points_crate_min/max from config, roll RNG. SOL path: lock pool, calculate `floor(balance * sol_crate_pool_pct)`, suppress if < min_value, decrement pool, insert crate_drops, emit `CRATE_SOL_PAYOUT`. Points path: random amount in [min, max], insert crate_drops, emit `POINTS_GRANT` with source_type='crate_points'. Miss: return without side-effects. Integration test with deterministic seeded RNG: SOL hit → verify pool decremented + crate row + sol_payout event emitted; points hit → verify crate row + points.grant event emitted; miss → verify no crate row; pool below min → verify SOL crate suppressed. Verify: `cd backend && pnpm lint && pnpm typecheck && pnpm test` (FR-5) (done: iteration 7)
 
 **Phase 3: Challenge Evaluation Engine**
 

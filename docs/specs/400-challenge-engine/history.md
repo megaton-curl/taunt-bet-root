@@ -96,3 +96,20 @@ of every iteration to understand prior context.
 ## Iteration 6 — 2026-04-03T20:00:55Z — OK
 - **Log**: iteration-006.log
 
+## Iteration 7 — Phase 2: CRATE_DROP handler
+
+**Status**: Success
+
+**Changes**:
+- `backend/services/backend/src/queue/handlers/crate-drop.ts` — New file. Implements `CRATE_DROP` handler with factory pattern (`createCrateDropHandler`). DB helpers: `lockAndReadRewardPool(db)` uses `SELECT ... FOR UPDATE` to lock singleton row, `decrementRewardPool(db, payoutLamports)` atomically decrements `balance_lamports` + increments `lifetime_paid`, `insertCrateDrop(db, userId, triggerType, triggerId, crateType, contentsAmount)` with `ON CONFLICT (user_id, trigger_type, trigger_id) DO NOTHING` for idempotency. Handler accepts injectable `rollRng` for deterministic testing. Drop logic follows FR-5: roll < sol_crate_drop_rate → SOL path (lock pool, calculate `floor(balance * sol_crate_pool_pct)`, suppress if < min_value, decrement pool, insert crate, emit `CRATE_SOL_PAYOUT`); roll < sol + points rate → Points path (random amount in [min, max], insert crate, emit `POINTS_GRANT` with source_type='crate_points'); else → miss. All config read from `reward_config` table. All mutations within `withTransaction`. Emits downstream events via `emitEvent` within the transaction for atomicity.
+- `backend/services/backend/src/index.ts` — Imported `createCrateDropHandler`, registered `CRATE_DROP` handler in event handler registry.
+- `backend/services/backend/src/__tests__/integration.test.ts` — Added `crate_drops` to TRUNCATE list. Added 5 integration tests: (1) SOL crate hit — pool funded to 200M, roll=0.005, verifies crate_drops row with type='sol' and contents_amount=20M, pool decremented by 20M, `crate.sol_payout` event emitted with correct payload; (2) Points crate hit — roll=0.02 (between sol and points thresholds), verifies crate_drops row with type='points' and calculated amount=2750, `points.grant` event emitted with source_type='crate_points'; (3) Miss — roll=0.50, no crate row, no events; (4) SOL crate suppressed — pool 50M (payout 5M < min 10M), no crate row, pool unchanged; (5) Idempotency — duplicate trigger_id, one crate row, pool not double-decremented.
+
+**Verification**: eslint 0 errors (2 pre-existing warnings), tsc --noEmit clean, 108 tests pass (9 test files). 5 pre-existing test files fail with `ECONNREFUSED ::1:5432` (Postgres connectivity issue — not caused by this change).
+
+## Iteration 7 — 2026-04-03T20:10:00Z — OK
+- **Log**: iteration-007.log
+
+## Iteration 7 — 2026-04-03T20:10:24Z — OK
+- **Log**: iteration-007.log
+
