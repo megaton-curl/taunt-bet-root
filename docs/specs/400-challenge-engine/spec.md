@@ -7,7 +7,7 @@
 | Status | Ready |
 | Priority | P1 |
 | Track | Core |
-| NR_OF_TRIES | 10 |
+| NR_OF_TRIES | 11 |
 
 ---
 
@@ -863,7 +863,7 @@ Each item is one autonomous iteration (one `claude -p` invocation). Tests are bu
 
 **Phase 4: Player-Facing API**
 
-- [ ] [backend] Implement `GET /challenges/mine` with JWT auth and lazy assignment. DB helpers needed: `getAssignmentsForPeriod(db, userId, periodKey)`, `getActiveChallengesBySort(db, campaignId, limit)` (top N by sort_order ASC from active challenges), `getOnboardingState(db, userId)` (completed steps + active step), `expireStaleAssignments(db, userId)` (mark expired where expires_at < now() AND status='active'). Logic: compute current period keys (daily:YYYY-MM-DD, weekly:YYYY-WNN), expire stale assignments, check for existing assignments per period, if none: select top N challenges by sort_order, create assignments with target + expires_at. Onboarding: if no onboarding assignments exist and user hasn't completed all steps, assign first step (prerequisite_id IS NULL). Return response shape from FR-14 (daily/weekly/onboarding sections with progress, bonus status, resetsAt). Integration test: first call creates 3 daily + 2 weekly + 1 onboarding assignment, returns correct shape; second call returns same; expired assignments marked. Verify: `cd backend && pnpm lint && pnpm typecheck && pnpm test` (FR-11, FR-14)
+- [x] [backend] Implement `GET /challenges/mine` with JWT auth and lazy assignment. DB helpers needed: `getAssignmentsForPeriod(db, userId, periodKey)`, `getActiveChallengesBySort(db, campaignId, limit)` (top N by sort_order ASC from active challenges), `getOnboardingState(db, userId)` (completed steps + active step), `expireStaleAssignments(db, userId)` (mark expired where expires_at < now() AND status='active'). Logic: compute current period keys (daily:YYYY-MM-DD, weekly:YYYY-WNN), expire stale assignments, check for existing assignments per period, if none: select top N challenges by sort_order, create assignments with target + expires_at. Onboarding: if no onboarding assignments exist and user hasn't completed all steps, assign first step (prerequisite_id IS NULL). Return response shape from FR-14 (daily/weekly/onboarding sections with progress, bonus status, resetsAt). Integration test: first call creates 3 daily + 2 weekly + 1 onboarding assignment, returns correct shape; second call returns same; expired assignments marked. Verify: `cd backend && pnpm lint && pnpm typecheck && pnpm test` (FR-11, FR-14) (done: iteration 11)
 
 - [ ] [backend] Implement `GET /points/mine` (JWT auth, returns `{balance, lifetimeEarned}` from player_points — return zeros if no row), `GET /points/mine/history` (JWT auth, paginated point_grants rows DESC by created_at with source_type, source_id, amount, metadata, created_at), `GET /crates/mine` (JWT auth, paginated crate_drops rows DESC by created_at with crate_type, contents_amount, status, created_at, granted_at). Use standard pagination pattern (cursor or offset+limit). Integration test: seed test data, verify response shapes; verify pagination; verify empty state returns correctly. Verify: `cd backend && pnpm lint && pnpm typecheck && pnpm test` (FR-14)
 

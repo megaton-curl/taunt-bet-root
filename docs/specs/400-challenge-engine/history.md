@@ -159,3 +159,17 @@ of every iteration to understand prior context.
 ## Iteration 10 — 2026-04-03T20:41:41Z — OK
 - **Log**: iteration-010.log
 
+## Iteration 11 — Phase 4: GET /challenges/mine endpoint
+
+**Status**: Success
+
+**Changes**:
+- `backend/services/backend/src/routes/challenges.ts` — New file. Implements `GET /challenges/mine` with JWT auth and lazy assignment. Exports `createChallengeRoutes` factory, plus `dailyPeriodKey`, `weeklyPeriodKey`, `dailyResetsAt`, `weeklyResetsAt` helpers. DB helpers: `expireStaleAssignments` (marks expired where `expires_at < now()` AND `status='active'`), `getAssignmentsForPeriod` (JOINs challenge_assignments + challenges + campaigns for a user/period), `getActiveChallengesBySort` (top N by sort_order ASC), `getCampaignByType`, `getOnboardingAssignments`, `getOnboardingChallenges`, `getCompletionBonusesForCampaign`, `getBonusCompletion`, `countCompleted`, `createAssignment` (idempotent via ON CONFLICT DO NOTHING). Handler flow: expire stale → compute period keys → lazy assign daily (3) + weekly (2) + onboarding (first step) → build bonus status → build onboarding section (with `locked` flag for unassigned steps, `null` when all completed) → return FR-14 response shape.
+- `backend/services/backend/src/index.ts` — Registered `GET /challenges/*` with JWT auth middleware (`requireAllMethods: true`) and mounted `createChallengeRoutes`.
+- `backend/services/backend/src/__tests__/integration.test.ts` — Added 3 integration tests: (1) first call creates 3 daily + 2 weekly + 1 onboarding assignment, verifies response shape (daily/weekly/onboarding sections, progress/target/status/reward/completedAt, bonus status, resetsAt, onboarding locked flags); (2) second call returns same assignments (no duplicates, total=6); (3) expired assignment marked expired after endpoint call.
+
+**Verification**: eslint 0 errors (4 warnings — 2 pre-existing + 2 new `any` in test assertions), tsc --noEmit clean, 31/31 integration tests pass, 121 total tests pass across 9 files. 5 pre-existing test files fail with `ECONNREFUSED ::1:5432` (Postgres connectivity issue — not caused by this change).
+
+## Iteration 11 — 2026-04-03T20:50:38Z — OK
+- **Log**: iteration-011.log
+
