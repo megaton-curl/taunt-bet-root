@@ -63,3 +63,18 @@ of every iteration to understand prior context.
 ## Iteration 4 — 2026-04-03T19:36:48Z — OK
 - **Log**: iteration-004.log
 
+## Iteration 5 — Phase 2: REWARD_POOL_FUND handler
+
+**Status**: Success
+
+**Changes**:
+- `backend/services/backend/src/queue/handlers/reward-pool-fund.ts` — New file. Implements `REWARD_POOL_FUND` handler with factory pattern (`createRewardPoolFundHandler`). DB helpers: `readRewardConfig(db, key)` reads from `reward_config` table, `insertPoolFunding(db, roundId, feeLamports, fundedLamports)` with `ON CONFLICT (round_id) DO NOTHING` for idempotency, `incrementRewardPool(db, deltaLamports)` atomically updates `balance_lamports` + `lifetime_funded`. Handler logic: reads `reward_pool_fee_share` from config, calculates `floor(feeLamports * share)`, runs insert + increment atomically within `withTransaction()`. Duplicate round_id silently skips (no double-funding).
+- `backend/services/backend/src/index.ts` — Registered `REWARD_POOL_FUND` handler in event handler registry (import + `registerHandler` call).
+- `backend/services/backend/src/__tests__/integration.test.ts` — Added `reward_pool_fundings` to TRUNCATE list, added `reward_pool` reset to zero in `beforeEach`. Added integration test: calls handler directly with fee=500_000, verifies pool balance = 100_000 (20% of 500k), verifies `reward_pool_fundings` ledger row, then re-calls same round_id and verifies no duplicate funding + balance unchanged.
+- Applied migration `011_challenge_engine.sql` to test database (was pending).
+
+**Verification**: eslint 0 errors (2 pre-existing warnings), tsc --noEmit clean, 10/10 integration tests pass, 100 total tests pass. 5 pre-existing test files fail with `ECONNREFUSED ::1:5432` (Postgres connectivity issue — not caused by this change).
+
+## Iteration 5 — 2026-04-03T19:48:59Z — OK
+- **Log**: iteration-005.log
+
