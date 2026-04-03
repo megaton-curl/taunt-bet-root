@@ -127,3 +127,21 @@ of every iteration to understand prior context.
 ## Iteration 8 — 2026-04-03T20:19:07Z — OK
 - **Log**: iteration-008.log
 
+## Iteration 9 — Phase 3: Completion Bonus Check
+
+**Status**: Success
+
+**Changes**:
+- `backend/services/backend/src/queue/handlers/completion-bonus.ts` — New file. Implements completion bonus logic with 3 DB helpers: `getCompletionBonuses(db, campaignId)` fetches active bonuses for a campaign, `countCompletedAssignments(db, userId, periodKey, campaignId)` counts completed assignments in a period via JOIN with challenges table, `insertBonusCompletion(db, userId, bonusId, periodKey)` with `ON CONFLICT (user_id, bonus_id, period_key) DO NOTHING` for idempotency. Main `checkCompletionBonus()` function: loads bonuses for campaign, counts completed assignments, if count >= required_count and no existing bonus_completion: insert row + emit reward intent (points.grant with source_type='bonus_completed' for points bonuses, crate.drop with trigger_type='bonus_completed' for crate bonuses).
+- `backend/services/backend/src/queue/handlers/game-settled.ts` — Imported `checkCompletionBonus`, hooked into the completion flow within the assignment transaction — called after `markAssignmentCompleted()` and reward intent emission, passing `txDb`, userId, wallet, period_key, and campaign_id.
+- `backend/services/backend/src/__tests__/integration.test.ts` — Added 3 integration tests: (1) complete 3 daily challenges → verify bonus_completions row created + crate.drop event emitted with triggerType='bonus_completed'; (2) idempotency — pre-existing bonus_completion row, re-call checkCompletionBonus, verify no duplicate row and no extra events; (3) partial completion (2 of 3) → verify no bonus_completions row and no bonus events.
+
+**Verification**: eslint 0 errors (2 pre-existing warnings), tsc --noEmit clean, 115 tests pass (9 test files). 5 pre-existing test files fail with `ECONNREFUSED ::1:5432` (Postgres connectivity issue — not caused by this change).
+
+## Iteration 9 — 2026-04-03T20:32:00Z — OK
+- **Log**: iteration-009.log
+
+
+## Iteration 9 — 2026-04-03T20:33:06Z — OK
+- **Log**: iteration-009.log
+
