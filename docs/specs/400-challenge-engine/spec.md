@@ -7,7 +7,7 @@
 | Status | Ready |
 | Priority | P1 |
 | Track | Core |
-| NR_OF_TRIES | 9 |
+| NR_OF_TRIES | 10 |
 
 ---
 
@@ -859,7 +859,7 @@ Each item is one autonomous iteration (one `claude -p` invocation). Tests are bu
 
 - [x] [backend] Implement completion bonus check, called from game.settled handler after any assignment is marked completed. DB helpers needed: `getCompletionBonuses(db, campaignId)`, `countCompletedAssignments(db, userId, periodKey, campaignId)`, `insertBonusCompletion(db, userId, bonusId, periodKey)` with UNIQUE(user_id, bonus_id, period_key) idempotency. Logic: after assignment completion, get bonuses for the assignment's campaign, count completed assignments for user+period+campaign, if count >= required_count and no existing bonus_completion: insert row, emit reward intent. Integration test: complete 3 daily assignments, verify bonus_completions row + reward emitted; re-trigger check, verify no duplicate; complete 2 of 3, verify no bonus. Verify: `cd backend && pnpm lint && pnpm typecheck && pnpm test` (FR-9) (done: iteration 9)
 
-- [ ] [backend] Implement onboarding chain progression, called from game.settled handler after any onboarding assignment is marked completed. DB helpers needed: `getNextOnboardingStep(db, completedChallengeId)` (query challenges WHERE prerequisite_id = completedId), `createAssignment(db, userId, challengeId, periodKey, target, expiresAt)`. Logic: on onboarding step completion, find next step by prerequisite_id, if found and no existing assignment for user+challenge+'onboarding': create assignment with period_key='onboarding' and expires_at=NULL. Integration test: complete onboarding step 1, verify step 2 auto-assigned; complete all 3 steps, verify no further assignment created; verify idempotent. Verify: `cd backend && pnpm lint && pnpm typecheck && pnpm test` (FR-12)
+- [x] [backend] Implement onboarding chain progression, called from game.settled handler after any onboarding assignment is marked completed. DB helpers needed: `getNextOnboardingStep(db, completedChallengeId)` (query challenges WHERE prerequisite_id = completedId), `createAssignment(db, userId, challengeId, periodKey, target, expiresAt)`. Logic: on onboarding step completion, find next step by prerequisite_id, if found and no existing assignment for user+challenge+'onboarding': create assignment with period_key='onboarding' and expires_at=NULL. Integration test: complete onboarding step 1, verify step 2 auto-assigned; complete all 3 steps, verify no further assignment created; verify idempotent. Verify: `cd backend && pnpm lint && pnpm typecheck && pnpm test` (FR-12) (done: iteration 10)
 
 **Phase 4: Player-Facing API**
 

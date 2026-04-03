@@ -145,3 +145,17 @@ of every iteration to understand prior context.
 ## Iteration 9 — 2026-04-03T20:33:06Z — OK
 - **Log**: iteration-009.log
 
+## Iteration 10 — Phase 3: Onboarding Chain Progression
+
+**Status**: Success
+
+**Changes**:
+- `backend/services/backend/src/queue/handlers/onboarding-chain.ts` — New file. Implements `getNextOnboardingStep(db, completedChallengeId)` (queries challenges WHERE prerequisite_id = completedId AND is_active = true), `createAssignment(db, userId, challengeId, periodKey, target, expiresAt)` with ON CONFLICT (user_id, challenge_id, period_key) DO NOTHING for idempotency, and `advanceOnboardingChain()` main function that chains them: on completion of an onboarding assignment, finds next step by prerequisite_id, creates assignment with period_key='onboarding' and expires_at=NULL if not already assigned. Early-returns for non-onboarding period_keys.
+- `backend/services/backend/src/queue/handlers/game-settled.ts` — Imported `advanceOnboardingChain`, hooked into the completion flow after `checkCompletionBonus()` — called with txDb, userId, challenge_id, and period_key within the assignment transaction.
+- `backend/services/backend/src/__tests__/integration.test.ts` — Added 3 integration tests: (1) complete onboarding step 1 → verify step 2 auto-assigned with correct period_key='onboarding', target, and expires_at=NULL; (2) complete all 3 steps → verify no step 4 created (chain terminates); (3) idempotency — same event replayed, step 1 progress unchanged (UNIQUE on assignment_id+round_id), step 2 assigned exactly once (UNIQUE on user_id+challenge_id+period_key).
+
+**Verification**: eslint 0 errors (2 pre-existing warnings), tsc --noEmit clean, 118 tests pass (9 test files). 5 pre-existing test files fail with `ECONNREFUSED ::1:5432` (Postgres connectivity issue — not caused by this change).
+
+## Iteration 10 — 2026-04-03T20:41:41Z — OK
+- **Log**: iteration-010.log
+
