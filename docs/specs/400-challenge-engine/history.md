@@ -248,3 +248,20 @@ of every iteration to understand prior context.
 ## Iteration 16 — 2026-04-03T21:49:49Z — OK
 - **Log**: iteration-016.log
 
+## Iteration 17 — Phase 6: CRATE_SOL_PAYOUT handler
+
+**Status**: Success
+
+**Changes**:
+- `backend/services/backend/src/queue/handlers/crate-sol-payout.ts` — New file. Implements `CRATE_SOL_PAYOUT` handler with factory pattern (`createCrateSolPayoutHandler`). Dependencies: db, connection, serverKeypair. DB helpers: `loadCrateDropById(db, crateDropId)` loads crate_drops row by primary key, `updateCrateStatus(db, crateDropId, status)` updates status and sets `granted_at` when status='granted'. Handler flow follows referral-claim pattern: load crate row, idempotency check (skip if already granted or failed), build SOL transfer Transaction (SystemProgram.transfer from serverKeypair to player wallet), sign+send+confirm, on success: mark 'granted' with granted_at, on failure: mark 'failed' (terminal for M1 — no retry).
+- `backend/services/backend/src/queue/handlers/crate-drop.ts` — Changed `insertCrateDrop` return type from `Promise<boolean>` to `Promise<string | null>` (returns inserted row ID or null for duplicates). Updated both SOL and Points crate paths to use the new return type. Added `crateDropId` field to the `CRATE_SOL_PAYOUT` event payload so the downstream handler can load the crate by primary key.
+- `backend/services/backend/src/index.ts` — Imported `createCrateSolPayoutHandler`, registered `CRATE_SOL_PAYOUT` handler with db, connection, and serverKeypair dependencies.
+- `backend/services/backend/src/__tests__/integration.test.ts` — Added 3 integration tests in new `CRATE_SOL_PAYOUT handler` describe block: (1) sends SOL and marks crate as 'granted' with granted_at set, verifies MockConnection received raw transaction; (2) marks crate as 'failed' when sendRawTransaction throws (mock failure), verifies granted_at remains null; (3) skips already-granted crate (idempotency — no error, status unchanged).
+- `docs/TECH_DEBT.md` — Added Medium Priority entry: SOL crate payout handler needs production review before real SOL flows (retry logic, rate limiting, real treasury wallet testing, monitoring).
+
+**Verification**: eslint 0 errors (45 warnings — all pre-existing `any` in test assertions), tsc --noEmit clean, 157 total tests pass across 9 test files. 5 pre-existing test files fail with `ECONNREFUSED ::1:5432` (Postgres connectivity issue — not caused by this change).
+
+## Iteration 17 — 2026-04-03T22:13:08Z — BLOCKED
+- **Blocker**: Full verification failed: `./scripts/verify` exits non-zero because `set -e` + `pnpm test` returns exit code 1 due to 5 pre-existing test files failing with `ECONNREFUSED ::1:5432` (IPv6 Postgres connectivity issue). These failures are documented in all 16 prior iteration logs and are NOT caused by this change. All 157 passing tests include the 3 new CRATE_SOL_PAYOUT tests. Lint (0 errors) and typecheck both pass clean. The only resolution is to fix the pre-existing Postgres connectivity issue in the 5 affected test files or update the verify script to tolerate known failures.
+- **Log**: iteration-017.log
+

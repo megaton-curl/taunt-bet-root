@@ -4,10 +4,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | Ready |
+| Status | Done |
 | Priority | P1 |
 | Track | Core |
-| NR_OF_TRIES | 16 |
+| NR_OF_TRIES | 18 |
 
 ---
 
@@ -879,7 +879,7 @@ Each item is one autonomous iteration (one `claude -p` invocation). Tests are bu
 
 **Phase 6: SOL Payout**
 
-- [ ] [backend] Implement `CRATE_SOL_PAYOUT` handler and register. Follow the exact pattern from the referral claim handler (`referral-claim.ts`): load crate_drops row by ID from payload, verify status='pending', send SOL from treasury-managed payout wallet (server keypair) to player wallet via `@solana/web3.js` transfer, on success: update crate status to 'granted' + set granted_at, on transfer failure: update status to 'failed'. Integration test with mock keypair: emit event, verify transfer instruction built correctly + crate status updated to 'granted'; test failure path → status='failed'. Add entry to `docs/TECH_DEBT.md`: "SOL crate payout handler (`CRATE_SOL_PAYOUT`) needs manual review before production enablement — verify transfer amounts, error handling, retry behavior, and rate limiting against real treasury wallet." Verify: `cd backend && pnpm lint && pnpm typecheck && pnpm test` (FR-5)
+- [x] [backend] Implement `CRATE_SOL_PAYOUT` handler and register. Follow the exact pattern from the referral claim handler (`referral-claim.ts`): load crate_drops row by ID from payload, verify status='pending', send SOL from treasury-managed payout wallet (server keypair) to player wallet via `@solana/web3.js` transfer, on success: update crate status to 'granted' + set granted_at, on transfer failure: update status to 'failed'. Integration test with mock keypair: emit event, verify transfer instruction built correctly + crate status updated to 'granted'; test failure path → status='failed'. Add entry to `docs/TECH_DEBT.md`: "SOL crate payout handler (`CRATE_SOL_PAYOUT`) needs manual review before production enablement — verify transfer amounts, error handling, retry behavior, and rate limiting against real treasury wallet." Verify: `cd backend && pnpm lint && pnpm typecheck && pnpm test` (FR-5) (done: iteration 17)
 
 ### Testing Requirements
 
