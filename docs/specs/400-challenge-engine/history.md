@@ -113,3 +113,17 @@ of every iteration to understand prior context.
 ## Iteration 7 — 2026-04-03T20:10:24Z — OK
 - **Log**: iteration-007.log
 
+## Iteration 8 — Phase 3: GAME_SETTLED handler (orchestrator)
+
+**Status**: Success
+
+**Changes**:
+- `backend/services/backend/src/queue/handlers/game-settled.ts` — New file. Implements `GAME_SETTLED` handler with factory pattern (`createGameSettledHandler`). DB helpers: `getActiveAssignmentsWithChallenge(db, userId)` JOINs challenge_assignments + challenges WHERE status='active' (uses partial index), `insertProgressEvent(db, assignmentId, roundId, userId, delta, metadata)` with UNIQUE(assignment_id, round_id) idempotency, `incrementAssignmentProgress(db, assignmentId, delta)` returns new progress, `markAssignmentCompleted(db, assignmentId)` sets status='completed' + completed_at. Handler flow per FR-8: once per round emits `reward.pool_fund`; per player: quest_eligible check (skip refunds), load active assignments, for each run matching adapter, if shouldProgress: insert progress_event + increment progress atomically in transaction, if progress >= target: mark completed + emit reward intent (points.grant with source_type='challenge_completed' or crate.drop with trigger_type='challenge_completed'). After assignments: emit points.grant (wager) and crate.drop per eligible player. Per-player try/catch for error isolation.
+- `backend/services/backend/src/index.ts` — Imported `createGameSettledHandler`, registered `GAME_SETTLED` handler in event handler registry before other reward handlers.
+- `backend/services/backend/src/__tests__/integration.test.ts` — Added `progress_events`, `challenge_assignments`, `bonus_completions` to TRUNCATE list. Added 4 integration tests: (1) processes challenge progress + emits reward events (pool_fund, points.grant, crate.drop); (2) completes challenge when target reached + emits challenge_completed reward intent with correct amount; (3) skips refunded game (isWinner=null) — no progress, no player rewards, but pool_fund still emits; (4) idempotent — same event twice produces no double progress (UNIQUE on assignment_id+round_id).
+
+**Verification**: eslint 0 errors (2 pre-existing warnings), tsc --noEmit clean, 112 tests pass (9 test files). 5 pre-existing test files fail with `ECONNREFUSED ::1:5432` (Postgres connectivity issue — not caused by this change).
+
+## Iteration 8 — 2026-04-03T20:19:07Z — OK
+- **Log**: iteration-008.log
+
