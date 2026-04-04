@@ -6,7 +6,7 @@ Cross-cutting patterns that affect every game and every package. These topics re
 
 ---
 
-## 1) Testing Methodology `[DRAFT]`
+## 1) Testing Methodology `[DECIDED]`
 
 ### Principles
 - **Local-first**: All testing optimized for local dev experience. CI shape is deferred.
@@ -19,7 +19,7 @@ Cross-cutting patterns that affect every game and every package. These topics re
 
 | Layer | Scope | Tooling | Runs Against |
 |-------|-------|---------|--------------|
-| Unit | State machines, payout math, fee calc, commit-reveal hashing, VRF proof validation | vitest | In-process (no chain) |
+| Unit | State machines, payout math, fee calc, commit-reveal hashing | vitest | In-process (no chain) |
 | Component | React components — structural regression | @testing-library/react + vitest (DOM snapshots) | JSDOM |
 | On-chain (program) | Anchor program correctness (instructions, accounts, constraints) | bankrun | In-process simulated validator |
 | Integration | Frontend ↔ chain round-trips (connect, bet, resolve, payout) | Playwright + solana-test-validator | Local validator + headless Chromium |
@@ -36,20 +36,14 @@ Cross-cutting patterns that affect every game and every package. These topics re
 ### Per-Feature Test Strategy (Define As We Go)
 Not every test type applies to every feature. When implementing a feature, define which layers apply. Example thinking:
 - Coinflip state machine → unit tests (vitest)
-- Coinflip lobby UI → DOM snapshot + visual regression
-- Coinflip VRF resolution → on-chain program test (bankrun)
+- Coinflip settlement → on-chain program test (bankrun)
 - Coinflip full flow → integration (Playwright + local validator)
-- Crash multiplier curve → unit test (pure math)
-- Crash real-time chart → visual regression may not be meaningful (animation); consider threshold-based assertions instead
-
-### Open Questions (Planned)
-- CI pipeline shape: deferred until local testing is solid.
-- Coverage thresholds: revisit after additional features land.
-- Playwright visual regression baseline: when do we capture initial screenshots?
+- Challenge engine handlers → integration tests (vitest + real Postgres)
+- API endpoints → integration tests (Hono test client + real Postgres)
 
 ---
 
-## 2) On-Chain Dev Loop `[DRAFT]`
+## 2) On-Chain Dev Loop `[DECIDED]`
 
 ### Iteration Flow
 Default loop: `anchor test` (spins up local validator → deploys programs → runs tests → tears down).
@@ -70,8 +64,7 @@ Separate deployable programs per game + a platform program for shared on-chain s
 - Each game program has its own program ID and can be deployed/upgraded independently.
 - `shared` is compiled into each program at build time, not deployed on-chain. Consistency is enforced at compile time, not via CPI at runtime.
 - **Lifecycle phases**: Every round follows `WAITING → ACTIVE → LOCKED → RESOLVING → SETTLED / REFUNDED`. See `docs/specs/004-shared-infrastructure/spec.md` FR-5 for invariants.
-- **Claim-based payouts**: For VRF games, `claim_payout` reads the VRF result at claim time, derives the winner, and transfers funds — all in one tx. No separate settle/resolve instruction. For commit-reveal games, the server's reveal writes the outcome, then players claim. Either way, payouts are pull-based (winner calls claim). This keeps instructions small, is gas-efficient, and puts payout tx cost on the beneficiary. Same pattern for refunds. See `004-shared-infrastructure` FR-1.
-- **Legacy note**: Existing `solana/` code is leftover scaffolding — does not influence future design.
+- **Settlement payouts**: Backend submits settlement transactions that reveal the secret, derive the winner, and transfer funds. Settlement is permissionless on-chain (anyone with the secret can settle), but the backend holds the secret. Timeout refunds are fully permissionless as a liveness guarantee. See `004-shared-infrastructure` FR-1.
 
 ### On-Chain State (Platform Program)
 - **PlatformConfig account**: Fee BPS, treasury address, pause state, authority. Admin-updatable via `update_platform_config`.
@@ -86,30 +79,20 @@ Script is manual (`pnpm sync-idl`), not a post-build hook.
 ### Mock Retirement
 Mocks are deleted as real implementations land. No adapter layers, no feature flags. When a program is deployed and testable via `anchor test`, the corresponding mock goes away.
 
-### Open Questions (Planned)
-- Devnet deployment strategy: deferred until local loop is solid.
-- Program upgrade authority management: single key vs multisig.
-
 ---
 
 ## 3) Wallet Strategy `[DECIDED: wallet-adapter]`
 
-**Decision**: Use `@solana/wallet-adapter-react` in the current baseline. Privy is evaluated later.
+**Decision**: Use `@solana/wallet-adapter-react` in the frontend. Privy/embedded wallets evaluated post-launch.
 **Ref**: `docs/DECISIONS.md` — "Normal Wallets First, Privy Later"
 
-### Impact
-- `packages/wallet/` needs significant refactor (currently has Privy scaffolding)
 - Supported wallets: Phantom, Solflare, Backpack (wallet-adapter defaults)
-- Mock wallet provider gets retired once wallet-adapter is wired (zero mocks target)
-
-### Migration Notes
-- Strip Privy imports and session-key logic from packages/wallet
-- Replace with wallet-adapter provider + hook wiring
 - Connection flow: standard `useWallet()` → `connect()` → sign transaction
+- Frontend is a separate project — wallet integration is their domain
 
 ---
 
-## 4) Error Taxonomy `[DRAFT]`
+## 4) Error Taxonomy `[DECIDED]`
 
 ### Architecture
 - **Programs** define `#[error_code]` enums with numeric codes + short dev messages (for logs/debugging).
@@ -175,39 +158,42 @@ See `docs/DESIGN_REFERENCE.md` for the full 8-game roadmap including planned gam
 
 ---
 
-## 6) Event System `[OPEN]`
+## 6) Event System `[DECIDED: async event queue + PDA watcher]`
 
-### Current State
+### Architecture
+
+Two complementary systems:
+
+**On-chain state detection** (settlement trigger):
 1. **PDA watcher**: WebSocket `onAccountChange` for instant join/settle detection
 2. **Polling fallback**: 1s interval for resilience
-3. **game-engine EventEmitter**: Internal state machine transitions
+3. Backend watches on-chain state directly via RPC subscriptions + polling (coordinator removed)
 
-Coordinator service was removed (unused stub). Current architecture: backend watches on-chain state directly via RPC subscriptions + polling.
+**Async event queue** (side-effects):
+1. **Postgres-backed queue** (`event_queue` table): producer-consumer with `FOR UPDATE SKIP LOCKED`
+2. **Handler registry**: One handler per event type, typed via `EventTypes` constants
+3. **Events**: `game.settled`, `reward.pool_fund`, `points.grant`, `crate.drop`, `crate.sol_payout`, `profile.username_set`, `referral.*`
+4. **Emission**: `emitEvent(tx, type, payload)` within DB transactions — atomic with the triggering write
+5. **Retry**: Exponential backoff (5s → 30s → 300s), max 3 attempts, then dead-lettered
 
-### Open Questions
-- Typed event contracts across packages?
-- Frontend real-time update flow — polling vs WebSocket push from backend?
-- Event replay for reconnection scenarios?
+See spec 301 (async event queue) for details. Challenge engine (spec 400) is the primary consumer.
 
 ---
 
-## 7) State Reconciliation `[OPEN]`
+## 7) State Reconciliation `[DECIDED: backend authoritative for reads]`
 
 ### Principle
-On-chain state is authoritative (already decided in specs).
+On-chain state is authoritative for money and settlement outcomes. Backend DB is the read model — frontend queries backend APIs, not the chain directly (except for wallet balance).
 
-> **Note**: Timeout refund trigger is permissionless; frontend must reconcile optimistically-shown round state with potential chain refund. See 004 spec FR-5 refund invariant.
+### Current Pattern
+- Backend settlement workers detect on-chain state changes (PDA watcher + polling)
+- Backend writes round outcomes to DB within the same transaction as event emission
+- Frontend polls backend APIs for round status, challenge progress, points, etc.
+- Frontend does NOT poll on-chain state for game rounds (backend is the intermediary)
+- Timeout refund trigger is permissionless on-chain; backend detects and reconciles
 
-### Patterns Needed
-- **Optimistic updates**: Frontend shows expected result immediately, rolls back on mismatch
-- **Polling vs subscription**: How does frontend learn about chain state changes?
-- **Disagreement handling**: What happens when optimistic state ≠ confirmed state?
-- **Timing**: How long to wait before treating unconfirmed tx as failed?
-
-### Open Questions
-- Polling interval for chain state? Or WebSocket subscription via coordinator?
-- Rollback UX: silent correction vs explicit "transaction not confirmed" message?
-- Stale state window: how many slots behind is acceptable?
+### Frontend Concern (separate project)
+Optimistic updates, polling intervals, and rollback UX are frontend decisions. Backend provides consistent API state within seconds of on-chain settlement.
 
 ---
 

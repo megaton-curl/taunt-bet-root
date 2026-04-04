@@ -4,7 +4,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | Draft |
+| Status | Archived |
 | Priority | P1 |
 | Phase | 2 |
 | NR_OF_TRIES | 0 |

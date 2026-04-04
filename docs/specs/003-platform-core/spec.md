@@ -4,7 +4,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | Draft |
+| Status | Archived |
 | Ideation | Active (cross-cutting, always active) |
 | Priority | P0 |
 | Phase | 0-3 |

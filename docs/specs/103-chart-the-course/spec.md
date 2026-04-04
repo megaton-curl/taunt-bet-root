@@ -4,7 +4,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | Draft |
+| Status | Deferred |
 | Ideation | On Hold — not yet properly defined |
 | Priority | P3 |
 | Phase | Deferred |

@@ -4,7 +4,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | Draft |
+| Status | Out of Scope |
 | Priority | P2 |
 | Phase | 2 |
 | NR_OF_TRIES | 0 |

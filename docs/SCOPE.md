@@ -1,209 +1,174 @@
 # Taunt Bet - Capability Baseline
 
-> Temporary status note: `docs/SCOPE.md` is currently out of date during active replanning.
-> Treat implementation, active game/backend specs, `docs/DECISIONS.md`, and `docs/DESIGN_REFERENCE.md` as the current source of truth until this document is rewritten.
-> For now, this file should be considered informational only and may lag behind reality.
+Non-custodial P2P gaming platform on Solana. This document captures current implementation state, architectural constraints, and planning direction.
 
-Non-custodial P2P gaming platform on Solana. This document captures current implementation boundaries, architectural constraints, and planning direction without release labels.
+Last updated: 2026-04-04
 
 ---
 
 ## 1) Product Focus
 
-Current platform priorities:
-- Real, playable game loops with on-chain settlement
-- Verifiable fairness for completed rounds/matches
-- Reliable wallet-authenticated flows
-- Basic player history and operational safety controls
-
-This document is intentionally product-facing and avoids implementation-level details.
+- Real-money P2P gaming with on-chain settlement and verifiable fairness
+- Progression and retention via challenges, points, and loot crates
+- Referral-driven growth with on-chain earnings
+- Operational safety: pause, monitoring, incident response
 
 ---
 
-## 2) Current Capability Set
+## 2) Shipped Capabilities
 
-### Core Platform Capabilities
-- Wallet connection (normal Solana wallet flow)
-- Non-custodial transaction flow for all financial actions
-- Fairness verification experience for supported games
-- Basic user profile/history views
-- Operational controls (pause/resume, monitoring, incident response)
+### Games (3 live)
+- **Coinflip** (spec 001) — 1v1, commit-reveal + SlotHashes fairness, custom wagers
+- **Lord of the RNGs / Jackpot** (spec 101) — Multiplayer weighted-entry jackpot, commit-reveal fairness
+- **Close Call** (spec 100) — Pari-mutuel BTC price prediction, Pyth oracle settlement
 
-### Not Implemented in Current Baseline
-- Internal custodial balance model
-- Multichain support
-- Token utility and token-gated mechanics
-- Referral and creator monetization systems
-- Full social layer (global chat rewards, advanced social graph)
+### Platform Infrastructure
+- **On-chain programs**: Per-game Anchor programs + shared Rust crate + platform config program (`solana/`)
+- **Settlement**: PDA watcher (WebSocket) + 1s polling fallback, ~3-5s total latency
+- **Fairness**: Backend-assisted commit-reveal with SlotHashes entropy, public verification endpoints (spec 006)
+- **Auth**: JWT challenge-response via wallet signature (spec 007)
+- **Profiles**: Auto-created on first auth, username with cooldown, stats aggregation (spec 008)
+- **Fees**: 500 bps flat to single treasury, read from on-chain PlatformConfig
 
-### Planned Backlog Themes (Unscheduled)
-- Chat and social features
-- Reward loops and progression expansion
-- Additional games and game variants
-- Extended wallet and account UX
+### Reward & Retention
+- **Challenge engine** (spec 400) — Daily/weekly/onboarding challenges, template-based, adapter-driven
+- **Points** — Earned per $ wagered, Dogpile multiplier, free to mint (pre-TGE allocation signal)
+- **Loot crates** — Random drops after settled games (points crates + SOL crates from reward pool)
+- **Reward pool** — Accounting-only ledger, 20% of platform fees reserved for crate economics
+- **Dogpile events** — Scheduled windows with boosted point multipliers
+
+### Growth
+- **Referral system** (spec 300) — Unique codes/links, 1000 bps of fee as referral earnings, on-chain SOL claims
+- **Onboarding chain** — 4-step guided first session (set nickname, play, win, try all game types)
+
+### Backend Infrastructure
+- **Async event queue** (spec 301) — Postgres-backed, polling worker, handler registry, exponential backoff
+- **Event-driven reward pipeline** — `game.settled` → challenge progress + points + crate drops + pool funding
+- **Admin API** — Campaign/challenge CRUD, reward config tuning, Dogpile scheduling (X-Admin-Key auth)
 
 ---
 
 ## 3) Architecture Direction (Locked)
 
-### Core Decisions
-- Chain: Solana
-- Custody: Non-custodial
-- Program model: Standard Anchor programs (per-game + shared crate, see `docs/specs/004-shared-infrastructure/spec.md`)
-- Wallet approach: normal wallets first, embedded wallet support evaluated later
+Decisions are recorded in `docs/DECISIONS.md`. Key constraints:
 
-### Explicit Constraint
-- Do not build temporary architecture with planned rewrite.
-- Stay on a single architecture path: program-per-game + shared Rust crate (`solana/shared/`). See `docs/DESIGN_REFERENCE.md`.
+- **Chain**: Solana only. No multichain.
+- **Custody**: Non-custodial. All money movement on-chain.
+- **Programs**: Standard Anchor, per-game + shared crate. No BOLT ECS, no monolith program.
+- **Fairness**: Commit-reveal + SlotHashes (default). VRF optional for future games, not default infrastructure.
+- **Wallets**: Normal wallet-adapter flow. Privy/embedded wallets evaluated later.
+- **Frontend**: Separate project and team. Backend provides API contracts. See `docs/DECISIONS.md` (2026-04-02).
+- **Backend**: Hono API monolith with event-driven side-effects. Challenge engine extraction to separate service deferred (see `docs/TECH_DEBT.md`).
 
 ---
 
 ## 4) Trust Boundaries
 
-### On-Chain Source of Truth
-- All money movement
+### On-Chain (source of truth)
+- All money movement (escrow, payout, refund, fee collection)
 - Round settlement outcomes
 - Payout eligibility and claim state
+- Platform config (fee rate, pause state)
 
-### Off-Chain Responsibilities
-- Read models and indexing for UX/performance
-- Profile/history aggregation
-- Backend-assisted fairness services (secret generation, partial-sign create flows, settlement workers, verification endpoints)
-- Fairness presentation and verification UX
-- Real-time coordination where needed for UX
+### Off-Chain (backend)
+- Secret generation and commitment
+- Settlement submission (permissionless on-chain, but backend holds the secret)
+- Player profiles, stats, transaction history
+- Challenge/reward evaluation and grant
+- Points and reward pool accounting
+- Referral tracking and claim processing
 
 ### Rule
-- If it changes user funds or determines payouts, it must be validated on-chain.
+If it changes user funds or determines payouts, it must be validated on-chain.
 
 ---
 
-## 5) Active Game Coverage
+## 5) Near-Term Direction
 
-### Jackpot (Lord of the RNGs)
-- Multiplayer weighted-entry jackpot pool
-- Backend-assisted hybrid fairness (commitment at create, public entropy capture at spin/start, automatic settlement)
-- Timeout-protected refund fallback
-- Public verification payloads plus on-chain settlement evidence
+### In progress
+- **Chat service** (spec 009) — Separate repo (`chat/`), global chat + event feed transport
+- **Dogpile events** — Scheduled, admin-managed. Infrastructure shipped, needs operational tuning.
 
-### Close Call
-- Pari-mutuel BTC price prediction (green/red binary)
-- Pyth oracle pricing via Hermes REST API
-- 30s betting window, automatic settlement
-- Max 32 entries per side
+### Next priorities
+- SOL crate payout production hardening (tech debt: review transfer handler before enabling)
+- Challenge pool rotation (M2: per-player daily draws from template pool)
+- Additional verification adapters (streak, volume, unique opponents)
+- KOL-triggered challenge campaigns
+- Quest completion leaderboard
 
-### Coinflip
-- Match creation/join flow
-- Backend-partially-signed create flow with wallet-authenticated requests
-- Hybrid fairness outcome from revealed secret + future slot-hash entropy
-- Automatic settlement with timeout-protected refund fallback
-- Public verification payloads plus on-chain settlement evidence
-
-### Shared Game Requirements
-- Idempotent action handling
-- Replay protection for signed actions
-- Clear error states for failed transactions
-- Devnet-first validation before production rollout
+### Explicitly deferred
+- **Crash** (spec 002) — Deferred to Phase 2 (decision 2026-03-30). Real-time multiplier game needs different fairness model.
+- **Future game concepts** (specs 102-105) — Not ideated. Placeholders only.
+- **Custodial balance model** — Not planned.
+- **Multichain** — Not planned.
+- **Token utility / TGE mechanics** — Points are the pre-TGE signal. Token integration is post-launch.
 
 ---
 
-## 6) Functional Baseline
+## 6) Repo Ownership
 
-- Users can connect wallets and perform game actions
-- All financial interactions are on-chain
-- Coinflip and Lord of the RNGs are playable end-to-end
-- Users can verify fairness for completed rounds/matches
-- Users can view basic profile and recent history
-- Operators can pause/resume games
-
----
-
-## 7) Non-Functional Baseline
-
-- Reliability: stable under expected load
-- Observability: errors and key events are visible
-- Security baseline: rate limiting, validation, abuse protections
-- UX baseline: clear transaction state feedback and recovery paths
-- Operational readiness: incident checklist and rollback procedure
+| Area | Repo | Ownership |
+|------|------|-----------|
+| On-chain programs | `solana/` submodule | This workspace |
+| Backend API + workers | `backend/` submodule | This workspace |
+| Chat service | `chat/` submodule | This workspace |
+| Docs, scripts, E2E | Root repo | This workspace |
+| Frontend | Separate repo | Separate team |
+| Waitlist | `waitlist/` | Separate repo (npm, DigitalOcean) |
 
 ---
 
-## 8) Workstreams
+## 7) Success Metrics
 
-### Workstream A: Core Game Reliability
-- Keep Coinflip and Lord of the RNGs robust end-to-end
-- Maintain fairness verification and settlement correctness
-- Continue devnet and local lifecycle validation
-
-### Workstream B: Player Data and UX Hardening
-- Improve profile/history accuracy and completeness
-- Strengthen wallet and transaction UX
-- Improve error handling and recovery paths
-
-### Workstream C: Operations and Safety
-- Keep pause/resume and incident handling reliable
-- Improve monitoring and alerting
-- Maintain rollback and operator runbook quality
-
----
-
-## 9) Readiness Checklist
-
-### Functional
-- [ ] Wallet connection works across supported wallet paths
-- [ ] Lord of the RNGs playable end-to-end with real settlement path
-- [ ] Coinflip playable end-to-end with real settlement path
-- [ ] Fairness verification works for Lord of the RNGs
-- [ ] Fairness verification works for Coinflip
-- [ ] Basic profile/history available and accurate
-
-### Security and Integrity
-- [ ] On-chain payout invariants validated
-- [ ] Idempotency and replay protections validated
-- [ ] Critical abuse paths mitigated
-- [ ] Emergency pause tested
-
-### Operational
-- [ ] Monitoring and error reporting active
-- [ ] Incident and rollback playbook documented
-- [ ] Devnet soak tests completed
-
----
-
-## 10) Risks and Mitigations
-
-### Risk: Uncontrolled feature expansion
-- Mitigation: Require explicit decision records for major product shifts
-
-### Risk: Fairness complexity in multiplayer mechanics
-- Mitigation: Keep acceptance checks explicit for entry weighting, winner selection, settlement, and public verification
-
-### Risk: Integration drift across docs and code
-- Mitigation: Keep architecture and workflow defaults centralized in `docs/DECISIONS.md`, `docs/WORKFLOW.md`, and this baseline file
-
-### Risk: Wallet UX friction
-- Mitigation: Prioritize stable normal wallet flows and clear transaction feedback
-
----
-
-## 11) Success Metrics
-
-Primary:
-- Successful completion rate of game rounds/matches
 - Settlement correctness and claim success rate
-- Fairness verification usage and pass rate
+- Game round completion rate
+- Challenge completion rate and reward ROI (SOL spent per $ additional wager volume)
+- Referral conversion rate
+- Points/crate engagement (% of active players interacting with challenge UI)
 - Critical error rate within acceptable threshold
 
-Secondary:
-- Early retention and repeat play behavior
-- Time-to-complete for core game loops
-
 ---
 
-## 12) Governance
+## 8) Spec Index
 
-- Temporary override: this document is currently non-authoritative while replanning is in progress and should be ignored when it conflicts with implementation or newer decision/spec docs.
-- Until `docs/SCOPE.md` is rewritten, use implementation, active specs, `docs/DECISIONS.md`, and `docs/DESIGN_REFERENCE.md` as the operational source of truth.
-- New features require explicit decision records before broad rollout.
-- Architecture model changes require a dedicated decision memo.
+### Shipped (Done)
+| Spec | Name | Notes |
+|------|------|-------|
+| 001 | Coinflip | Shipped, hybrid fairness |
+| 006 | Fairness Backend | Shipped |
+| 007 | JWT Session Auth | Shipped |
+| 008 | User Profile | Shipped (redesigned 2026-03-12) |
+| 100 | Close Call | Shipped, Pyth oracle |
+| 101 | Lord of the RNGs | Shipped |
+| 200 | Visual Regression | Shipped (frontend deferred) |
+| 203 | E2E Integration | Active |
+| 300 | Referral System | Shipped |
+| 301 | Async Event Queue | Shipped |
+| 400 | Challenge Engine | Shipped M1 |
 
----
+### Active
+| Spec | Name | Notes |
+|------|------|-------|
+| 004 | Shared Infrastructure | Living doc, on-chain lifecycle patterns |
+| 009 | Chat | In progress, separate service |
+| 999 | Enhancements | Rolling backlog |
+
+### Deferred
+| Spec | Name | Notes |
+|------|------|-------|
+| 002 | Crash | Phase 2 (decision 2026-03-30) |
+| 102-105 | Future games | Not ideated, placeholders |
+
+### Out of Scope (frontend)
+| Spec | Name | Notes |
+|------|------|-------|
+| 204 | Multi-Page Flows | Frontend team |
+| 205 | Real Wallet | Frontend team |
+
+### Archived / Superseded
+| Spec | Name | Notes |
+|------|------|-------|
+| 003 | Platform Core | Superseded by DESIGN_REFERENCE.md |
+| 005 | Hybrid Fairness | Superseded by DECISIONS.md (2026-03-11) + spec 006 |
+| 201 | Unit Tests | Covered by FOUNDATIONS.md testing methodology |
+| 202 | Component Tests | Covered by FOUNDATIONS.md testing methodology |

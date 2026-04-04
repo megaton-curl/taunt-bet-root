@@ -4,7 +4,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | Draft |
+| Status | Deferred |
 | Ideation | Active |
 | Priority | P1 |
 | Phase | Deferred (Phase 2 — formally deferred 2026-03-30) |
