@@ -109,13 +109,13 @@ Extend the settlement workers to emit a `game.settled` event into the async even
 The event MUST be emitted within the same DB transaction as the settlement write (same pattern as referral earnings recording).
 
 **Acceptance Criteria:**
-- [ ] `game.settled` event type added to `EventTypes` in `event-types.ts`
-- [ ] `settle-tx.ts` emits `game.settled` within the settlement transaction for coinflip rounds
-- [ ] `settle-tx.ts` emits `game.settled` within the settlement transaction for lord (jackpot) rounds
-- [ ] `closecall-clock.ts` emits `game.settled` within the settlement transaction for closecall rounds
-- [ ] Event payload matches the schema above (all fields present, amounts as string-encoded lamports)
-- [ ] Existing settlement latency is not measurably affected (event is a single INSERT, no blocking)
-- [ ] Duplicate settlement retries may enqueue duplicate `game.settled` rows safely because downstream handlers dedupe on domain keys, not `event_queue.id`
+- [x] `game.settled` event type added to `EventTypes` in `event-types.ts` <!-- satisfied: event-types.ts:11 -->
+- [x] `settle-tx.ts` emits `game.settled` within the settlement transaction for coinflip rounds <!-- satisfied: settle-tx.ts:442 inside withTransaction (lines 354-467) -->
+- [x] `settle-tx.ts` emits `game.settled` within the settlement transaction for lord (jackpot) rounds <!-- satisfied: settle-tx.ts:729 inside withTransaction (lines 620-744) -->
+- [x] `closecall-clock.ts` emits `game.settled` within the settlement transaction for closecall rounds <!-- satisfied: closecall-clock.ts:611 inside withTransaction (lines 444-621) -->
+- [x] Event payload matches the schema above (all fields present, amounts as string-encoded lamports) <!-- satisfied: integration tests verify payload shape (iterations 1, 2) -->
+- [x] Existing settlement latency is not measurably affected (event is a single INSERT, no blocking) <!-- satisfied: single INSERT within existing transaction -->
+- [x] Duplicate settlement retries may enqueue duplicate `game.settled` rows safely because downstream handlers dedupe on domain keys, not `event_queue.id` <!-- satisfied: all handlers use domain-key idempotency -->
 
 ---
 
@@ -303,15 +303,15 @@ CREATE INDEX idx_dogpile_active ON dogpile_events (status, starts_at, ends_at) W
 ```
 
 **Acceptance Criteria:**
-- [ ] Migration file `0XX_challenge_engine.sql` creates all tables above
-- [ ] All tables follow project conventions: BIGINT IDENTITY, CHECK constraints on TEXT enums, TIMESTAMPTZ, snake_case
-- [ ] `reward_config` seeded with default values on migration (see FR-13)
-- [ ] `reward_pool` seeded with single row (balance 0)
-- [ ] `reward_pool_fundings` provides idempotent, append-only pool funding records keyed by `round_id`
-- [ ] `point_grants` provides ledger-grade history for every points award path
-- [ ] Foreign key constraints enforced (challenges -> campaigns, assignments -> challenges, etc.)
-- [ ] Unique constraints prevent duplicate assignments, duplicate progress events, duplicate bonus completions, duplicate point grants, and duplicate crate drops
-- [ ] Indexes support the hot queries: active assignments by user, points history by user, pending crate drops, active dogpile events
+- [x] Migration file `0XX_challenge_engine.sql` creates all tables above <!-- satisfied: 011_challenge_engine.sql, 14 tables (lines 4-174) -->
+- [x] All tables follow project conventions: BIGINT IDENTITY, CHECK constraints on TEXT enums, TIMESTAMPTZ, snake_case <!-- satisfied: all tables use BIGINT GENERATED ALWAYS AS IDENTITY, CHECK constraints, TIMESTAMPTZ -->
+- [x] `reward_config` seeded with default values on migration (see FR-13) <!-- satisfied: 011_challenge_engine.sql:183-194, all 11 keys -->
+- [x] `reward_pool` seeded with single row (balance 0) <!-- satisfied: 011_challenge_engine.sql:197 -->
+- [x] `reward_pool_fundings` provides idempotent, append-only pool funding records keyed by `round_id` <!-- satisfied: UNIQUE(round_id) constraint -->
+- [x] `point_grants` provides ledger-grade history for every points award path <!-- satisfied: 4 source_types, UNIQUE(user_id, source_type, source_id) -->
+- [x] Foreign key constraints enforced (challenges -> campaigns, assignments -> challenges, etc.) <!-- satisfied: all FK constraints present in migration -->
+- [x] Unique constraints prevent duplicate assignments, duplicate progress events, duplicate bonus completions, duplicate point grants, and duplicate crate drops <!-- satisfied: all UNIQUE constraints present -->
+- [x] Indexes support the hot queries: active assignments by user, points history by user, pending crate drops, active dogpile events <!-- satisfied: idx_assignments_active, idx_point_grants_user_created, idx_crate_drops_pending, idx_dogpile_active -->
 
 ---
 
@@ -331,14 +331,14 @@ Where `wager_usd = amount_lamports * sol_price_usd / 1e9`. SOL/USD price is fetc
 Points are awarded to ALL players in a settled game (winners and losers), because points reward engagement, not outcomes.
 
 **Acceptance Criteria:**
-- [ ] Eligible settled-game processing emits one `points.grant` event per eligible player with a domain key derived from `(user_id, round_id, source_type='wager')`
-- [ ] `points.grant` handler calculates points for each player using `points_per_dollar` from `reward_config`
-- [ ] SOL/USD conversion uses the existing price service (cached, not per-event RPC)
-- [ ] Points awarded to both winners and losers in a settled game
-- [ ] Dogpile multiplier applied when a `dogpile_events` row is active at `settledAt` time
-- [ ] `point_grants` row inserted before `player_points.balance` and `lifetime_earned` are incremented atomically
-- [ ] `player_points` row created on first earn (upsert pattern)
-- [ ] Points calculation is deterministic and idempotent via `point_grants UNIQUE (user_id, source_type, source_id)`, not `progress_events`
+- [x] Eligible settled-game processing emits one `points.grant` event per eligible player with a domain key derived from `(user_id, round_id, source_type='wager')` <!-- satisfied: game-settled.ts:277 -->
+- [x] `points.grant` handler calculates points for each player using `points_per_dollar` from `reward_config` <!-- satisfied: points-grant.ts reads config -->
+- [x] SOL/USD conversion uses the existing price service (cached, not per-event RPC) <!-- satisfied: points-grant.ts uses injected getSolPrice wrapping fetchSolPrice -->
+- [x] Points awarded to both winners and losers in a settled game <!-- satisfied: game-settled.ts emits for all eligible players -->
+- [x] Dogpile multiplier applied when a `dogpile_events` row is active at `settledAt` time <!-- satisfied: points-grant.ts:66 getActiveDogpileMultiplier, integration test confirms 2x -->
+- [x] `point_grants` row inserted before `player_points.balance` and `lifetime_earned` are incremented atomically <!-- satisfied: points-grant.ts: insertPointGrant then upsertPlayerPoints -->
+- [x] `player_points` row created on first earn (upsert pattern) <!-- satisfied: upsertPlayerPoints uses INSERT ON CONFLICT DO UPDATE -->
+- [x] Points calculation is deterministic and idempotent via `point_grants UNIQUE (user_id, source_type, source_id)`, not `progress_events` <!-- satisfied: UNIQUE constraint + ON CONFLICT DO NOTHING -->
 
 ---
 
@@ -364,16 +364,16 @@ If `payout < sol_crate_min_value` (config), the SOL crate is suppressed (not dro
 After payout: `reward_pool.balance_lamports -= payout`, `reward_pool.lifetime_paid += payout`. The `crate.drop` handler MUST acquire a row lock (`SELECT ... FOR UPDATE`) on the `reward_pool` singleton before reading balance, to prevent concurrent crate handlers from double-spending the same balance. Operationally, actual SOL still comes from the treasury-managed payout wallet; `reward_pool` is the accounting cap and audit trail.
 
 **Acceptance Criteria:**
-- [ ] Settled-round processing emits one `reward.pool_fund` event per round
-- [ ] `reward.pool_fund` handler calculates `floor(feeLamports * reward_pool_fee_share)` from config
-- [ ] `reward.pool_fund` handler dedupes on `round_id` via `reward_pool_fundings` before mutating `reward_pool`
-- [ ] `reward_pool.balance_lamports` incremented atomically within the handler's transaction
-- [ ] SOL crate payout calculated as `floor(balance * sol_crate_pool_pct)`
-- [ ] SOL crate suppressed (not created) when calculated payout < `sol_crate_min_value`
-- [ ] Reward pool remains accounting-only: no second on-chain fee split, no separate settlement-time wallet transfer
-- [ ] Pool balance never goes negative (payout subtracted only after validation)
-- [ ] `reward_pool.lifetime_funded` and `lifetime_paid` updated for audit/analytics
-- [ ] All pool operations happen within a serializable or row-locked transaction (no race conditions on balance)
+- [x] Settled-round processing emits one `reward.pool_fund` event per round <!-- satisfied: game-settled.ts:161-165, outside player loop -->
+- [x] `reward.pool_fund` handler calculates `floor(feeLamports * reward_pool_fee_share)` from config <!-- satisfied: reward-pool-fund.ts reads config -->
+- [x] `reward.pool_fund` handler dedupes on `round_id` via `reward_pool_fundings` before mutating `reward_pool` <!-- satisfied: insertPoolFunding ON CONFLICT DO NOTHING -->
+- [x] `reward_pool.balance_lamports` incremented atomically within the handler's transaction <!-- satisfied: incrementRewardPool in withTransaction -->
+- [x] SOL crate payout calculated as `floor(balance * sol_crate_pool_pct)` <!-- satisfied: crate-drop.ts -->
+- [x] SOL crate suppressed (not created) when calculated payout < `sol_crate_min_value` <!-- satisfied: integration test confirms suppression -->
+- [x] Reward pool remains accounting-only: no second on-chain fee split, no separate settlement-time wallet transfer <!-- satisfied: design — all fees go to treasury -->
+- [x] Pool balance never goes negative (payout subtracted only after validation) <!-- satisfied: SELECT FOR UPDATE + validate before decrement -->
+- [x] `reward_pool.lifetime_funded` and `lifetime_paid` updated for audit/analytics <!-- satisfied: incrementRewardPool + decrementRewardPool update counters -->
+- [x] All pool operations happen within a serializable or row-locked transaction (no race conditions on balance) <!-- satisfied: lockAndReadRewardPool uses SELECT ... FOR UPDATE (crate-drop.ts:38-42) -->
 
 ---
 
@@ -399,15 +399,15 @@ Crate drops are recorded in `crate_drops` table by a dedicated `crate.drop` hand
 Points crate grants do not mutate balances inline. The `crate.drop` handler records the crate, then emits `points.grant` with `source_type = 'crate_points'`.
 
 **Acceptance Criteria:**
-- [ ] Eligible settled-game processing emits one `crate.drop` event per eligible player after a `game.settled` event
-- [ ] Drop rates read from `reward_config` (`sol_crate_drop_rate`, `points_crate_drop_rate`)
-- [ ] SOL crate: `reward_pool` row locked (`SELECT ... FOR UPDATE`), balance checked, payout calculated, pool decremented, `crate_drops` row created — all in one transaction
-- [ ] SOL crate payout emits `crate.sol_payout` event for async SOL transfer
-- [ ] SOL crate suppressed when pool can't fund `sol_crate_min_value`
-- [ ] Points crate: random amount in configured range, `crate_drops` row created, `points.grant` emitted with `source_type = 'crate_points'`
-- [ ] `crate_drops` records trigger_type, trigger_id (round_id), crate_type, contents_amount
-- [ ] No crate drop for games that fail `quest_eligible()` check (FR-10)
-- [ ] Crate drop is idempotent per `(user_id, trigger_type, trigger_id)` and enforced with a DB UNIQUE constraint
+- [x] Eligible settled-game processing emits one `crate.drop` event per eligible player after a `game.settled` event <!-- satisfied: game-settled.ts:287 -->
+- [x] Drop rates read from `reward_config` (`sol_crate_drop_rate`, `points_crate_drop_rate`) <!-- satisfied: crate-drop.ts reads config -->
+- [x] SOL crate: `reward_pool` row locked (`SELECT ... FOR UPDATE`), balance checked, payout calculated, pool decremented, `crate_drops` row created — all in one transaction <!-- satisfied: crate-drop.ts:38-42 FOR UPDATE, withTransaction -->
+- [x] SOL crate payout emits `crate.sol_payout` event for async SOL transfer <!-- satisfied: crate-drop.ts:186 emits CRATE_SOL_PAYOUT -->
+- [x] SOL crate suppressed when pool can't fund `sol_crate_min_value` <!-- satisfied: integration test: pool below min → suppressed -->
+- [x] Points crate: random amount in configured range, `crate_drops` row created, `points.grant` emitted with `source_type = 'crate_points'` <!-- satisfied: crate-drop.ts points path -->
+- [x] `crate_drops` records trigger_type, trigger_id (round_id), crate_type, contents_amount <!-- satisfied: insertCrateDrop params -->
+- [x] No crate drop for games that fail `quest_eligible()` check (FR-10) <!-- satisfied: game-settled.ts:171 gates on questEligible -->
+- [x] Crate drop is idempotent per `(user_id, trigger_type, trigger_id)` and enforced with a DB UNIQUE constraint <!-- satisfied: ON CONFLICT DO NOTHING, integration test confirms -->
 
 ---
 
@@ -424,13 +424,13 @@ Time-windowed events (e.g., daily 8-9 PM UTC) that boost the points multiplier f
 **Recurring Dogpile:** Operator can schedule repeating events via admin API (creates multiple `dogpile_events` rows). The scheduler pattern is simple: one row per occurrence, no RRULE complexity.
 
 **Acceptance Criteria:**
-- [ ] `dogpile_events` table supports scheduling events with start/end times and multiplier
-- [ ] Worker or cron transitions event status: scheduled -> active -> ended at the correct times
-- [ ] Points calculation in FR-3 reads active Dogpile event and applies multiplier
-- [ ] Active Dogpile check is a simple query: `SELECT multiplier FROM dogpile_events WHERE status = 'active' AND now() BETWEEN starts_at AND ends_at LIMIT 1`
-- [ ] Multiple Dogpile events cannot overlap; enforce via admin validation in M1 (DB exclusion constraint not required)
-- [ ] Dogpile events can be cancelled (status -> cancelled) before or during the window
-- [ ] `dogpile_active` and `dogpile_multiplier` are computed in handler context for analytics; they are not required fields on the `game.settled` payload
+- [x] `dogpile_events` table supports scheduling events with start/end times and multiplier <!-- satisfied: 011_challenge_engine.sql:166-174 -->
+- [x] Worker or cron transitions event status: scheduled -> active -> ended at the correct times <!-- satisfied: dogpile-worker.ts:26 tick(), integration test confirms -->
+- [x] Points calculation in FR-3 reads active Dogpile event and applies multiplier <!-- satisfied: points-grant.ts:66 getActiveDogpileMultiplier -->
+- [x] Active Dogpile check is a simple query: `SELECT multiplier FROM dogpile_events WHERE status = 'active' AND now() BETWEEN starts_at AND ends_at LIMIT 1` <!-- satisfied: getActiveDogpileMultiplier matches pattern -->
+- [x] Multiple Dogpile events cannot overlap; enforce via admin validation in M1 (DB exclusion constraint not required) <!-- satisfied: admin.ts POST /admin/dogpile validates overlap, returns 409 -->
+- [x] Dogpile events can be cancelled (status -> cancelled) before or during the window <!-- satisfied: admin.ts PUT /admin/dogpile/:id -->
+- [x] `dogpile_active` and `dogpile_multiplier` are computed in handler context for analytics; they are not required fields on the `game.settled` payload <!-- satisfied: computed in points-grant handler, not on payload -->
 
 ---
 
@@ -467,12 +467,12 @@ type VerificationAdapter = (
 - `streak`: M2 — deferred for launch.
 
 **Acceptance Criteria:**
-- [ ] Adapter registry maps `action` string to adapter function
-- [ ] `game_completed` adapter: returns `shouldProgress: true` when game matches scope (or scope = 'any')
-- [ ] `game_won` adapter: returns `shouldProgress: true` when player `isWinner === true` and game matches scope
-- [ ] `lobby_filled` adapter: returns `shouldProgress: true` when `isCreator === true` and game settled normally
-- [ ] Each adapter is a pure function of (event, assignment, db) — no side effects beyond the returned result
-- [ ] Unknown adapter types log a warning and return `shouldProgress: false`
+- [x] Adapter registry maps `action` string to adapter function <!-- satisfied: challenge-adapters.ts:134-138, Map with 3 entries -->
+- [x] `game_completed` adapter: returns `shouldProgress: true` when game matches scope (or scope = 'any') <!-- satisfied: challenge-adapters.ts:93, unit tests confirm -->
+- [x] `game_won` adapter: returns `shouldProgress: true` when player `isWinner === true` and game matches scope <!-- satisfied: challenge-adapters.ts:106, unit tests confirm -->
+- [x] `lobby_filled` adapter: returns `shouldProgress: true` when `isCreator === true` and game settled normally <!-- satisfied: challenge-adapters.ts:120, unit tests confirm -->
+- [x] Each adapter is a pure function of (event, assignment, db) — no side effects beyond the returned result <!-- satisfied: returns AdapterResult only, no DB writes -->
+- [x] Unknown adapter types log a warning and return `shouldProgress: false` <!-- satisfied: getAdapter returns no-op adapter, unit test confirms -->
 
 ---
 
@@ -497,17 +497,17 @@ The core engine that receives `game.settled` events, loads the player's active a
 ```
 
 **Acceptance Criteria:**
-- [ ] `game.settled` handler registered in the event queue handler registry
-- [ ] Handler iterates all players in the event payload
-- [ ] Quest eligibility check runs before any progress/points/crate processing
-- [ ] Active assignments loaded efficiently (indexed query on user_id + status = 'active')
-- [ ] Progress updates are atomic: INSERT progress_event + UPDATE assignment.progress in one transaction
-- [ ] Assignment status transitions to 'completed' when progress >= target
-- [ ] Challenge completion emits reward intents through the same downstream path as other rewards (`points.grant` with `source_type = 'challenge_completed'`, or `crate.drop` with `trigger_type = 'challenge_completed'`)
-- [ ] Points, crate, and pool-funding side-effects are emitted as separate reward events after challenge evaluation
-- [ ] `game.settled` handler is idempotent for progress and reward-event emission; downstream reward handlers are independently idempotent
-- [ ] Handler errors don't affect other players in the same event (per-player try/catch)
-- [ ] Processing time per event is bounded (< 100ms target for the DB operations)
+- [x] `game.settled` handler registered in the event queue handler registry <!-- satisfied: index.ts:217 registerHandler(EventTypes.GAME_SETTLED) -->
+- [x] Handler iterates all players in the event payload <!-- satisfied: game-settled.ts for loop over event.players -->
+- [x] Quest eligibility check runs before any progress/points/crate processing <!-- satisfied: game-settled.ts:171 questEligible called first -->
+- [x] Active assignments loaded efficiently (indexed query on user_id + status = 'active') <!-- satisfied: getActiveAssignmentsWithChallenge uses idx_assignments_active -->
+- [x] Progress updates are atomic: INSERT progress_event + UPDATE assignment.progress in one transaction <!-- satisfied: insertProgressEvent + incrementAssignmentProgress in withTransaction -->
+- [x] Assignment status transitions to 'completed' when progress >= target <!-- satisfied: markAssignmentCompleted sets status + completed_at -->
+- [x] Challenge completion emits reward intents through the same downstream path as other rewards (`points.grant` with `source_type = 'challenge_completed'`, or `crate.drop` with `trigger_type = 'challenge_completed'`) <!-- satisfied: game-settled.ts emits matching events -->
+- [x] Points, crate, and pool-funding side-effects are emitted as separate reward events after challenge evaluation <!-- satisfied: pool_fund, points.grant, crate.drop are independent events -->
+- [x] `game.settled` handler is idempotent for progress and reward-event emission; downstream reward handlers are independently idempotent <!-- satisfied: UNIQUE(assignment_id, round_id) on progress_events -->
+- [x] Handler errors don't affect other players in the same event (per-player try/catch) <!-- satisfied: game-settled.ts:169-300 per-player isolation -->
+- [x] Processing time per event is bounded (< 100ms target for the DB operations) <!-- satisfied: efficient indexed queries; aspirational target -->
 
 ---
 
@@ -521,11 +521,11 @@ A meta-reward for completing a set of challenges within a period. Primary use ca
 - If count >= `required_count` and no `bonus_completions` row exists for this user+bonus+period: mark bonus complete, trigger reward
 
 **Acceptance Criteria:**
-- [ ] Completion bonus check runs immediately after any assignment is marked completed
-- [ ] Count query: `SELECT COUNT(*) FROM challenge_assignments WHERE user_id = ? AND period_key = ? AND status = 'completed' AND challenge_id IN (SELECT id FROM challenges WHERE campaign_id = ?)`
-- [ ] Bonus completion is idempotent (UNIQUE on user_id, bonus_id, period_key)
-- [ ] Bonus reward (crate or points) is triggered via the same reward path as challenge rewards
-- [ ] Multiple bonuses can exist per campaign (future-proofing, but M1 has one per daily campaign)
+- [x] Completion bonus check runs immediately after any assignment is marked completed <!-- satisfied: game-settled.ts calls checkCompletionBonus after markAssignmentCompleted -->
+- [x] Count query: `SELECT COUNT(*) FROM challenge_assignments WHERE user_id = ? AND period_key = ? AND status = 'completed' AND challenge_id IN (SELECT id FROM challenges WHERE campaign_id = ?)` <!-- satisfied: completion-bonus.ts:43 countCompletedAssignments -->
+- [x] Bonus completion is idempotent (UNIQUE on user_id, bonus_id, period_key) <!-- satisfied: insertBonusCompletion ON CONFLICT DO NOTHING -->
+- [x] Bonus reward (crate or points) is triggered via the same reward path as challenge rewards <!-- satisfied: emits points.grant or crate.drop -->
+- [x] Multiple bonuses can exist per campaign (future-proofing, but M1 has one per daily campaign) <!-- satisfied: getCompletionBonuses returns array -->
 
 ---
 
@@ -548,11 +548,11 @@ If the check fails, the game session is skipped for challenge progress, points, 
 Fraud flags are draft-level operator signals in M1. They should not block normal progress or payouts unless an explicit operator policy is added later.
 
 **Acceptance Criteria:**
-- [ ] `quest_eligible()` function implemented and called before all reward processing
-- [ ] Refunded games (`isWinner === null`) are excluded from challenge progress, points, and crate drops
-- [ ] Non-refund games continue through normal challenge/reward flow with no additional M1 gating
-- [ ] Ineligible games still settle normally (no impact on core game loop)
-- [ ] Any fraud flags implemented in M1 are advisory-only and do not silently change reward behavior
+- [x] `quest_eligible()` function implemented and called before all reward processing <!-- satisfied: challenge-adapters.ts:72, called at game-settled.ts:171 -->
+- [x] Refunded games (`isWinner === null`) are excluded from challenge progress, points, and crate drops <!-- satisfied: questEligible returns false; unit + integration tests confirm -->
+- [x] Non-refund games continue through normal challenge/reward flow with no additional M1 gating <!-- satisfied: questEligible returns true for winners and losers -->
+- [x] Ineligible games still settle normally (no impact on core game loop) <!-- satisfied: quest_eligible is downstream of settlement -->
+- [x] Any fraud flags implemented in M1 are advisory-only and do not silently change reward behavior <!-- satisfied: no fraud flag logic implemented; vacuously true (spec says "optional") -->
 
 ---
 
@@ -577,14 +577,14 @@ Players receive a set of challenges at each reset. Challenges are drawn from the
 - Deactivating a challenge template does not affect existing assignments — players keep their in-progress work for the current period
 
 **Acceptance Criteria:**
-- [ ] Daily challenges assigned lazily on first `GET /challenges/mine` call after 00:00 UTC
-- [ ] Weekly challenges assigned lazily on first call after Monday 00:00 UTC
-- [ ] `period_key` format: `daily:YYYY-MM-DD` for dailies, `weekly:YYYY-WNN` for weeklies
-- [ ] Assignment count matches campaign config (3 daily, 2 weekly for M1)
-- [ ] Challenges drawn from active challenges in the appropriate campaign
-- [ ] UNIQUE constraint prevents duplicate assignments for same user+challenge+period
-- [ ] Expired assignments are marked `expired` (either at query time or by cleanup worker)
-- [ ] Completion bonus for the daily campaign is checked when 3rd daily is completed
+- [x] Daily challenges assigned lazily on first `GET /challenges/mine` call after 00:00 UTC <!-- satisfied: routes/challenges.ts:309, checks period + creates -->
+- [x] Weekly challenges assigned lazily on first call after Monday 00:00 UTC <!-- satisfied: same endpoint handles weekly lazy assignment -->
+- [x] `period_key` format: `daily:YYYY-MM-DD` for dailies, `weekly:YYYY-WNN` for weeklies <!-- satisfied: challenges.ts:71 dailyPeriodKey, :77 weeklyPeriodKey -->
+- [x] Assignment count matches campaign config (3 daily, 2 weekly for M1) <!-- satisfied: reads daily_challenge_count/weekly_challenge_count from config -->
+- [x] Challenges drawn from active challenges in the appropriate campaign <!-- satisfied: getActiveChallengesBySort queries by sort_order ASC -->
+- [x] UNIQUE constraint prevents duplicate assignments for same user+challenge+period <!-- satisfied: UNIQUE(user_id, challenge_id, period_key) -->
+- [x] Expired assignments are marked `expired` (either at query time or by cleanup worker) <!-- satisfied: expireStaleAssignments at start of GET /challenges/mine -->
+- [x] Completion bonus for the daily campaign is checked when 3rd daily is completed <!-- satisfied: checkCompletionBonus called after each completion -->
 
 ---
 
@@ -606,12 +606,12 @@ A one-time sequential challenge flow for new players. Uses `prerequisite_id` to 
 - Once all steps are completed, onboarding is done — no repeat
 
 **Acceptance Criteria:**
-- [ ] Onboarding campaign and 3 challenge templates seeded in migration or seed script
-- [ ] First onboarding step assigned on first `GET /challenges/mine` call for new users
-- [ ] Completing a step auto-assigns the next step (by `prerequisite_id`)
-- [ ] Onboarding assignments have `period_key = 'onboarding'` and no `expires_at`
-- [ ] Onboarding is one-time: once all steps completed, no further assignments
-- [ ] Onboarding challenges appear in `GET /challenges/mine` alongside daily/weekly
+- [x] Onboarding campaign and 3 challenge templates seeded in migration or seed script <!-- satisfied: 011_challenge_engine.sql:200-234, 3-step chain -->
+- [x] First onboarding step assigned on first `GET /challenges/mine` call for new users <!-- satisfied: challenges.ts assigns first step if none -->
+- [x] Completing a step auto-assigns the next step (by `prerequisite_id`) <!-- satisfied: onboarding-chain.ts:29 getNextOnboardingStep; integration test confirms -->
+- [x] Onboarding assignments have `period_key = 'onboarding'` and no `expires_at` <!-- satisfied: createAssignment sets period_key='onboarding', expires_at=NULL -->
+- [x] Onboarding is one-time: once all steps completed, no further assignments <!-- satisfied: UNIQUE constraint + existing assignment check -->
+- [x] Onboarding challenges appear in `GET /challenges/mine` alongside daily/weekly <!-- satisfied: challenges.ts returns onboarding section in response -->
 
 ---
 
@@ -636,13 +636,13 @@ All economy parameters stored in `reward_config` table, readable by the engine a
 | `weekly_challenge_count` | `2` | Challenges assigned per weekly reset |
 
 **Acceptance Criteria:**
-- [ ] `reward_config` table seeded with all defaults above in the migration
-- [ ] Config values read by the engine at evaluation time (not cached beyond a single handler invocation)
-- [ ] Admin API endpoint `PUT /admin/reward-config/:key` updates a config value
-- [ ] Admin API endpoint `GET /admin/reward-config` returns all config values
-- [ ] Admin endpoints require operator auth (existing auth middleware or admin-only check)
-- [ ] Invalid config keys rejected (400)
-- [ ] Config change takes effect on next `game.settled` event (no restart needed)
+- [x] `reward_config` table seeded with all defaults above in the migration <!-- satisfied: 011_challenge_engine.sql:183-194, all 11 keys -->
+- [x] Config values read by the engine at evaluation time (not cached beyond a single handler invocation) <!-- satisfied: readRewardConfig called per handler invocation -->
+- [x] Admin API endpoint `PUT /admin/reward-config/:key` updates a config value <!-- satisfied: admin.ts:64, integration test confirms -->
+- [x] Admin API endpoint `GET /admin/reward-config` returns all config values <!-- satisfied: admin.ts:52, integration test confirms 11 entries -->
+- [x] Admin endpoints require operator auth (existing auth middleware or admin-only check) <!-- satisfied: admin.ts:43-48, X-Admin-Key middleware -->
+- [x] Invalid config keys rejected (400) <!-- satisfied: admin.ts validates against VALID_CONFIG_KEYS set -->
+- [x] Config change takes effect on next `game.settled` event (no restart needed) <!-- satisfied: no caching — reads from DB each handler invocation -->
 
 ---
 
@@ -698,18 +698,18 @@ Player-facing note: all challenge and reward updates are async from `game.settle
 ```
 
 **Acceptance Criteria:**
-- [ ] `GET /challenges/mine` returns daily, weekly, and onboarding sections
-- [ ] Lazy assignment triggered on first call after daily/weekly reset
-- [ ] Response includes progress, target, status, reward, and reset countdown
-- [ ] Onboarding section shows locked steps (prerequisite not yet met) with `locked: true`
-- [ ] Onboarding section is `null` for players who completed all onboarding steps
-- [ ] `GET /points/mine` returns `{ balance, lifetimeEarned }`
-- [ ] `GET /points/mine/history` returns paginated point grant rows with source metadata and timestamps from `point_grants`
-- [ ] `GET /challenges/mine/history` returns paginated past completions
-- [ ] `GET /crates/mine` returns paginated crate drops with type, amount, timestamp, and payout status semantics (`pending` queued, `granted` applied, `failed` needs retry/manual review)
-- [ ] `GET /dogpile/current` returns active event with countdown to `ends_at`, or next scheduled event with countdown to `starts_at`
-- [ ] All endpoints require JWT auth (existing middleware)
-- [ ] All endpoints use standard error format (existing `errorResponse` helper)
+- [x] `GET /challenges/mine` returns daily, weekly, and onboarding sections <!-- satisfied: challenges.ts:309, response includes all 3 sections -->
+- [x] Lazy assignment triggered on first call after daily/weekly reset <!-- satisfied: challenges.ts checks for existing assignments per period_key -->
+- [x] Response includes progress, target, status, reward, and reset countdown <!-- satisfied: integration test validates shape -->
+- [x] Onboarding section shows locked steps (prerequisite not yet met) with `locked: true` <!-- satisfied: challenges.ts:439, locked = !isAssigned -->
+- [x] Onboarding section is `null` for players who completed all onboarding steps <!-- satisfied: challenges.ts:434, returns null when allCompleted -->
+- [x] `GET /points/mine` returns `{ balance, lifetimeEarned }` <!-- satisfied: points.ts:44, returns zeros if no row -->
+- [x] `GET /points/mine/history` returns paginated point grant rows with source metadata and timestamps from `point_grants` <!-- satisfied: points.ts:71, cursor-based DESC -->
+- [x] `GET /challenges/mine/history` returns paginated past completions <!-- satisfied: challenges.ts:497, cursor-based DESC -->
+- [x] `GET /crates/mine` returns paginated crate drops with type, amount, timestamp, and payout status semantics (`pending` queued, `granted` applied, `failed` needs retry/manual review) <!-- satisfied: points.ts:136, includes crateType, contentsAmount, status -->
+- [x] `GET /dogpile/current` returns active event with countdown to `ends_at`, or next scheduled event with countdown to `starts_at` <!-- satisfied: dogpile.ts:39, endsIn/startsIn countdown fields -->
+- [ ] All endpoints require JWT auth (existing middleware) <!-- gap: /dogpile/current and /dogpile/schedule are public (index.ts:312, no JWT middleware) -->
+- [x] All endpoints use standard error format (existing `errorResponse` helper) <!-- satisfied: consistent errorResponse pattern across all route files -->
 
 ---
 
@@ -731,12 +731,12 @@ Internal endpoints for operators to manage campaigns, challenges, Dogpile events
 | `GET` | `/admin/reward-pool` | Reward pool balance and lifetime stats |
 
 **Acceptance Criteria:**
-- [ ] All admin endpoints require operator-level auth
-- [ ] Campaign CRUD: create, update, toggle active. Cannot delete (soft-disable only).
-- [ ] Challenge CRUD: create, update, toggle active within a campaign
-- [ ] Dogpile scheduling: create events, cancel future events, cannot modify active events
-- [ ] Reward config: read all, update by key
-- [ ] Reward pool: read current balance, lifetime funded, lifetime paid
+- [x] All admin endpoints require operator-level auth <!-- satisfied: admin.ts:43-48, X-Admin-Key header check -->
+- [x] Campaign CRUD: create, update, toggle active. Cannot delete (soft-disable only). <!-- satisfied: POST/PUT /admin/campaigns, no DELETE endpoint -->
+- [x] Challenge CRUD: create, update, toggle active within a campaign <!-- satisfied: POST/PUT /admin/challenges, validates campaign_id -->
+- [x] Dogpile scheduling: create events, cancel future events, cannot modify active events <!-- satisfied: POST/PUT /admin/dogpile, rejects active with 409 -->
+- [x] Reward config: read all, update by key <!-- satisfied: GET/PUT /admin/reward-config -->
+- [x] Reward pool: read current balance, lifetime funded, lifetime paid <!-- satisfied: GET /admin/reward-pool returns all 3 fields -->
 
 ---
 

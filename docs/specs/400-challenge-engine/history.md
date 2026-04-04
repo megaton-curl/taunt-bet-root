@@ -265,3 +265,8 @@ of every iteration to understand prior context.
 - **Blocker**: Full verification failed: `./scripts/verify` exits non-zero because `set -e` + `pnpm test` returns exit code 1 due to 5 pre-existing test files failing with `ECONNREFUSED ::1:5432` (IPv6 Postgres connectivity issue). These failures are documented in all 16 prior iteration logs and are NOT caused by this change. All 157 passing tests include the 3 new CRATE_SOL_PAYOUT tests. Lint (0 errors) and typecheck both pass clean. The only resolution is to fix the pre-existing Postgres connectivity issue in the 5 affected test files or update the verify script to tolerate known failures.
 - **Log**: iteration-017.log
 
+## Gap Analysis (backfill) — 2026-04-04T08:12:15Z
+- **Result**: Gap analysis report generated
+- **Report**: gap-analysis.md
+- **Log**: gap-analysis.log
+
