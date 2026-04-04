@@ -20,31 +20,59 @@ Last updated: 2026-04-04
 ### Games (3 live)
 - **Coinflip** (spec 001) — 1v1, commit-reveal + SlotHashes fairness, custom wagers
 - **Lord of the RNGs / Jackpot** (spec 101) — Multiplayer weighted-entry jackpot, commit-reveal fairness
-- **Close Call** (spec 100) — Pari-mutuel BTC price prediction, Pyth oracle settlement
+- **Close Call** (spec 100) — Pari-mutuel BTC price prediction, Pyth oracle settlement, minute-boundary candle cache
 
-### Platform Infrastructure
-- **On-chain programs**: Per-game Anchor programs + shared Rust crate + platform config program (`solana/`)
-- **Settlement**: PDA watcher (WebSocket) + 1s polling fallback, ~3-5s total latency
-- **Fairness**: Backend-assisted commit-reveal with SlotHashes entropy, public verification endpoints (spec 006)
-- **Auth**: JWT challenge-response via wallet signature (spec 007)
-- **Profiles**: Auto-created on first auth, username with cooldown, stats aggregation (spec 008)
-- **Fees**: 500 bps flat to single treasury, read from on-chain PlatformConfig
+### On-Chain Programs
+- **Per-game programs**: Coinflip, Lord of RNGs, Close Call — each independently deployable
+- **Platform program**: PlatformConfig (fee BPS, treasury, pause state), admin-updatable via `update_platform_config`
+- **Shared Rust crate** (`solana/shared/`): Escrow helpers, lifecycle state machine, timeout logic, pause controls, commit-reveal verifier, fee calculation, constants
+- **Operational controls**: `set_paused` (per-game pause/unpause), `timeout_refund` (permissionless liveness guarantee), `force_close` (stuck round recovery)
+
+### Settlement & Workers
+- **PDA watcher**: WebSocket `onAccountChange` for instant join/settle detection
+- **Polling fallback**: 1s interval for resilience, ~3-5s total settlement latency
+- **Close Call clock**: Minute-boundary BTC price capture from Pyth Hermes, automatic round creation and settlement
+- **Retry worker**: Exponential backoff for failed settlement transactions
+- **Dogpile worker**: Status transitions (scheduled → active → ended) on 10s poll
+
+### Auth & Identity
+- **JWT auth** (spec 007) — Challenge-response via wallet signature, HS256 tokens
+- **Player profiles** (spec 008) — Auto-created on first auth, username with 30-day change cooldown
+- **Player stats**: Games played, total wagered, wins, win rate, win streaks (current + all-time), net PnL, per-game breakdown
+- **Public profiles**: Stats visible to other players (no wallet or transaction history exposed)
+- **Weekly leaderboard**: Volume-based ranking per game type with win rate and PnL
+
+### Fairness & Pricing
+- **Commit-reveal fairness** (spec 006): `SHA256(secret || entropy || PDA || algo_ver)`, public verification endpoints
+- **SOL/USD price service**: Pyth Hermes REST (`GET /price/sol-usd`), 60s cache, used for points USD conversion
+- **Fee structure**: 500 bps flat to single treasury, on-chain PlatformConfig canonical. CI guard: `scripts/check-fees.sh`
 
 ### Reward & Retention
 - **Challenge engine** (spec 400) — Daily/weekly/onboarding challenges, template-based, adapter-driven
-- **Points** — Earned per $ wagered, Dogpile multiplier, free to mint (pre-TGE allocation signal)
+- **Points** — Earned per $ wagered (USD-converted), Dogpile multiplier, free to mint (pre-TGE allocation signal)
 - **Loot crates** — Random drops after settled games (points crates + SOL crates from reward pool)
-- **Reward pool** — Accounting-only ledger, 20% of platform fees reserved for crate economics
-- **Dogpile events** — Scheduled windows with boosted point multipliers
+- **Reward pool** — Accounting-only ledger, configurable share of platform fees (default 20%)
+- **Dogpile events** — Scheduled windows with boosted point multipliers, admin-managed
+- **Completion bonus** — Meta-reward for completing all daily challenges (configurable)
 
 ### Growth
-- **Referral system** (spec 300) — Unique codes/links, 1000 bps of fee as referral earnings, on-chain SOL claims
+- **Referral system** (spec 300) — Unique codes/links, 1000 bps of fee as referral earnings, on-chain SOL claims, KOL rate overrides
 - **Onboarding chain** — 4-step guided first session (set nickname, play, win, try all game types)
 
 ### Backend Infrastructure
-- **Async event queue** (spec 301) — Postgres-backed, polling worker, handler registry, exponential backoff
-- **Event-driven reward pipeline** — `game.settled` → challenge progress + points + crate drops + pool funding
-- **Admin API** — Campaign/challenge CRUD, reward config tuning, Dogpile scheduling (X-Admin-Key auth)
+- **Async event queue** (spec 301) — Postgres-backed, `FOR UPDATE SKIP LOCKED`, handler registry, exponential backoff (5s → 30s → 300s), dead-letter after 3 attempts
+- **Event-driven pipeline** — `game.settled` → challenge progress + points + crate drops + pool funding; `profile.username_set` → onboarding challenge progress
+- **Admin API** — Campaign/challenge CRUD, reward config tuning, Dogpile scheduling, reward pool monitoring (X-Admin-Key auth)
+- **Rate limiting**: Per-wallet and global rate limits on game creation endpoints
+- **Health endpoint**: `GET /health` — DB connectivity, worker status, unsettled queue depth
+- **Transaction history**: Per-player ledger of on-chain deposits, payouts, refunds with game context
+
+### Cross-Repo Tooling
+- `scripts/verify` — Full lint + typecheck + test across all packages
+- `scripts/deploy-devnet.sh` — Build → deploy → IDL sync → config init → ID verification
+- `scripts/check-program-ids.sh` — Anchor.toml / declare_id! / IDL address consistency
+- `scripts/check-fees.sh` — Fee constant parity across Rust and TypeScript
+- `scripts/sync-idl` — Copy built IDLs from solana/target/ to backend anchor-client
 
 ---
 
