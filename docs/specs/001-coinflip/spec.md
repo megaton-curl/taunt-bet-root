@@ -82,7 +82,7 @@ Coinflip is the simplest game on the platform and the first end-to-end delivery 
 A player can create a new coinflip match by entering a custom SOL amount (minimum 0.0026 SOL) and a side (Heads or Tails). The frontend requests a backend-generated partial transaction via JWT-authenticated endpoint, the player co-signs once in-wallet, and the match appears in the open games list for other players to join. The on-chain `create_match` instruction takes `amount: u64` (not a tier index). The backend request body uses `amountLamports`.
 
 **Acceptance Criteria:**
-- [x] Player can enter any custom SOL amount at or above 0.0026 SOL <!-- satisfied: WagerInput.tsx MIN_WAGER_SOL=0.0026, create.ts MIN_WAGER_LAMPORTS=2_600_000, shared/wager.rs validate_wager -->
+- [x] Player can enter any custom SOL amount at or above 0.001 SOL <!-- satisfied: shared/wager.rs MIN_WAGER_LAMPORTS=1_000_000, create.ts MIN_WAGER_LAMPORTS=1_000_000 -->
 - [x] Player can choose Heads or Tails <!-- satisfied: shared/src/constants.rs:2-3 SIDE_HEADS/TAILS, CoinSideSelector.tsx:19 -->
 - [x] Create flow uses `POST /fairness/coinflip/create` to obtain a server-partially-signed transaction, `matchPda`, and commitment before wallet submission <!-- satisfied: create.ts returns {transaction, matchPda, matchId, commitment, lastValidBlockHeight} -->
 - [x] Create request is authenticated by JWT Bearer token (wallet read from `sub` claim); body includes `{wallet, amountLamports, side}` <!-- satisfied: jwt-auth.ts middleware + create.ts defense-in-depth wallet===jwtWallet check -->

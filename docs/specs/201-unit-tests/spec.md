@@ -58,7 +58,7 @@ Test that payout calculations match the on-chain settlement math exactly.
 - [ ] `calculateWinnerPayout` handles the 500 bps (5%) fee correctly
 - [ ] `verifyPayoutInvariant` returns true for valid payout splits and false for tampered values
 - [ ] Integer rounding matches Rust behavior (floor division, no floating point)
-- [ ] Edge cases: minimum amount (`0.0026 SOL`), large-amount inputs, zero-value inputs
+- [ ] Edge cases: minimum amount (`0.001 SOL`), large-amount inputs, zero-value inputs
 
 ### FR-2: Game Engine — Coinflip Helpers
 
@@ -69,7 +69,7 @@ Test PDA derivation, side logic, and randomness interpretation.
 - [ ] `getConfigPda()` produces the expected platform config address
 - [ ] `getOppositeSide(heads)` returns tails and vice versa
 - [ ] `determineWinnerFromRandomness` matches on-chain logic: `randomness[0] % 2 == 0` → heads
-- [ ] Custom amount helpers convert SOL input to lamports correctly and reject values below `0.0026 SOL`
+- [ ] Custom amount helpers convert SOL input to lamports correctly and reject values below `0.001 SOL`
 
 ### FR-3: Game Engine — State Machine
 
