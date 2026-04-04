@@ -1,5 +1,7 @@
 # TAUNT — Platform Product Specification v4
 
+> **Product vision — not a spec.** Roadmap and intent; engineering contracts live in `docs/specs/`.
+
 > Converted from `TAUNT Product Spec v3.docx` on 2026-03-31.
 > End-to-End Product Design · GTM & Dev Team Reference · Milestone Roadmap
 > Confidential · Pre-Launch · 2026

@@ -1,5 +1,7 @@
 # TAUNT - Platform Features (Non-Game)
 
+> **Product vision — not a spec.** Feature intent; engineering contracts live in `docs/specs/`.
+
 > Converted from `TAUNT - Platform Features.docx` on 2026-03-31.
 
 ---

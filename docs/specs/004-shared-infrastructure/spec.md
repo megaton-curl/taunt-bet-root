@@ -15,7 +15,7 @@
 
 Shared Infrastructure defines the common primitives that all game programs depend on. The active contract is fairness-agnostic shared infrastructure: escrow helpers, a standardized lifecycle state machine, timeout/refund logic, pause controls, commitment verification, entropy/result derivation helpers, fee distribution, and platform CPI helpers. Every game compiles against this crate — consistency is enforced at compile time, not via CPI at runtime.
 
-This spec formalizes the architecture approved in the pivot doc (`docs/DESIGN_REFERENCE.md`, originally `docs/archive/pivot-doc.md`) and blocks all game implementations.
+This spec formalizes the architecture approved in `docs/DESIGN_REFERENCE.md` (supersedes the old pivot doc, removed from `docs/archive/`) and blocks all game implementations.
 
 > **Fairness Model (updated 2026-03-11)**: The primary fairness model for all shipped V1 games is **backend-assisted commit-reveal + SlotHashes entropy** (see `docs/DECISIONS.md` 2026-03-11). VRF integration (Orao) is gated behind a `#[cfg(feature = "orao-vrf")]` feature flag and is available as an optional module for future games, but is not the default architecture. The shared crate's `fairness.rs` module provides commitment verification, SlotHashes entropy reading, and deterministic result derivation as the primary helpers.
 
