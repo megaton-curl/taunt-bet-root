@@ -708,7 +708,7 @@ Player-facing note: all challenge and reward updates are async from `game.settle
 - [x] `GET /challenges/mine/history` returns paginated past completions <!-- satisfied: challenges.ts:497, cursor-based DESC -->
 - [x] `GET /crates/mine` returns paginated crate drops with type, amount, timestamp, and payout status semantics (`pending` queued, `granted` applied, `failed` needs retry/manual review) <!-- satisfied: points.ts:136, includes crateType, contentsAmount, status -->
 - [x] `GET /dogpile/current` returns active event with countdown to `ends_at`, or next scheduled event with countdown to `starts_at` <!-- satisfied: dogpile.ts:39, endsIn/startsIn countdown fields -->
-- [ ] All endpoints require JWT auth (existing middleware) <!-- gap: /dogpile/current and /dogpile/schedule are public (index.ts:312, no JWT middleware) -->
+- [x] All endpoints require JWT auth (existing middleware) <!-- satisfied: /dogpile/* now uses JWT auth (index.ts:312-315, fixed in gap analysis) -->
 - [x] All endpoints use standard error format (existing `errorResponse` helper) <!-- satisfied: consistent errorResponse pattern across all route files -->
 
 ---
