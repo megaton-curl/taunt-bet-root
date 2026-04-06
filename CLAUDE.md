@@ -7,6 +7,7 @@
   - `solana/` — git submodule → `taunt-bet/solana.git` (Anchor programs + shared Rust crate). See `solana/CLAUDE.md`.
   - `backend/` — git submodule → `taunt-bet/backend.git` (Hono API + shared TS packages). See `backend/CLAUDE.md`.
   - `chat/` — git submodule → `taunt-bet/chat.git` (dedicated chat service + event-feed transport)
+  - `webapp/` — git submodule → `taunt-bet/webapp.git` (React frontend, **developed separately** — read-only reference, changes only via explicit MR)
   - `docs/` — specs, decisions, lessons, solutions
   - `scripts/` — cross-repo orchestration (verify, deploy, IDL sync, fee checks)
   - `e2e/` — devnet E2E tests (Playwright)
@@ -91,7 +92,7 @@ For cross-repo changes (e.g., deploying new program → updating IDLs):
 
 ## Scope Boundary
 - **In scope**: `solana/` (on-chain programs), `backend/` (API + settlement), `chat/` (chat service), `docs/`, `scripts/`, `e2e/`, `test-tools/` (dev-only diagnostics)
-- **Out of scope**: Frontend is a **separate project** handled by a separate team. Do NOT write frontend code, specs, or acceptance criteria unless specifically asked. Frontend repo may be checked out as read-only reference (like `waitlist/`). Backend provides API contracts; frontend team consumes them.
+- **Out of scope**: Frontend is a **separate project** handled by a separate team. Do NOT write frontend code, specs, or acceptance criteria unless specifically asked. `webapp/` and `waitlist/` are checked out as read-only references — changes only via explicit MR. Backend provides API contracts; frontend team consumes them.
 - **Spec implications**: When writing or reviewing specs, exclude frontend UI criteria. Existing frontend items in specs are marked "out of scope — separate frontend project."
 
 ## Access
