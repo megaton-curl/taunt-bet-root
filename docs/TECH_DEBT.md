@@ -13,6 +13,9 @@ Track temporary hacks, relaxed rules, and shortcuts here.
 
 ## Medium Priority (Before Launch)
 
+### ~~[Telegram] Webhook errors are too opaque and retry-prone~~
+- **Resolved**: 2026-04-09 — `telegram/src/app.ts` now catches outbound reply delivery failures, logs webhook context, and still returns `200` to Telegram; `telegram/src/telegram-api.ts` now includes Telegram error bodies in thrown errors for faster diagnosis.
+
 ### [Challenge Engine] SOL crate payout handler needs production review
 - **Date**: 2026-04-03
 - **Location**: `backend/services/backend/src/queue/handlers/crate-sol-payout.ts`
