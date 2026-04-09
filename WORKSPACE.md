@@ -22,6 +22,9 @@ CLAUDE.md        — AI behavior rules and project context
 
 ## Quick Start
 
+Active day-to-day development should happen on `dev` for the root workspace and
+for owned service repos that expose a `dev` branch.
+
 ```bash
 git submodule update --init --recursive
 cd backend && pnpm install && cd ..
