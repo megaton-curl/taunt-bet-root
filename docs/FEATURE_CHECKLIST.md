@@ -1,200 +1,233 @@
 # Platform Features Checklist
 
-Cross-referenced against [Platform Features v1](references/platform-features.md) and current codebase.
+Source of truth: [TAUNT - Platform Features v1 (Living Document)](references/TAUNT%20-%20Platform%20Features%20→%20v1%20(Living%20Document).md)
 
-Legend: `[x]` done | `[~]` partial | `[ ]` todo | `fe/design` = frontend/design team | `tokenomics` = needs TBD figures resolved
+Legend:
+- `[x]` done
+- `[~]` partial
+- `[ ]` todo — backend/infra work needed
+- `fe/design` — frontend/design team owns this
+- `tokenomics` — blocked on TBD figures that affect implementation design
 
 ---
 
-## Profile
+## 1. Profiles
 
-### Public Profile
+### Public
 - [x] Username + avatar
-- [x] Stats block: games played, total wagered, wins, win rate, streaks (current + all-time), net PnL, game breakdown
+- [x] Stats: games played, wagered, wins, win rate, streaks, PnL, game breakdown
 - [x] Public profile endpoint (`GET /public-profile/:identifier`)
-- [ ] Bio field — `todo` (no DB column, no API)
-- [ ] X / Discord social links on profile — `todo` (no DB columns, no backend)
-- [ ] Shareable public profile link — `fe/design`
-- [ ] Heat metric display + progression feel — `fe/design` + `tokenomics`
+- [ ] Bio field — `todo` (no DB column)
+- [ ] Connected X / Discord socials displayed — `todo` (OAuth + DB)
+- [ ] Referral link shown if set up — `fe/design` (data exists via `GET /referral/code`)
+- [ ] Shareable profile link with unfurl — `fe/design`
+- [ ] Heat metric as primary visual element — `fe/design` + `tokenomics`
 
-### Private Profile
-- [x] Full transaction history (`GET /profile/transactions`)
-- [x] Fairness commitment returned per round (`GET /rounds/:pda`)
-- [ ] Fairness proof link per game in transaction list — `fe/design`
+### Private
+- [x] Transaction history (`GET /profile/transactions`)
+- [ ] Fairness proof link per game in tx list — `fe/design` (verification endpoint exists)
 
 ### Settings
-- [x] Connected wallet address display — `fe/design` (backend provides wallet via profile)
-- [ ] Link X account — `todo` (OAuth flow + DB column)
-- [ ] Link Discord account — `todo` (OAuth flow + DB column)
+- [x] Wallet address display — `fe/design`
+- [ ] Link X account — `todo` (OAuth)
+- [ ] Link Discord account — `todo` (OAuth)
 
 ---
 
-## Heat Multiplier
+## 2. The Multiplier — HEAT
 
-- [x] `heat_multiplier` column exists in `player_profiles` (default 1.0)
-- [x] Returned in profile API responses
-- [ ] Actually applied to points accrual rate — `todo`
-- [ ] Actually applied to crate drop probability — `todo`
-- [ ] Multiplier progression curve (logarithmic) — `tokenomics` (base rate, cap, curve shape)
-- [ ] Seasonal multiplier layer — `tokenomics` (global vs seasonal design)
-- [ ] Dynamic progression UX during gameplay — `fe/design`
+> "This single number, purely a function of lifetime wagered volume, governs all rewards"
+
+- [x] `heat_multiplier` column in DB (default 1.0)
+- [x] Returned in profile API
+- [ ] Compute from lifetime wagered volume — `todo` + `tokenomics` (curve shape, cap)
+- [ ] Apply to points earned per dollar wagered — `todo`
+- [ ] Apply to loot crate drop-rate probability — `todo`
+- [ ] Starting value, mid-level, cap (`[TBD 1]x` → `[TBD 2-3]x` → `[TBD 5]x`) — `tokenomics`
+- [ ] Logarithmic curve (flattens as it goes up) — `tokenomics`
+- [ ] Global/Lifetime × Seasonal multiplier design — `tokenomics`
+- [ ] Dynamic progression feel during gameplay — `fe/design`
 
 ---
 
-## Points System (Pre-TGE)
+## 3. Points System (Pre-TGE)
 
-- [x] Points accrual on every settled game (wager-based, via `game.settled` handler)
-- [x] `player_points` table (balance + lifetime_earned)
-- [x] `point_grants` ledger
-- [x] Points balance endpoint (`GET /points/mine`)
-- [x] Points history endpoint (`GET /points/mine/history`)
-- [ ] Heat multiplier accelerating points rate — `todo` (multiplier field exists but not applied)
-- [ ] Points visible on leaderboard — `fe/design`
+- [x] Points accrual on every settled game (wager-based)
+- [x] `player_points` table + `point_grants` ledger
+- [x] Balance + history endpoints (`GET /points/mine`, `/mine/history`)
+- [ ] Accelerated by HEAT multiplier — `todo` (multiplier exists but not applied)
+- [ ] Points visible on leaderboards — `fe/design`
 - [ ] Points → $TAUNT conversion at TGE — `tokenomics`
-- [ ] Emission rate (points/$) — `tokenomics`
+- [ ] Emission rate (points per $) — `tokenomics`
 - [ ] Season 1 end date — `tokenomics`
-- [ ] Airdrop 1 targets (token count, points threshold, player count) — `tokenomics`
+- [ ] Airdrop 1: `[TBD 10m]` tokens / `[TBD 1m]` points / `[TBD 10,000]` players — `tokenomics`
 
 ---
 
-## Quests / Challenges
+## 4. Quests
 
-- [x] Full challenge engine: campaigns, challenges, assignments, progress tracking, bonuses
-- [x] Daily challenges (lazy-assigned on first GET, expire at midnight UTC)
-- [x] Weekly challenges (lazy-assigned, expire Monday UTC)
-- [x] Onboarding chain (Set Nickname → Play First Game → Win a Game → Try All 3 Types)
-- [x] Completion bonuses (e.g., complete all 3 dailies → bonus crate)
-- [x] Challenge progress API (`GET /challenges/mine`, `GET /challenges/mine/history`)
-- [x] Admin CRUD for campaigns + challenges (`POST /admin/campaigns`, `/admin/challenges`)
-- [~] Quest reward: points + crate types exist, but crate drops are game-triggered not quest-triggered — `todo` (quest completion → crate drop)
-- [ ] Expanded quest list (face 5 unique opponents, play during Dogpile window, etc.) — `todo` (needs new adapter actions)
-- [ ] Rotating quests in Season 2+ — `todo`
+> "Daily quests reset at 00:00 UTC; Weekly quests reset Monday"
+
+- [x] Challenge engine (campaigns, assignments, progress, bonuses)
+- [x] Daily challenges (lazy-assigned, expire at midnight UTC)
+- [x] Weekly challenges (expire Monday UTC)
+- [x] Onboarding chain (Set Nickname → Play First Game → Win → Try All 3)
+- [x] Completion bonuses (all dailies done → bonus crate)
+- [x] API: `GET /challenges/mine`, `GET /challenges/mine/history`
+- [x] Admin CRUD for campaigns + challenges
+- [~] Quest rewards: points + crate types exist, but completing a quest should drop a Crate — `todo` (reward_type=crate path works, but not all quests use it)
+- [ ] Expanded quest list from doc — `todo`:
+  - [ ] Face 5 unique opponents
+  - [ ] Create 1 game that gets filled
+  - [ ] Play during a Dogpile window
+  - [ ] Hit a 1/3/5/7 day streak
+  - [ ] Beat 2 unique opponents
+  - [ ] Join 2 open lobbies
+- [ ] Weekly quest list — `todo` (doc says "TODO")
+- [ ] S2+ rotating quests — `todo`
 
 ---
 
-## Loot Crates
+## 5. Loot Crates
 
-- [x] `crate_drops` table with type, contents, status
-- [x] Crate drop handler with weighted probability roll (SOL drop > points drop > miss)
-- [x] Crate SOL payout handler (on-chain transfer)
-- [x] Configurable rates via `reward_config` (sol_drop_rate, points_drop_rate, pool_pct, min values)
+> "Probability of a good drop is multiplied by the HEAT multiplier"
+
+- [x] `crate_drops` table
+- [x] Weighted probability roll (SOL > points > miss)
+- [x] SOL payout handler (on-chain transfer)
+- [x] Configurable rates via `reward_config`
 - [x] Crate history endpoint (`GET /crates/mine`)
-- [ ] Heat multiplier affecting drop probability — `todo`
+- [ ] HEAT multiplier applied to drop probability — `todo`
 - [ ] Crate expiration per season — `todo`
-- [ ] Drop probabilities finalized — `tokenomics`
-- [ ] SOL drop amounts finalized — `tokenomics`
+- [ ] Provably fair crate mechanism — `todo`
+- [ ] Final probabilities — `tokenomics` (doc has illustrative table: 64.24% / 23% / 12.5% / 0.25% / 0.01%)
+- [ ] SOL drop amounts — `tokenomics`
 - [ ] Large SOL drop as % of incentive pool — `tokenomics`
 - [ ] Crate opening UX — `fe/design`
-- [ ] Provably fair crate mechanism — `todo`
+- [ ] Show base probability vs player probability vs Dogpile buff — `fe/design`
 
 ---
 
-## Dogpile
+## 6. Dogpile / Gangbang
 
-- [x] `dogpile_events` table (scheduled → active → ended lifecycle)
-- [x] Dogpile status worker (transitions based on time)
-- [x] Public endpoints (`GET /dogpile/current`, `GET /dogpile/schedule`)
-- [x] Admin endpoint to create dogpile events
-- [ ] Multiplier applied during active window (settlement reads dogpile status) — `todo`
-- [ ] Volume threshold (minimum wagered to activate prize pool) — `todo`
-- [ ] Prize pool distribution (leaderboard race, random drop, or hybrid) — `todo` + `tokenomics`
-- [ ] Interval and window duration — `tokenomics` (currently configurable per event)
-- [ ] Multiplier value — `tokenomics`
+> "A lobby-fill event running once every 6hrs for a 60 minute window"
+
+- [x] `dogpile_events` table (scheduled → active → ended)
+- [x] Status worker (time-based transitions)
+- [x] Public endpoints (`GET /dogpile/current`, `/dogpile/schedule`)
+- [x] Admin can create events
+- [ ] Multiplier applied during active window — `todo` (field exists, not applied to settlement)
+- [ ] Volume threshold (must be met or prize rolls over) — `todo`
+- [ ] Prize pool distribution to participants — `todo`
+- [ ] Fee rollover when threshold not met — `todo`
+- [ ] HEAT maxed during window for points + crate chances — `todo`
+- [ ] Multiplier value (`[TBD 2]x`) — `tokenomics`
+- [ ] Volume threshold amount — `tokenomics`
+- [ ] Multiplier design: pro-rata by volume OR flat for everyone — `tokenomics`
+- [ ] Reward structure: leaderboard race vs random drop vs hybrid — `tokenomics`
 - [ ] Dogpile countdown / status widget — `fe/design`
 
 ---
 
-## Weekly Leaderboard
+## 7. Weekly Leaderboard Races
+
+> "Volume-based, resetting Monday 00:00 UTC"
 
 - [x] `GET /leaderboard/weekly` — volume-ranked, game filter, pagination
-- [x] Week boundaries: Monday 00:00 UTC → next Monday
-- [x] Per-game filter (flip-you, pot-shot, close-call, or all)
-- [ ] Rewards for top 10 (crate drops scaled by rank) — `todo`
-- [ ] Rewards for top 3 (SOL or points drop) — `todo` + `tokenomics`
-- [ ] Global leaderboard separate from per-game — `fe/design`
-- [ ] Leaderboard reward amounts — `tokenomics`
+- [x] Week boundaries: Monday 00:00 UTC
+- [x] Global + per-game filter
+- [ ] Top 10 get Crate drops (scaled by rank) — `todo`
+- [ ] Top 3 get larger SOL/points drop — `todo` + `tokenomics`
+- [ ] Leaderboard on profiles — `fe/design`
+- [ ] Reward amounts per rank — `tokenomics`
 
 ---
 
-## Referral System
+## 8. Referral System
 
-- [x] Referral code generation + application (`POST /referral/code`, `POST /referral/apply`)
-- [x] Permanent wallet attribution via referral links
-- [x] Referral earnings tracking per settled game
-- [x] Pending balance + claim system (on-chain SOL transfer)
-- [x] KOL custom rates via `referral_kol_rates` table (admin-set)
-- [x] Referral stats endpoint (`GET /referral/stats`)
-- [x] Referral earnings pagination (`GET /referral/earnings`)
-- [x] Referee rebate (fixed 10% of fee)
-- [ ] Rate scaling with lifetime attributed volume (automatic tiers) — `todo` + `tokenomics`
-- [ ] Tier maintenance rules (minimum new player wagers in 6 months) — `todo` + `tokenomics`
-- [ ] Public leaderboard of referral counts — `todo`
-- [ ] Referee gets Loot Crate on first game — `todo`
-- [ ] KOL tier thresholds + percentages — `tokenomics`
+> "KOLs earn a permanent percentage of platform fees, paid in SOL, claimable on-chain"
+
+- [x] Code generation + application
+- [x] Permanent wallet attribution (first-touch)
+- [x] Referral earnings tracking per game
+- [x] Pending balance + claim (on-chain SOL)
+- [x] KOL custom rates (`referral_kol_rates`)
+- [x] Stats + earnings endpoints
+- [x] Referee rebate
+- [ ] Rate scaling with lifetime attributed volume (`[TBD %]` → `[TBD %]`) — `todo` + `tokenomics`
+- [ ] KOL tier thresholds — `tokenomics`
+- [ ] Tier maintenance rule (min new wagers in 6 months) — `todo` + `tokenomics`
+- [ ] Public leaderboard of referral counts (pre-launch) — `todo`
+- [ ] Referred player gets Loot Crate — `todo`
+- [ ] KOL tier percentages — `tokenomics`
 
 ---
 
-## Incentive Pool & Financial Allocation
+## 9. Incentive Pool & Financial Allocation
+
+> "Profit = [TBD %] × (fees - referrals), Incentive_Pool = [TBD %] × (fees - referrals)"
 
 - [x] `reward_pool` table (balance, lifetime funded/paid)
-- [x] Reward pool funding from game fees (configurable % via `reward_pool_fee_share`)
-- [ ] Pool allocation split: Dogpile vs Leaderboard vs Crates — `todo` + `tokenomics`
-- [ ] Profit vs Incentive Pool split — `tokenomics`
+- [x] Pool funding from fees (configurable %)
+- [ ] Allocation split: Dogpile vs Leaderboard vs Crates — `todo` + `tokenomics`
+- [ ] Profit vs incentive pool split — `tokenomics`
 - [ ] All allocation percentages — `tokenomics`
 
 ---
 
-## Landing Page — The Pit
+## 10. Landing Page — The Pit
 
-- [ ] Pre-connect: live activity ticker (recent wins) — `fe/design` + `todo` (backend event feed via chat SSE)
-- [ ] Pre-connect: active game count by type — `fe/design` + `todo` (backend query)
-- [ ] Pre-connect: Dogpile status/countdown — `fe/design` (backend endpoint exists)
-- [ ] Pre-connect: total platform volume — `fe/design` + `todo` (backend query)
-- [ ] Pre-connect: biggest pot of the day — `fe/design` + `todo` (backend query)
-- [ ] Post-connect: open games board (lobby) — `fe/design`
-- [ ] Post-connect: active quests widget — `fe/design` (backend endpoint exists)
-- [ ] Post-connect: points balance widget — `fe/design` (backend endpoint exists)
-- [ ] Post-connect: global chat panel — `fe/design` (chat service exists)
+### Pre-connect
+- [ ] Recent wins live ticker — `fe/design` + `todo` (event feed)
+- [ ] Active game count by type — `fe/design` + `todo` (backend query)
+- [ ] Dogpile status/countdown — `fe/design` (endpoint exists)
+- [ ] Total platform volume — `fe/design` + `todo` (backend query)
+- [ ] Biggest pot of the day — `fe/design` + `todo` (backend query)
+
+### Post-connect (Lobby)
+- [ ] Open games board — `fe/design`
+- [ ] Dogpile status — `fe/design` (endpoint exists)
+- [ ] Active quests inline — `fe/design` (endpoint exists)
+- [ ] Points balance — `fe/design` (endpoint exists)
+- [ ] Global chat panel — `fe/design` (chat service exists)
 
 ---
 
-## Global Chat
+## 11. Global Chat
 
 - [x] Chat service (Hono + SSE, room-based, JWT auth, rate-limited)
 - [x] Message store with retention
-- [x] Feed store for event publishing
+- [x] SSE reconnect replay
 - [x] Admin message deletion
-- [x] SSE reconnect replay via `Last-Event-ID`
-- [ ] Chat UI integration in lobby — `fe/design`
-- [ ] Username display (default to wallet truncation) — `fe/design`
+- [ ] Chat UI in lobby — `fe/design`
+- [ ] Wallet / username display — `fe/design`
 
 ---
 
-## Provable Fairness
+## 12. Provable Fairness Page
 
-- [x] Fairness verification endpoint (`GET /rounds/:pda` — returns commitment, result_hash, secret)
-- [x] Fairness package (`packages/fairness`) with commitment + verification functions
-- [x] Commit-reveal scheme: `SHA256(secret || entropy || pda || algo_ver)`
-- [ ] Per-game fairness explanation page — `fe/design`
+- [x] Verification endpoint (`GET /rounds/:pda`)
+- [x] Fairness package (commitment + verification)
+- [x] Commit-reveal: `SHA256(secret || entropy || pda || algo_ver)`
+- [ ] Per-game standalone fairness page — `fe/design`
 - [ ] Loot crate provably fair mechanism — `todo`
 
 ---
 
-## Waitlist
+## 13. Waitlist
 
-- [x] Waitlist app deployed (waitlist/ submodule, DigitalOcean)
-- [ ] Early access benefit (1 week head start) — `todo` (gating logic)
-- [ ] Points benefit for waitlist signups — `todo` + `tokenomics` (amount)
+- [x] Waitlist app deployed
+- [ ] Early access benefit (1 week) — `todo`
+- [ ] Points benefit (`[TBD $]` in volume worth) — `todo` + `tokenomics`
 
 ---
 
-## Telegram Bot
+## 14. Telegram Bot (@taunt_bot)
 
-- [ ] Bot setup (@taunt_bot, Telegram Bot API) — `todo`
-- [ ] /start — welcome message — `todo`
+- [ ] /start — welcome + platform link — `todo`
 - [ ] /profile [username] — public profile link — `todo`
 - [ ] /referral [username] — referral link — `todo`
-- [ ] /games — game links (Flip You, Pot Shot, Close Call) — `todo`
+- [ ] /games — Flip You, Pot Shot, Close Call links — `todo`
 - [ ] /wen — Dogpile countdown — `todo`
 - [ ] /therapy — gambling support resources — `todo`
 - [ ] /ngmi — random one-liners — `todo`
@@ -202,20 +235,20 @@ Legend: `[x]` done | `[~]` partial | `[ ]` todo | `fe/design` = frontend/design 
 
 ---
 
-## Share & Social
+## 15. Share & Social
 
-- [ ] Shareable game links with embedded referral codes — `todo`
-- [ ] Open Graph meta tags for link unfurls — `fe/design` + `todo` (SSR or meta service)
-- [ ] Contextual unfurl descriptions per page — `fe/design`
+- [ ] Shareable links with/without referral codes — `todo`
+- [ ] Contextual Open Graph unfurl descriptions — `fe/design` + `todo`
 
 ---
 
-## Dashboards
+## 16. Dashboards
 
-- [x] Admin API routes (`/admin/*` — reward config, campaigns, challenges, dogpile CRUD)
-- [x] Admin auth via `X-Admin-Key` header
-- [ ] Admin panel UI — `fe/design`
+- [x] Admin API (`/admin/*` — reward config, campaigns, challenges, dogpile)
+- [x] Admin auth (X-Admin-Key)
 - [ ] KOL referral dashboard — `fe/design`
+- [ ] Admin panel UI — `fe/design`
+- [ ] Admin authentication (proper login) — `todo`
 
 ---
 
@@ -223,20 +256,20 @@ Legend: `[x]` done | `[~]` partial | `[ ]` todo | `fe/design` = frontend/design 
 
 | Category | Done | Partial | Todo | FE/Design | Tokenomics |
 |----------|------|---------|------|-----------|------------|
-| Profile | 4 | 0 | 4 | 3 | 1 |
-| Heat Multiplier | 2 | 0 | 2 | 1 | 2 |
-| Points | 5 | 0 | 1 | 1 | 3 |
-| Quests | 7 | 1 | 2 | 0 | 0 |
-| Loot Crates | 5 | 0 | 2 | 1 | 3 |
-| Dogpile | 4 | 0 | 3 | 1 | 2 |
+| Profiles | 4 | 0 | 3 | 4 | 1 |
+| HEAT Multiplier | 2 | 0 | 2 | 1 | 4 |
+| Points | 3 | 0 | 1 | 1 | 4 |
+| Quests | 7 | 1 | 3+ | 0 | 0 |
+| Loot Crates | 5 | 0 | 3 | 2 | 3 |
+| Dogpile | 4 | 0 | 5 | 1 | 4 |
 | Leaderboard | 3 | 0 | 2 | 1 | 1 |
-| Referral | 8 | 0 | 3 | 0 | 2 |
+| Referral | 7 | 0 | 4 | 0 | 3 |
 | Incentive Pool | 2 | 0 | 1 | 0 | 2 |
-| The Pit | 0 | 0 | 5 | 9 | 0 |
-| Chat | 5 | 0 | 0 | 2 | 0 |
+| The Pit | 0 | 0 | 5 | 10 | 0 |
+| Chat | 4 | 0 | 0 | 2 | 0 |
 | Fairness | 3 | 0 | 1 | 1 | 0 |
-| Waitlist | 1 | 0 | 2 | 0 | 1 |
-| Telegram | 0 | 0 | 9 | 0 | 0 |
-| Share/Social | 0 | 0 | 2 | 2 | 0 |
-| Dashboards | 2 | 0 | 0 | 2 | 0 |
-| **Total** | **51** | **1** | **39** | **24** | **17** |
+| Waitlist | 1 | 0 | 1 | 0 | 1 |
+| Telegram | 0 | 0 | 8 | 0 | 0 |
+| Share/Social | 0 | 0 | 1 | 1 | 0 |
+| Dashboards | 2 | 0 | 1 | 2 | 0 |
+| **Total** | **47** | **1** | **41** | **26** | **23** |
