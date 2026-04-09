@@ -19,6 +19,7 @@
   - Workflow defaults: `docs/WORKFLOW.md`
   - Lessons: `docs/LESSONS.md`
   - Foundations: `docs/FOUNDATIONS.md`
+  - Feature checklist: `docs/FEATURE_CHECKLIST.md`
   - Game Specs: `docs/specs/`
 
 ## Governance Map (When To Use Which File)
@@ -30,6 +31,7 @@
 - **`docs/LESSONS.md`**: Compact, reusable lessons after mistakes or rework.
 - **`docs/solutions/`**: Short writeups when a fix needed more than a one-line lesson.
 - **`docs/FOUNDATIONS.md`**: Architecture patterns (testing, on-chain dev loop, program structure).
+- **`docs/FEATURE_CHECKLIST.md`**: Rough direction — done/todo/fe/tokenomics status per platform feature. Specs give the final word.
 - **`DEBUG_prompt.md`**: Structured debugging sessions.
 
 ## Definition of Done (Non-Negotiable)
