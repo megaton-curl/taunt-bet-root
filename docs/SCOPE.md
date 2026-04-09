@@ -2,7 +2,7 @@
 
 Non-custodial P2P gaming platform on Solana. This document captures current implementation state, architectural constraints, and planning direction.
 
-Last updated: 2026-04-04
+Last updated: 2026-04-09
 
 ---
 
@@ -140,6 +140,7 @@ If it changes user funds or determines payouts, it must be validated on-chain.
 | On-chain programs | `solana/` submodule | This workspace |
 | Backend API + workers | `backend/` submodule | This workspace |
 | Chat service | `chat/` submodule | This workspace |
+| Telegram bot service | `telegram/` submodule | This workspace |
 | Docs, scripts, E2E | Root repo | This workspace |
 | Frontend | Separate repo | Separate team |
 | Waitlist | `waitlist/` | Separate repo (npm, DigitalOcean) |
@@ -179,6 +180,7 @@ If it changes user funds or determines payouts, it must be validated on-chain.
 |------|------|-------|
 | 004 | Shared Infrastructure | Living doc, on-chain lifecycle patterns |
 | 009 | Chat | In progress, separate service |
+| 302 | Telegram Bot | Draft, stateless v1 bot + Telegram share flow |
 | 999 | Enhancements | Rolling backlog |
 
 ### Deferred

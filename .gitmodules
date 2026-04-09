@@ -14,3 +14,6 @@
 [submodule "webapp"]
 	path = webapp
 	url = https://github.com/taunt-bet/webapp.git
+[submodule "telegram"]
+	path = telegram
+	url = https://github.com/taunt-bet/telegram.git

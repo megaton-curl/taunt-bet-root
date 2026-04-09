@@ -13,8 +13,10 @@ export CI=true
 #
 # Note:
 #   Chat verification currently lives in the `chat/` submodule as `pnpm verify`.
+#   Telegram verification currently lives in the `telegram/` submodule as
+#   `pnpm verify`.
 #   Root verify intentionally remains limited to `backend/` and `solana/` until
-#   the chat service contract stabilizes.
+#   the chat/telegram service contracts stabilise.
 # =============================================================================
 
 # Color codes

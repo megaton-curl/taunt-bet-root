@@ -7,6 +7,7 @@
   - `solana/` — git submodule → `taunt-bet/solana.git` (Anchor programs + shared Rust crate). See `solana/CLAUDE.md`.
   - `backend/` — git submodule → `taunt-bet/backend.git` (Hono API + shared TS packages). See `backend/CLAUDE.md`.
   - `chat/` — git submodule → `taunt-bet/chat.git` (dedicated chat service + event-feed transport)
+- `telegram/` — git submodule → `taunt-bet/telegram.git` (stateless Telegram bot service)
   - `webapp/` — git submodule → `taunt-bet/webapp.git` (React frontend, **developed separately** — read-only reference, changes only via explicit MR)
   - `docs/` — specs, decisions, lessons, solutions
   - `scripts/` — cross-repo orchestration (verify, deploy, IDL sync, fee checks)
@@ -48,13 +49,14 @@
 ## Cross-Repo Commands
 - **Verify**: `./scripts/verify`
 - **Chat verify**: `cd chat && pnpm verify`
+- **Telegram verify**: `cd telegram && pnpm verify`
 - **Deploy program**: `./scripts/deploy-devnet.sh <program>` — full lifecycle: build → deploy → copy IDL to backend → init config → verify ID sync. Use `--fresh` when struct layouts changed.
 - **Check program IDs**: `./scripts/check-program-ids.sh` — verifies Anchor.toml, `declare_id!()`, and IDL JSON addresses match.
 - **Sync IDLs**: `./scripts/sync-idl` — copies built IDLs from solana/target/ to backend/packages/anchor-client/src/.
 - **Check fees**: `./scripts/check-fees.sh` — verifies fee constants match across Rust and TS.
 
 ## Submodule Workflow
-`solana/`, `backend/`, and `chat/` are git submodules. When making changes:
+`solana/`, `backend/`, `chat/`, and `telegram/` are git submodules. When making changes:
 1. `cd` into the submodule, make changes, commit there.
 2. Back in root, the submodule pointer updates automatically.
 3. Commit the pointer update in root.
@@ -93,7 +95,7 @@ For cross-repo changes (e.g., deploying new program → updating IDLs):
 - **Commit and push promptly when asked**: Don't delay with extra exploration.
 
 ## Scope Boundary
-- **In scope**: `solana/` (on-chain programs), `backend/` (API + settlement), `chat/` (chat service), `docs/`, `scripts/`, `e2e/`, `test-tools/` (dev-only diagnostics)
+- **In scope**: `solana/` (on-chain programs), `backend/` (API + settlement), `chat/` (chat service), `telegram/` (Telegram bot service), `docs/`, `scripts/`, `e2e/`, `test-tools/` (dev-only diagnostics)
 - **Out of scope**: Frontend is a **separate project** handled by a separate team. Do NOT write frontend code, specs, or acceptance criteria unless specifically asked. `webapp/` and `waitlist/` are checked out as read-only references — changes only via explicit MR. Backend provides API contracts; frontend team consumes them.
 - **Spec implications**: When writing or reviewing specs, exclude frontend UI criteria. Existing frontend items in specs are marked "out of scope — separate frontend project."
 
