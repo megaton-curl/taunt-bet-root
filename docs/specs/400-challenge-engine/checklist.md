@@ -60,4 +60,4 @@
 - Fraud flags (velocity, repeated_opponent) deferred entirely from M1 — revisit after real usage data
 - `eligible_if` JSONB column seeded as `'{}'` and ignored by M1 engine — reserved for M2
 - SOL crate payout handler flagged for manual review before production enablement (tech debt entry)
-- Reference spec at `docs/references/challenge-engine-spec.md` contains full competitor research and M2 feature designs
+- Reference spec at `docs/archive/references/challenge-engine-spec.md` contains full competitor research and M2 feature designs

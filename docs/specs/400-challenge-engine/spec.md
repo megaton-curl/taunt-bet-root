@@ -47,7 +47,7 @@ The challenge engine is event-driven, plugging into the existing async event que
 - **`docs/SCOPE.md` references**: Section 2 "Not Implemented" -> "Reward loops and progression expansion"; Section 8 Workstream A (core game reliability provides the settlement events this consumes)
 - **Current baseline fit**: Not Implemented
 - **Planning bucket**: Core (extends the game loop)
-- **Reference doc**: `docs/references/challenge-engine-spec.md` (full design research)
+- **Reference doc**: `docs/archive/references/challenge-engine-spec.md` (full design research)
 
 ## Required Context Files
 

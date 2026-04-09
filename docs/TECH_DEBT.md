@@ -31,7 +31,7 @@ Track temporary hacks, relaxed rules, and shortcuts here.
 ### [Challenge Engine] Extract to separate service
 - **Date**: 2026-04-04
 - **Location**: `backend/services/backend/src/queue/handlers/` (game-settled, reward-pool-fund, points-grant, crate-drop, crate-sol-payout), `routes/` (challenges, points, dogpile, admin)
-- **What**: The reference spec (`docs/references/challenge-engine-spec.md`) calls for `challenge-engine` as a standalone internal service with separate verification-workers and reward-service components. M1 implementation lives in the backend monolith for simplicity.
+- **What**: The archived reference spec (`docs/archive/references/challenge-engine-spec.md`) calls for `challenge-engine` as a standalone internal service with separate verification-workers and reward-service components. M1 implementation lives in the backend monolith for simplicity.
 - **Current mitigation**: Event-driven architecture already decouples all components — handlers communicate via the event queue, not direct function calls. Extraction is mechanical when scale demands it.
 - **Proper solution**: Move challenge engine handlers, routes, and DB helpers to a new `services/challenge-engine/` package. Share the event queue and DB connection. Separate deploy cycle.
 - **Why not now**: At M1 scale, a second service adds deployment complexity for zero benefit. The event queue boundary makes future extraction straightforward.

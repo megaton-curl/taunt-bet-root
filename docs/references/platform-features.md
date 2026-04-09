@@ -1,14 +1,25 @@
-# TAUNT - Platform Features (Non-Game)
+# TAUNT - Platform Features
 
-> **Product vision — not a spec.** Feature intent; engineering contracts live in `docs/specs/`.
+> **Product vision — not a spec.** Feature intent only; engineering contracts live in `docs/specs/`.
 
-> Converted from `TAUNT - Platform Features.docx` on 2026-03-31.
+> Converted from `TAUNT - Platform Features Latest.docx` on 2026-04-07.
+> The source doc is rough product working copy material. Open questions, TODOs, and speculative notes are preserved instead of being silently normalized away.
 
 ---
 
 ## Profiles
 
-Public by default. Profile pic, username, and a stats block that is the only progression mechanic on the platform — no XP, no levels. The only thing that matters is volume and wins.
+### Public surface
+
+- Profile pic, username, bio, and a stats block as the main progression surface.
+- Public profiles should be shareable and viewable while logged out.
+- Decide what link unfurls show when a public profile URL is shared.
+- If a player linked X or other socials, show them on the public profile.
+- Show the player's referral link if they set one up.
+
+### Private surface
+
+Public profile plus full transaction history with fairness proof links per game.
 
 ### Stats shown on your own profile
 
@@ -21,79 +32,107 @@ Public by default. Profile pic, username, and a stats block that is the only pro
 - Game breakdown by type
 - Full transaction history with fairness proof links per game
 
-> **IDEA**: Tier matching with other platforms? Log in with an account you played on SOLPUMP or others and we match your tier somehow?
-
-### Stats shown on someone else's profile
-
-Everything above **except** transaction history. You can see their record, you cannot see their individual hands.
-
 ### Settings
 
 - Connected wallet address
 - Option to link X and Discord for display on profile
 
+> **Idea**: tier matching with other platforms. Log in with an account used on SOLPUMP or elsewhere and map some equivalent tier.
+
 ---
 
-## The Multiplier — HEAT / BAND / BODY COUNT
+## The Multiplier - HEAT / BAND / BODY COUNT / VIP Tier
 
-There is **one number** on your profile that governs everything. It is purely a function of your **lifetime wagered volume**. You play more, your multiplier goes up, everything gets better.
+There is one number on your profile that governs everything. It is purely a function of lifetime wagered volume. You play more, your multiplier goes up, everything gets better.
 
 ### The multiplier applies to
 
-- Points earned per dollar wagered (pre-TGE — post-TGE it will be tokens not points)
-- Loot Crate drop rate
-- Every system that rewards activity reads from this single number
+- Points earned per dollar wagered (pre-TGE; post-TGE details TBD)
+- Loot Crate drop-rate probability
+- Every activity-reward system on the platform
 
 ### Display
 
-It should be the most visually prominent element on the profile — displayed large, always visible, impossible to miss. When it increases, something should happen on screen.
+- Most visually prominent element on the profile
+- Displayed large, always visible, impossible to miss
+- When it increases, something should happen on screen
 
-### Scale
+### Shape
 
-Starts at 1x, reaches meaningful territory (2–3x) at mid-level volume, caps at 5x for the highest-volume players. The gap between 1x and 5x should feel significant enough that high-volume players have a visible, real advantage in every reward system on the platform.
-
-**Tier table (later edit):**
-
-| Tier | Volume | HEAT Multiplier |
-|------|--------|-----------------|
-| Peasant | $0–$5k | 1x |
-| Degenerate | $5k–$25k | 1.25x |
-| Concerning | $25k–$100k | 1.75x |
-| Denial | $100k–$250k | 2.5x |
-| Addict | $250k–$1M | 3.5x |
-| Intervention | $1M+ | 5x |
+Starts at `1x`, reaches meaningful territory (`2x-3x`) at mid-level volume, and caps at `5x` for the highest-volume players. The gap between `1x` and `5x` should feel material across every reward loop.
 
 ---
 
 ## Points System (Pre-TGE)
 
-Points are earned by wagered volume, scaled by the HEAT multiplier. The more you wager, the higher your multiplier, the faster points accrue. Points convert to $TAUNT at TGE proportionally based on the amount of points accrued.
+Points are earned by wagered volume and scale with the HEAT multiplier. The more you wager, the higher your multiplier, the faster points accrue. Points convert to `$TAUNT` at TGE proportionally based on the amount of points accrued.
 
-**Airdrop 1**: 10M tokens. Snapshot before airdrop: 1M points across 10,000 players.
+**Airdrop sketch**:
 
-Points are visible on the profile and on leaderboards. Before TGE they function as the primary progression signal — your points balance is your standing in the community. After TGE they convert and the system transitions to direct $TAUNT emissions via wager-to-earn.
+- Airdrop 1: `10m` tokens
+- Snapshot before airdrop: `1m` points across `10,000` players
+
+Points are visible on profiles and leaderboards. Before TGE they act as the primary progression signal. After TGE they convert and the system transitions to direct `$TAUNT` wager-to-earn.
+
+### Open questions
+
+- Points emission rate (`points / $`)
+- Leaderboard shape and season structure
+- Season 1 end date depends on TGE timing
+- How many points per `$` wagered should be emitted overall?
 
 ---
 
 ## Quests
 
-Daily quests reset at 00:00 UTC. Weekly quests reset Monday.
+Daily quests reset at `00:00 UTC`. Weekly quests reset on Monday.
 
-**Examples**: play 3 games today, win 2 in a row, play during a Dogpile window, send a taunt that gets replied to.
+Core rule: every quest should either fill a lobby or make the platform feel more alive for other players. No solo busywork with no social or matchmaking value.
+
+Keep the first version simple. Season 1 is fixed; later seasons can rotate or expand quest logic.
+
+### Example quests
+
+- Play 3 games today
+- Win 2 in a row
+- Play during a Dogpile window
+- Send a taunt that gets replied to
 
 Completing a quest drops a Crate.
 
-**Quest design principle**: every quest should either fill a lobby or make the platform feel more alive for other players. No quests that reward solo behaviour with no social benefit.
+### Initial quest list
+
+#### Daily
+
+- Change your nickname
+- Play 1 game
+- Play each game once
+- Face 5 unique opponents
+- Hit a 1/3/5/7 day streak
+- Beat 2 unique opponents
+- Join 2 open lobbies
+- Create 1 game that gets filled
+- Play during a Dogpile window
+
+#### Weekly
+
+- TODO
 
 ---
 
-## Loot Crates (***)
+## Loot Crates
 
-Simple mechanic. Crates drop from quest completions, Dogpile participation, and weekly leaderboard finishes.
+Loot crates drop after each game settlement. The quality of the prize is defined by the probability table below. The probability of getting a good drop is multiplied by the HEAT multiplier.
 
-Contents are either points (pre-TGE) or $TAUNT (post-TGE) or plain SOL. Drop probability scales inversely with value — small SOL drops are common, large token drops are rare. No complex rarity tables, no cosmetic items, no NFTs. Cash or points, nothing else. Open a crate, get something real or get nothing.
+Reference note from source doc:
 
-The probability of getting a drop is multiplied by the HEAT multiplier as well.
+- Provable fairness inspiration: `https://solpump.io/fairness/daily-case`
+
+Display concept from source doc:
+
+- Show base probability
+- Show the player's probability
+- Show any Dogpile buff
 
 ### Drop table (illustrative)
 
@@ -103,42 +142,49 @@ The probability of getting a drop is multiplied by the HEAT multiplier as well.
 | Medium points bundle | 23% |
 | Large points bundle | 12.5% |
 | SOL drop | 0.25% |
-| Large SOL drop | 0.01% |
+| Large SOL drop (10 SOL) | 0.01% (1 in a million) |
+
+### Open questions and future notes
+
+- TODO: final crate probabilities
+- Large SOL drops could be pro-rata from the incentive pool
+- Crates may expire after each season
+- Later version idea: buy or sell crates, bulk-open crates, temporary HEAT buffs
 
 ---
 
-## Dogpile / Gangbang (***)
+## Dogpile / Gangbang
 
-### During event
+### Multiplier options from source doc
 
-- **Points**: `HEAT * GANGBANG_MULTIPLIER * emission_rate`
-- **Crates**: `HEAT * GANGBANG_MULTIPLIER * drop_probability`
-
-Optional:
-- Rakeback: `HEAT * GANGBANG_MULTIPLIER * plain_rakeback_rate`
-- Cashback: `HEAT * GANGBANG_MULTIPLIER * plain_cashback_rate`
+- Pro-rata by wagered volume during the event, up to a maximum of `2x`
+- Or give everyone the same event multiplier, capped at `2x`
 
 ### Mechanic
 
-Runs X times per day on a fixed schedule — spaced to cover US, EU, and APAC timezones. A 60-minute window where a shared boss has HP.
+Runs `X` times per day on a fixed schedule to cover US, EU, and APAC time zones. Each event is a `60-minute` window where a shared boss has HP.
 
-Every game played during the window deals damage proportional to the stake. If the community collectively hits the damage threshold before the window closes, a percentage of fees collected during that window gets dropped back to participants based on damage dealt. If the threshold isn't hit, no drop — the boss survives and HP resets for the next one.
+Every game played during the window deals damage proportional to stake. If the community hits the damage threshold before the window closes, a percentage of fees collected during the window gets dropped back to participants based on damage dealt. If the threshold is not hit, no drop; the boss survives and HP resets for the next event.
 
-Fee rolls over to make next one more attractive.
+Fee rolls over to make the next one more attractive.
 
-This is the **lobby-fill mechanic**. Players have a reason to be online at the same time. KOLs have a reason to tweet "Dogpile in 30 minutes." Lobbies fill because everyone wants to deal damage. The community wins together or doesn't win at all.
+This is the lobby-fill mechanic. Players have a reason to be online together, and KOLs have a reason to drive coordinated traffic.
 
 Admin can trigger manual Dogpile windows for launch day, KOL events, or special occasions.
 
-During the Dogpile, everyone's HEAT multiplier is maxxed out for points and loot crate chances.
+During Dogpile, everyone's HEAT multiplier is maxed for points and Loot Crate chances.
 
 ---
 
 ## Weekly Leaderboard Races
 
-Volume-based weekly leaderboard, resets Monday 00:00 UTC. Ranked by total wagered volume that week. Top 10 get Crate drops at reset — size scales with rank. Top 3 get a larger SOL or points drop.
+Volume-based weekly leaderboard. Resets Monday `00:00 UTC`. Ranked by total wagered volume for that week.
 
-Separate leaderboards per game type for players who want to specialise. Global leaderboard for overall volume. Both live on the leaderboards page and embedded on profiles.
+- Top 10 get Crate drops at reset
+- Top 3 get a larger SOL or points drop
+- Separate leaderboards per game type
+- Global leaderboard for overall volume
+- Leaderboards live on the leaderboard page and are embedded on profiles
 
 ---
 
@@ -146,41 +192,83 @@ Separate leaderboards per game type for players who want to specialise. Global l
 
 ### Pre-launch
 
-Generate a link, every wallet that signs up via it is attributed permanently. Public leaderboard of referral counts. Build your base before launch, collect from day one.
+Generate a link. Every wallet that signs up via it is attributed permanently. Public leaderboard of referral counts. Build a base before launch and collect from day one.
 
 ### Post-launch
 
-KOLs earn a permanent percentage of platform fees from attributed players, paid in SOL, on-chain, claimable any time. Rate scales with lifetime attributed volume from 10% to 40%.
-
-Players who join via a referral link get a permanent fee reduction forever. For their first $200 wagered they play fee-free and get 2x Loot Crate drop rate. After that window the permanent rebate stays.
+- KOLs earn a permanent percentage of platform fees from attributed players
+- Paid in SOL, on-chain, claimable any time
+- Rate scales with lifetime attributed volume from `10%` to `40%`
+- Players who join via a referral link get a permanent fee reduction forever
+- First `$200` wagered is fee-free
+- During that window they get `2x` Loot Crate drop rate
+- After that window, the permanent rebate remains
 
 ---
 
 ## Global Chat
 
-Single global chat visible on the main lobby screen. No per-game private chat here — that lives inside the game session. Global chat is for the community: trash talk, reactions to live wins showing up in the feed, Dogpile coordination. Moderated minimally — this is a trash-talk platform. Wallet addresses shown by default, username if set.
+Single global chat visible on the main lobby screen. No per-game private chat here; that lives inside game sessions.
+
+Global chat is for trash talk, reactions to live wins, and Dogpile coordination. Moderation is intentionally light. Wallets are shown by default, username if set.
 
 ---
 
 ## Provable Fairness Page
 
-Standalone page. Enter any game session ID and see the full verification trace: commitment hash, entropy slot used, slot hash value, derivation steps, final result. Anyone can verify any outcome independently without trusting TAUNT. Written in plain language with the raw data alongside. This page is linked from every settled game in transaction history.
+Standalone page. Enter any game session ID and see the full verification trace:
+
+- Commitment hash
+- Entropy slot used
+- Slot-hash value
+- Derivation steps
+- Final result
+
+Anyone should be able to verify outcomes independently without trusting TAUNT. The page should be written in plain language and linked from every settled game in transaction history.
 
 ---
 
-## Landing Page — The Pit
+## Landing Page - The Pit
 
-The home screen before you connect. Shows the platform alive in real time: recent big wins scrolling as a live ticker, active game count by type, current Dogpile status and countdown to next one, total platform volume, biggest pot of the day. The goal is to make it feel like walking into a venue that's already busy. No hero copy, no explainer sections — just live activity. The product explains itself.
+Before wallet connect, the home screen should make the platform feel alive in real time:
 
-After connecting, The Pit becomes the lobby — open games to jump into, Dogpile status, your active quests, your points balance, global chat.
+- Recent big wins as a live ticker
+- Active game count by type
+- Current Dogpile status and countdown to next event
+- Total platform volume
+- Biggest pot of the day
+
+No explainer-heavy hero section. The product should explain itself through live activity.
+
+After connecting, The Pit becomes the lobby:
+
+- Open games to jump into
+- Dogpile status
+- Active quests
+- Points balance
+- Global chat
 
 ---
 
 ## Incentive Pool
 
-> `***` = the incentive pool feeds these systems.
+- `Profit = 80% * (fees - referrals)`
+- `Incentive_Pool = 20% * (fees - referrals)`
+- `***` systems are fed by the incentive pool
 
-Out of all the fees collected (5% of wagered volume), **20% (= 1% of total volume)** goes towards this pool:
+Source-doc allocation notes:
 
-- X% goes toward Dogpile rewards
-- (100–X)% goes toward the weekly leaderboards
+- Fees are `5% * wagered_volume`
+- `20%` of fees, or `1% * wagered_volume`, goes into the incentive pool
+- `x%` goes toward Dogpile
+- `(100 - x)%` goes toward weekly leaderboards
+- `x%` goes toward Loot Crates
+
+---
+
+## Waitlist
+
+Players joining the waitlist get:
+
+- Early access, suggested as one week
+- `$1000` in volume worth of points, depending on the final emission rate

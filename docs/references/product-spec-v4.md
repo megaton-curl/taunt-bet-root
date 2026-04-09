@@ -3,6 +3,7 @@
 > **Product vision — not a spec.** Roadmap and intent; engineering contracts live in `docs/specs/`.
 
 > Converted from `TAUNT Product Spec v3.docx` on 2026-03-31.
+> Renamed from `product-spec-v3.md` on 2026-04-07 to match the document's actual v4 title.
 > End-to-End Product Design · GTM & Dev Team Reference · Milestone Roadmap
 > Confidential · Pre-Launch · 2026
 

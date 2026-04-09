@@ -46,7 +46,7 @@ define production frontend UI in the separate frontend repo.
 
 ## Required Context Files
 
-- `docs/references/product-spec-v3.md`
+- `docs/references/product-spec-v4.md`
 - `docs/references/platform-features.md`
 - `docs/specs/_TEMPLATE/spec.md`
 - `docs/specs/006-fairness-backend/spec.md`
