@@ -76,14 +76,16 @@ Legend:
 - [x] API: `GET /challenges/mine`, `GET /challenges/mine/history`
 - [x] Admin CRUD for campaigns + challenges
 - [~] Quest rewards: points + crate types exist, but completing a quest should drop a Crate — `todo` (reward_type=crate path works, but not all quests use it)
-- [ ] Expanded quest list from doc — `todo`:
-  - [ ] Face 5 unique opponents
-  - [ ] Create 1 game that gets filled
-  - [ ] Play during a Dogpile window
-  - [ ] Hit a 1/3/5/7 day streak
-  - [ ] Beat 2 unique opponents
-  - [ ] Join 2 open lobbies
-- [ ] Weekly quest list — `todo` (doc says "TODO")
+- [~] Expanded quest list from doc:
+  - [x] Face 5 unique opponents — `unique_opponents` condition + seed data
+  - [x] Create 1 game that gets filled — `lobby_filled` (existed)
+  - [x] Play during a Dogpile window — `dogpile_game` adapter + seed data
+  - [ ] Hit a 1/3/5/7 day streak — `todo` (needs cross-day tracking)
+  - [ ] Beat 2 unique opponents (win) — `todo` (needs `unique_opponents_won` condition variant)
+  - [x] Join 2 open lobbies — `lobby_joined` adapter + seed data
+- [~] Weekly quest list:
+  - [x] Play 20 Games, Win 10, Play Every Type, Fill 5 Lobbies (existed)
+  - [x] Meet 10 Opponents, Lobby Regular, Dogpile Veteran (new)
 - [ ] S2+ rotating quests — `todo`
 
 ---
@@ -259,7 +261,7 @@ Legend:
 | Profiles | 4 | 0 | 3 | 4 | 1 |
 | HEAT Multiplier | 2 | 0 | 2 | 1 | 4 |
 | Points | 3 | 0 | 1 | 1 | 4 |
-| Quests | 7 | 1 | 3+ | 0 | 0 |
+| Quests | 7 | 2 | 2 | 0 | 0 |
 | Loot Crates | 5 | 0 | 3 | 2 | 3 |
 | Dogpile | 4 | 0 | 5 | 1 | 4 |
 | Leaderboard | 3 | 0 | 2 | 1 | 1 |
@@ -272,4 +274,4 @@ Legend:
 | Telegram | 0 | 0 | 8 | 0 | 0 |
 | Share/Social | 0 | 0 | 1 | 1 | 0 |
 | Dashboards | 2 | 0 | 1 | 2 | 0 |
-| **Total** | **47** | **1** | **41** | **26** | **23** |
+| **Total** | **47** | **2** | **40** | **26** | **23** |
