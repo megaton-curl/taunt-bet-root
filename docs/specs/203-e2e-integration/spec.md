@@ -22,8 +22,8 @@ Both suites use the TestWalletProvider (from spec 205) to inject test keypairs a
 
 ## User Stories
 
-- As a developer, I want an E2E test that runs the full coinflip lifecycle (auth payload → backend create → join → auto-settle → verify) through the real UI so that I know the frontend, backend, and on-chain programs work together.
-- As a developer, I want E2E tests to catch regressions in the chain integration layer (chain.ts, CoinflipContext) that unit and component tests cannot.
+- As a developer, I want an E2E test that runs the full flipyou lifecycle (auth payload → backend create → join → auto-settle → verify) through the real UI so that I know the frontend, backend, and on-chain programs work together.
+- As a developer, I want E2E tests to catch regressions in the chain integration layer (chain.ts, FlipYouContext) that unit and component tests cannot.
 - As a CI system, I want deterministic headless local E2E tests so that pull requests are gated on integration correctness.
 - As a release system, I want real devnet backend E2E tests so that deployed contracts and the live backend-assisted fairness flow are validated before release.
 
@@ -37,16 +37,16 @@ Both suites use the TestWalletProvider (from spec 205) to inject test keypairs a
 
 ## Required Context Files
 
-- `apps/platform/src/features/coinflip/utils/chain.ts` — transaction builders
-- `apps/platform/src/features/coinflip/context/CoinflipContext.tsx` — game state
-- `solana/programs/coinflip/` — on-chain program
+- `apps/platform/src/features/flipyou/utils/chain.ts` — transaction builders
+- `apps/platform/src/features/flipyou/context/FlipYouContext.tsx` — game state
+- `solana/programs/flipyou/` — on-chain program
 - `solana/programs/platform/` — on-chain program
 - `packages/wallet/src/` — TestWalletProvider (from spec 205)
 
 ## Contract Files
 
-- `solana/tests/coinflip.ts` — bankrun tests define expected on-chain behavior
-- `apps/platform/src/features/coinflip/types.ts` — UIMatch shape
+- `solana/tests/flipyou.ts` — bankrun tests define expected on-chain behavior
+- `apps/platform/src/features/flipyou/types.ts` — UIMatch shape
 
 ---
 
@@ -60,7 +60,7 @@ Set up the deterministic local E2E environment with Playwright, a local Solana v
 
 **Acceptance Criteria:**
 - [x] Playwright configured for E2E tests (separate from visual regression config) <!-- satisfied: playwright.local.config.ts — separate file, testMatch "local/**/*.spec.ts", port 3002 -->
-- [x] Test setup script starts solana-test-validator with coinflip + platform programs deployed <!-- satisfied: scripts/localnet-bootstrap.sh:70-79 — --bpf-program for coinflip + platform -->
+- [x] Test setup script starts solana-test-validator with flipyou + platform programs deployed <!-- satisfied: scripts/localnet-bootstrap.sh:70-79 — --bpf-program for flipyou + platform -->
 - [x] Local suite deploys programs as part of setup (blank chain; no pre-deployed assumption) <!-- satisfied: scripts/localnet-bootstrap.sh:66 — rm -rf ledger + --reset flag, programs via --bpf-program at genesis -->
 - [x] Test setup airdrops SOL to test wallets <!-- satisfied: e2e/local/helpers/wallets.ts:57-87 — fundTestWallets() airdrops 10 SOL + balance sanity check -->
 - [x] App starts with VITE_RPC_URL pointing to local validator <!-- satisfied: playwright.local.config.ts:43 — VITE_RPC_URL: "http://127.0.0.1:8899" -->
@@ -68,13 +68,13 @@ Set up the deterministic local E2E environment with Playwright, a local Solana v
 - [x] E2E test command: `pnpm test:e2e` <!-- satisfied: apps/platform/package.json "test:e2e": "bash scripts/run-e2e-local.sh"; root package.json delegates via --filter -->
 - [ ] Local suite also boots the fairness backend and its DB/migration prerequisites before the app flow begins
 
-### FR-2: Coinflip Full Lifecycle
+### FR-2: FlipYou Full Lifecycle
 
-Test the complete coinflip flow through the UI.
+Test the complete flipyou flow through the UI.
 
 **Acceptance Criteria:**
-- [ ] Test wallet A connects, navigates to /coinflip, enters a custom amount, picks Heads, creates a match <!-- out of scope: frontend is a separate project -->
-- [ ] Create path signs the canonical payload and calls `POST /fairness/coinflip/create` before wallet submission <!-- out of scope: frontend is a separate project -->
+- [ ] Test wallet A connects, navigates to /flipyou, enters a custom amount, picks Heads, creates a match <!-- out of scope: frontend is a separate project -->
+- [ ] Create path signs the canonical payload and calls `POST /fairness/flipyou/create` before wallet submission <!-- out of scope: frontend is a separate project -->
 - [x] Match appears in the open lobby <!-- satisfied: e2e/local/03-lifecycle.spec.ts:72 — waitForLobbyMatch(playerBPage) confirms match visible to Player B -->
 - [x] Test wallet B connects (second browser context), sees the match, joins it <!-- satisfied: e2e/local/03-lifecycle.spec.ts:71-75 — Player B navigates, sees match, joinMatch(playerBPage) -->
 - [x] Match transitions to locked phase in both contexts <!-- satisfied: e2e/local/03-lifecycle.spec.ts:87-90 — Promise.all([waitForResult(playerAPage), waitForResult(playerBPage)]) — both contexts transition through locked to result -->
@@ -118,7 +118,7 @@ Run E2E tests against deployed devnet contracts and the live backend-assisted fa
 
 **Acceptance Criteria:**
 - [x] Separate Playwright project/config for devnet suite (not sharing local validator setup) <!-- satisfied: playwright.devnet.config.ts — separate file, port 3003, testMatch "devnet/**/*.spec.ts", no bootstrap/teardown -->
-- [x] App runs against devnet RPC with deployed coinflip/platform program IDs <!-- satisfied: playwright.devnet.config.ts:52-58 env inherited from process; e2e/devnet/helpers/env.ts validates VITE_RPC_URL + program IDs -->
+- [x] App runs against devnet RPC with deployed flipyou/platform program IDs <!-- satisfied: playwright.devnet.config.ts:52-58 env inherited from process; e2e/devnet/helpers/env.ts validates VITE_RPC_URL + program IDs -->
 - [x] Devnet suite does not deploy contracts; it fails fast if required deployed IDs/env are missing <!-- satisfied: e2e/devnet/helpers/env.ts:87-93 consolidated error + scripts/run-e2e-devnet.sh:11-20 shell fast-fail + verifyDevnetDeployments checks executable -->
 - [x] Devnet suite validates the live fairness backend base URL / env contract before starting <!-- satisfied: apps/platform/e2e/devnet/helpers/env.ts validates `VITE_FAIRNESS_BACKEND_URL`; apps/platform/scripts/run-e2e-devnet.sh health-checks `/health` before Playwright -->
 - [x] Test triggers the live backend-assisted create path and waits for backend settlement rather than VRF fulfillment <!-- satisfied: apps/platform/e2e/devnet/lifecycle.spec.ts uses backend create + `waitForSettledRound()` against `/fairness/rounds/:pda` -->
@@ -177,7 +177,7 @@ Run E2E tests against deployed devnet contracts and the live backend-assisted fa
 The checked items below record the original VRF-era E2E delivery. The active carry-forward for this spec is to realign local and devnet suites around the backend-assisted fairness flow now used by current V1 planning.
 - [x] [test] Baseline Playwright real-mode config and smoke spec exist (`playwright.real.config.ts`, `e2e/real/startup.spec.ts`) (done: prior specs)
 - [x] [test] Add dedicated local E2E Playwright project/config (`e2e/local/**`) separated from visual and real-wallet smoke tests (done: iteration 1)
-- [x] [test] Create localnet bootstrap script: start fresh `solana-test-validator`, deploy coinflip + platform programs, wait for RPC readiness (done: iteration 2)
+- [x] [test] Create localnet bootstrap script: start fresh `solana-test-validator`, deploy flipyou + platform programs, wait for RPC readiness (done: iteration 2)
 - [x] [test] Create localnet teardown script: stop validator process, clean temp ledger/logs, and guarantee cleanup on test failure (done: iteration 3)
 - [x] [test] Add deterministic wallet-funding helper (airdrop + confirm) for both test players before each local suite run (done: iteration 4)
 - [x] [test] Add shared E2E helpers: selectors/page-object methods for create, join, claim, cancel, and reusable wait/assert primitives (done: iteration 5)
@@ -188,7 +188,7 @@ The checked items below record the original VRF-era E2E delivery. The active car
 - [x] [test] Implement local cancel-flow test (create -> cancel -> refund verified -> lobby clears -> recreate works) (done: iteration 10)
 - [x] [test] Implement local error-flow tests (insufficient balance, join locked match, loser claim attempt) (done: iteration 11)
 - [x] [test] Add local suite command `pnpm test:e2e` that runs bootstrap -> tests -> teardown in one entrypoint (done: iteration 12)
-- [x] [test] Add devnet env contract (required vars + validation): RPC URL, coinflip/platform program IDs, VRF config; fail fast if missing (done: iteration 13)
+- [x] [test] Add devnet env contract (required vars + validation): RPC URL, flipyou/platform program IDs, VRF config; fail fast if missing (done: iteration 13)
 - [x] [test] Add dedicated devnet E2E Playwright project/config (`e2e/devnet/**`) that does not run local bootstrap/deploy (done: iteration 14)
 - [x] [test] Implement devnet lifecycle test using deployed contracts + real VRF request/fulfillment path (no mock resolve shortcut) (done: iteration 15)
 - [x] [test] Add robust fulfillment polling/backoff + timeout budget in devnet test, with tx signature logging for failures (done: iteration 16)

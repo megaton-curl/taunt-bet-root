@@ -25,7 +25,7 @@ services/backend/src/
   db.ts                          -- composition: Db type, createDb, re-exports
   db/
     types.ts                     -- shared types (RoundPhase, TransactionType, etc.)
-    rounds.ts                    -- Round types + queries (coinflip/jackpot + operator events)
+    rounds.ts                    -- Round types + queries (flipyou/jackpot + operator events)
     closecall.ts                 -- CloseCall types + queries (rounds + settlement)
     closecall-candles.ts         -- Candle types + queries
     transactions.ts              -- Transaction types + queries

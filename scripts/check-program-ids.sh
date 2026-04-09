@@ -68,7 +68,7 @@ check_program() {
   fi
 }
 
-check_program "coinflip"
+check_program "flipyou"
 check_program "lordofrngs"
 check_program "closecall"
 check_program "platform"

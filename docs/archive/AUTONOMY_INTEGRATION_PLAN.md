@@ -108,7 +108,7 @@ Required output block per iteration:
 
 ### Phase 2 - Validation-First Spec Upgrade
 - Extend spec template with validation plan and evidence sections.
-- Upgrade coinflip spec (first implementation target) with validation mapping.
+- Upgrade flipyou spec (first implementation target) with validation mapping.
 - Add `docs/AUTONOMY_BOOTSTRAP.md` (mode toggles, loader policy, completion signal rule).
 
 ### Phase 3 - Loop Scripts
@@ -121,7 +121,7 @@ Required output block per iteration:
 - Add prompt docs for build/plan loop behavior if desired.
 
 ### Phase 5 - Pilot Run
-- Execute loop for coinflip spec end-to-end.
+- Execute loop for flipyou spec end-to-end.
 - Confirm:
   - Scope gate works
   - Validation mapping is enforced

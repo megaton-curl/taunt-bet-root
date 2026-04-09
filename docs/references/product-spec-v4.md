@@ -349,7 +349,7 @@ Available from M1 launch:
 
 ### M1.14 Game: Flip You
 
-1v1. Instant. Provably fair coinflip. On-chain entropy and commit-reveal.
+1v1. Instant. Provably fair flipyou. On-chain entropy and commit-reveal.
 
 #### Player Flow
 
@@ -360,7 +360,7 @@ Available from M1 launch:
 
 #### Arena Game Variant
 
-The coinflip mechanic is also presented as a physics arena game (primary marketing demo asset). Two avatar bubbles bounce around the arena:
+The flipyou mechanic is also presented as a physics arena game (primary marketing demo asset). Two avatar bubbles bounce around the arena:
 
 - Each starts with 5 lives
 - SAW power-ups give rotating blade that deals damage on collision

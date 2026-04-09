@@ -18,12 +18,12 @@ Last updated: 2026-04-04
 ## 2) Shipped Capabilities
 
 ### Games (3 live)
-- **Coinflip** (spec 001) — 1v1, commit-reveal + SlotHashes fairness, custom wagers
+- **FlipYou** (spec 001) — 1v1, commit-reveal + SlotHashes fairness, custom wagers
 - **Lord of the RNGs / Jackpot** (spec 101) — Multiplayer weighted-entry jackpot, commit-reveal fairness
 - **Close Call** (spec 100) — Pari-mutuel BTC price prediction, Pyth oracle settlement, minute-boundary candle cache
 
 ### On-Chain Programs
-- **Per-game programs**: Coinflip, Lord of RNGs, Close Call — each independently deployable
+- **Per-game programs**: FlipYou, Lord of RNGs, Close Call — each independently deployable
 - **Platform program**: PlatformConfig (fee BPS, treasury, pause state), admin-updatable via `update_platform_config`
 - **Shared Rust crate** (`solana/shared/`): Escrow helpers, lifecycle state machine, timeout logic, pause controls, commit-reveal verifier, fee calculation, constants
 - **Operational controls**: `set_paused` (per-game pause/unpause), `timeout_refund` (permissionless liveness guarantee), `force_close` (stuck round recovery)
@@ -162,7 +162,7 @@ If it changes user funds or determines payouts, it must be validated on-chain.
 ### Shipped (Done)
 | Spec | Name | Notes |
 |------|------|-------|
-| 001 | Coinflip | Shipped, hybrid fairness |
+| 001 | FlipYou | Shipped, hybrid fairness |
 | 006 | Fairness Backend | Shipped |
 | 007 | JWT Session Auth | Shipped |
 | 008 | User Profile | Shipped (redesigned 2026-03-12) |

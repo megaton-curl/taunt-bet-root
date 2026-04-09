@@ -88,14 +88,14 @@ No circular dependencies. Each package has explicit exports. Backend only import
 
 The 8 game contexts total **3,374 lines** and each one mixes:
 
-- **State** (14 useState calls in CoinflipContext alone)
+- **State** (14 useState calls in FlipYouContext alone)
 - **Polling logic** (manual interval management with refs, race condition guards)
 - **Transaction building and sending** (auth retry, error parsing)
 - **Animation timers** (countdown refs, flip animation refs)
 - **URL sync** (deep-link state management)
 - **Auth flow** (token refresh, 401 retry)
 
-CoinflipContext is 734 lines. CloseCallContext is 681. These aren't contexts — they're monolithic controllers pretending to be React hooks.
+FlipYouContext is 734 lines. CloseCallContext is 681. These aren't contexts — they're monolithic controllers pretending to be React hooks.
 
 **What should have been done**: Extract reusable hooks:
 - `useGamePolling(fetchFn, interval)` — shared polling with race-condition guard
@@ -129,7 +129,7 @@ These simulate game state, fake RNG, animate results — all for games that don'
 One file. `index.css`. Seventeen thousand lines. No modules, no scoping, no design tokens, no responsive breakpoints. Every game's styles live in the same global namespace with BEM-ish class names:
 
 ```css
-.coinflip-sidebar__section { ... }
+.flipyou-sidebar__section { ... }
 .lotr-sidebar { ... }
 .close-call-history-result { ... }
 .boss-raid-modal__damage-feed { ... }
@@ -143,7 +143,7 @@ Adding a new game means adding 200+ new classes to this file. Changing a color m
 
 Each game reimplements the same patterns:
 
-**Chain utilities** (coinflip: 664 lines, lord-of-rngs: 763 lines):
+**Chain utilities** (flipyou: 664 lines, lord-of-rngs: 763 lines):
 - Program instance creation
 - PDA derivation
 - Account fetching
@@ -156,7 +156,7 @@ Each game reimplements the same patterns:
 - Loading states
 - Button handlers
 
-The three implemented games (coinflip, lord-of-rngs, close-call) share maybe 70% of their chain.ts logic. There's no generic game adapter, no shared transaction builder, no template.
+The three implemented games (flipyou, lord-of-rngs, close-call) share maybe 70% of their chain.ts logic. There's no generic game adapter, no shared transaction builder, no template.
 
 **What should have been done**: A `createGameAdapter<TMatch, TConfig>()` factory that takes game-specific config (program ID, PDA seeds, account decoders) and returns standard `fetchMatches()`, `buildCreateTx()`, `buildJoinTx()` functions. Each game's chain.ts shrinks to ~100 lines of config.
 
@@ -197,7 +197,7 @@ The backend has an `operator_events` table (good), but nothing reads from it aut
 
 ### Things That Are Fine But Not Ideal
 
-1. **`settle-tx.ts` at 918 lines** — Works, but mixing coinflip/lord/closecall settlement in one file means touching all games when changing one. Splitting by game would be cleaner but isn't urgent.
+1. **`settle-tx.ts` at 918 lines** — Works, but mixing flipyou/lord/closecall settlement in one file means touching all games when changing one. Splitting by game would be cleaner but isn't urgent.
 
 2. **`db.ts` at 974 lines** — Monolith, but a useful one. Every DB operation is in one file, easy to grep. The cost of splitting (breaking transaction atomicity, managing imports) may not be worth the benefit yet.
 

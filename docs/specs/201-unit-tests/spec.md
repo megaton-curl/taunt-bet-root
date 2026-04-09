@@ -31,7 +31,7 @@ Add vitest unit tests for the shared TypeScript packages (game-engine, fairness,
 
 ## Required Context Files
 
-- `packages/game-engine/src/` — payouts.ts, coinflip.ts, RoundStateMachine.ts, types.ts
+- `packages/game-engine/src/` — payouts.ts, flipyou.ts, RoundStateMachine.ts, types.ts
 - `packages/fairness/src/` — commitment.ts, crash.ts, verification.ts
 - `packages/wallet/src/balance/` — formatBalance.ts
 - `packages/wallet/src/treasury/` — constants.ts (calculateFee, calculatePayout)
@@ -41,7 +41,7 @@ Add vitest unit tests for the shared TypeScript packages (game-engine, fairness,
 
 - `solana/shared/src/fees.rs` — canonical fee constants (TOTAL_FEE_BPS=300)
 - `solana/shared/src/amounts.rs` — canonical minimum amount and amount validation helpers
-- `solana/tests/coinflip.ts` — on-chain test assertions (expected payout values to match)
+- `solana/tests/flipyou.ts` — on-chain test assertions (expected payout values to match)
 
 ---
 
@@ -60,7 +60,7 @@ Test that payout calculations match the on-chain settlement math exactly.
 - [ ] Integer rounding matches Rust behavior (floor division, no floating point)
 - [ ] Edge cases: minimum amount (`0.001 SOL`), large-amount inputs, zero-value inputs
 
-### FR-2: Game Engine — Coinflip Helpers
+### FR-2: Game Engine — FlipYou Helpers
 
 Test PDA derivation, side logic, and randomness interpretation.
 
@@ -150,7 +150,7 @@ Test that fee calculations match on-chain constants.
 ## Completion Signal
 
 ### Implementation Checklist
-- [ ] game-engine test file(s) created with payout, coinflip, state machine tests
+- [ ] game-engine test file(s) created with payout, flipyou, state machine tests
 - [ ] fairness test file(s) created with commitment, crash, verification tests
 - [ ] wallet/balance test file(s) created with formatting tests
 - [ ] wallet/treasury test file(s) created with fee math tests

@@ -15,11 +15,11 @@ import {
   type TransactionInstruction,
 } from "@solana/web3.js";
 import {
-  getCoinflipProgram,
-  COINFLIP_PHASE_LOCKED,
-  COINFLIP_PHASE_SETTLED,
-  COINFLIP_PHASE_REFUNDED,
-  COINFLIP_PHASE_WAITING,
+  getFlipYouProgram,
+  FLIPYOU_PHASE_LOCKED,
+  FLIPYOU_PHASE_SETTLED,
+  FLIPYOU_PHASE_REFUNDED,
+  FLIPYOU_PHASE_WAITING,
   type MatchAccount,
 } from "../../local/helpers/on-chain";
 import { sendSignedTx } from "./tx-utils";
@@ -29,12 +29,12 @@ export type MatchPhase = "waiting" | "locked" | null;
 
 function toMatchPhase(phase: number): MatchPhase {
   switch (phase) {
-    case COINFLIP_PHASE_WAITING:
+    case FLIPYOU_PHASE_WAITING:
       return "waiting";
-    case COINFLIP_PHASE_LOCKED:
+    case FLIPYOU_PHASE_LOCKED:
       return "locked";
-    case COINFLIP_PHASE_SETTLED:
-    case COINFLIP_PHASE_REFUNDED:
+    case FLIPYOU_PHASE_SETTLED:
+    case FLIPYOU_PHASE_REFUNDED:
       return null;
     default:
       return null;
@@ -50,16 +50,16 @@ export async function checkMatchState(
   connection: Connection,
   creator: PublicKey,
 ): Promise<{ phase: MatchPhase; match: MatchAccount | null; matchPda: PublicKey }> {
-  const program = getCoinflipProgram(connection);
-  const matches = await program.account.coinflipMatch.all([
+  const program = getFlipYouProgram(connection);
+  const matches = await program.account.flipyouMatch.all([
     { memcmp: { offset: 8, bytes: creator.toBase58() } },
-    { dataSize: program.account.coinflipMatch.size },
+    { dataSize: program.account.flipyouMatch.size },
   ]);
   const activeMatches = matches.filter((m) => {
     const match = m.account as unknown as MatchAccount;
     return (
-      match.phase !== COINFLIP_PHASE_SETTLED &&
-      match.phase !== COINFLIP_PHASE_REFUNDED
+      match.phase !== FLIPYOU_PHASE_SETTLED &&
+      match.phase !== FLIPYOU_PHASE_REFUNDED
     );
   });
 
@@ -80,12 +80,12 @@ async function buildCancelMatchIx(
   matchPda: PublicKey,
   server: PublicKey,
 ): Promise<TransactionInstruction> {
-  const program = getCoinflipProgram(connection);
+  const program = getFlipYouProgram(connection);
   return program.methods
     .cancelMatch()
     .accountsStrict({
       creator,
-      coinflipMatch: matchPda,
+      flipyouMatch: matchPda,
       server,
       systemProgram: SystemProgram.programId,
     })
@@ -100,7 +100,7 @@ async function buildTimeoutRefundIx(
   opponent: PublicKey,
   server: PublicKey,
 ): Promise<TransactionInstruction> {
-  const program = getCoinflipProgram(connection);
+  const program = getFlipYouProgram(connection);
   return program.methods
     .timeoutRefund()
     .accountsStrict({
@@ -108,7 +108,7 @@ async function buildTimeoutRefundIx(
       creator,
       opponent,
       server,
-      coinflipMatch: matchPda,
+      flipyouMatch: matchPda,
     })
     .instruction();
 }

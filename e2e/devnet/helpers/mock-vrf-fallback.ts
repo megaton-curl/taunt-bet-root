@@ -2,7 +2,7 @@
 /**
  * Mock-VRF fallback for devnet lifecycle tests.
  *
- * When the coinflip program is deployed with the `mock-vrf` feature (default),
+ * When the flipyou program is deployed with the `mock-vrf` feature (default),
  * `request_orao_randomness` is a no-op — no Orao VRF account is created after
  * join. This module detects that situation and:
  *   1. Requests Orao VRF directly (creating the randomness account)
@@ -13,7 +13,7 @@
  * byte = 0x8b = 139, odd → TAILS), so Player A (HEADS) always loses in mock-VRF
  * mode. This is deterministic.
  *
- * This fallback should be REMOVED once the coinflip program is redeployed with
+ * This fallback should be REMOVED once the flipyou program is redeployed with
  * `--no-default-features` (real VRF).
  */
 import {
@@ -27,7 +27,7 @@ import { createHash } from "crypto";
 import {
   getConfigPda,
   getTreasuryAddress,
-  COINFLIP_PROGRAM_ID,
+  FLIPYOU_PROGRAM_ID,
   fetchMatch,
 } from "../../local/helpers/on-chain";
 import {
@@ -50,7 +50,7 @@ const REQUEST_V2_DISC = createHash("sha256")
 // ── Detection ─────────────────────────────────────────────────────────
 
 /**
- * Detect whether the deployed coinflip program has mock-VRF enabled.
+ * Detect whether the deployed flipyou program has mock-VRF enabled.
  *
  * After join, a real-VRF program creates an Orao randomness account via CPI.
  * Mock-VRF does not. Check for the randomness account existence.
@@ -76,10 +76,10 @@ export async function detectMockVrf(
 // ── Request Orao VRF ─────────────────────────────────────────────────
 
 /**
- * Request Orao VRF directly (bypassing the coinflip program).
+ * Request Orao VRF directly (bypassing the flipyou program).
  *
  * Constructs a `request_v2(seed)` instruction to the Orao program with the
- * match PDA bytes as seed, creating the randomness account that the coinflip
+ * match PDA bytes as seed, creating the randomness account that the flipyou
  * program's claim_payout will read.
  */
 export async function requestOraoVrf(
@@ -172,7 +172,7 @@ export async function claimPayoutOnChain(
   const randomnessAccount = getOraoRandomnessPda(matchPda.toBytes());
 
   const ix = new TransactionInstruction({
-    programId: COINFLIP_PROGRAM_ID,
+    programId: FLIPYOU_PROGRAM_ID,
     keys: [
       { pubkey: caller.publicKey, isSigner: true, isWritable: true },
       { pubkey: matchPda, isSigner: false, isWritable: true },

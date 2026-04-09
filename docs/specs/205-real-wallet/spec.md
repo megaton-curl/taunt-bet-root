@@ -26,9 +26,9 @@ Replace the MockWalletProvider with a real Solana wallet adapter so players can 
 
 ## Scope Alignment
 
-- **`docs/SCOPE.md` references**: Section 2 (V1 In Scope: Wallet connection), Section 8 (Phase 1 - Coinflip End-to-End)
+- **`docs/SCOPE.md` references**: Section 2 (V1 In Scope: Wallet connection), Section 8 (Phase 1 - FlipYou End-to-End)
 - **Scope status**: V1 In Scope
-- **Phase boundary**: Phase 1 — required to make coinflip functional
+- **Phase boundary**: Phase 1 — required to make flipyou functional
 
 ## Implementation Context
 
@@ -62,8 +62,8 @@ Replace the MockWalletProvider with a real Solana wallet adapter so players can 
 - `packages/wallet/src/WalletProvider.tsx` — currently wraps `MockWalletProvider`, swap target
 - `packages/wallet/src/types.ts` — `WalletContextValue` interface maps 1:1 to adapter's `useWallet`
 - `packages/wallet/src/useWallet.ts` — consumers import from here, bridge to adapter
-- `CoinflipContext.tsx:22` — imports `useWallet` from `@rng-utopia/wallet/hooks`
-- `CoinflipContext.tsx:25-26` — reads `VITE_RPC_URL`, defaults to localhost
+- `FlipYouContext.tsx:22` — imports `useWallet` from `@rng-utopia/wallet/hooks`
+- `FlipYouContext.tsx:25-26` — reads `VITE_RPC_URL`, defaults to localhost
 - `chain.ts` — all tx builders use `@solana/web3.js`, no adapter dependency (clean separation)
 - `.env.example` has `VITE_SOLANA_RPC_URL` but code reads `VITE_RPC_URL` (mismatch to fix)
 - `apps/platform/package.json` already depends on `@rng-utopia/wallet: workspace:*`
@@ -75,8 +75,8 @@ Replace the MockWalletProvider with a real Solana wallet adapter so players can 
 - `packages/wallet/src/context.ts` — shared WalletContext definition
 - `packages/wallet/src/mock/MockWalletState.ts` — mock state management
 - `apps/platform/src/main.tsx` — entry point wrapping App in MockWalletProvider
-- `apps/platform/src/features/coinflip/utils/chain.ts` — transaction builders (already use @solana/web3.js)
-- `apps/platform/src/features/coinflip/context/CoinflipContext.tsx` — calls chain.ts + wallet sendTransaction
+- `apps/platform/src/features/flipyou/utils/chain.ts` — transaction builders (already use @solana/web3.js)
+- `apps/platform/src/features/flipyou/context/FlipYouContext.tsx` — calls chain.ts + wallet sendTransaction
 - `apps/platform/src/App.tsx` — wallet icon, balance display, connected state
 - `apps/platform/.env.example` — env var template (has RPC URL mismatch to fix)
 
@@ -110,24 +110,24 @@ Show the player's actual on-chain SOL balance instead of a mock value.
 
 **Acceptance Criteria:**
 - [x] Balance displayed matches the connected wallet's on-chain lamport balance <!-- satisfied: useBalance.ts:64-67 connection.getBalance(publicKey), App.tsx:419 displays formatted -->
-- [x] Balance updates after transactions (create match, join, claim, cancel) <!-- satisfied: CoinflipContext.tsx:99 useBalance() refreshBalance, sendAndConfirm helper (CoinflipContext.tsx:122-135) calls refreshBalance() after every confirmed transaction -->
+- [x] Balance updates after transactions (create match, join, claim, cancel) <!-- satisfied: FlipYouContext.tsx:99 useBalance() refreshBalance, sendAndConfirm helper (FlipYouContext.tsx:122-135) calls refreshBalance() after every confirmed transaction -->
 - [x] Balance polls or subscribes at a reasonable interval (no stale values after 10s) <!-- satisfied: useBalance.ts:31 DEFAULT_POLL_INTERVAL=10000, useBalance.ts:99-100 setInterval -->
 - [x] `useBalance()` hook returns the same shape (balance, formatted, formattedCompact, loading, error, refresh) <!-- satisfied: useBalance.ts:7-24 BalanceResult with all fields plus balanceLamports/lastUpdated superset -->
 
 ### FR-3: Real Transaction Signing
 
-All coinflip actions must sign and send real transactions via the connected wallet, including backend-partially-signed create flows.
+All flipyou actions must sign and send real transactions via the connected wallet, including backend-partially-signed create flows.
 
 **Acceptance Criteria:**
 - [ ] Create match accepts a backend-partially-signed transaction and sends it through the wallet adapter's `sendTransaction`
-- [x] Join match, cancel match, and claim payout work the same way <!-- satisfied: CoinflipContext.tsx joinMatch:223-229, cancelMatch:256-257, claimPayout:279-286 -->
-- [x] Transaction confirmation is awaited before updating UI state <!-- satisfied: CoinflipContext.tsx:122-135 sendAndConfirm helper uses connection.confirmTransaction({signature, blockhash, lastValidBlockHeight}, "confirmed") before UI state update -->
-- [x] Wallet rejection (user clicks "Cancel" in Phantom) surfaces a user-friendly error, not a raw exception <!-- satisfied: CoinflipContext.tsx:33-35 parseTransactionError catches "User rejected"/"Transaction cancelled" -->
-- [x] RPC errors (insufficient balance, account not found) surface user-friendly messages <!-- satisfied: CoinflipContext.tsx:38-50 catches insufficient lamports/funds, network errors; line 61 generic fallback -->
+- [x] Join match, cancel match, and claim payout work the same way <!-- satisfied: FlipYouContext.tsx joinMatch:223-229, cancelMatch:256-257, claimPayout:279-286 -->
+- [x] Transaction confirmation is awaited before updating UI state <!-- satisfied: FlipYouContext.tsx:122-135 sendAndConfirm helper uses connection.confirmTransaction({signature, blockhash, lastValidBlockHeight}, "confirmed") before UI state update -->
+- [x] Wallet rejection (user clicks "Cancel" in Phantom) surfaces a user-friendly error, not a raw exception <!-- satisfied: FlipYouContext.tsx:33-35 parseTransactionError catches "User rejected"/"Transaction cancelled" -->
+- [x] RPC errors (insufficient balance, account not found) surface user-friendly messages <!-- satisfied: FlipYouContext.tsx:38-50 catches insufficient lamports/funds, network errors; line 61 generic fallback -->
 
 ### FR-4: RPC Configuration
 
-The app must connect to a configurable Solana RPC endpoint. Note: `.env.example` currently uses `VITE_SOLANA_RPC_URL` but code reads `VITE_RPC_URL` — this mismatch must be resolved (standardize on `VITE_RPC_URL`). The `ConnectionProvider` from `@solana/wallet-adapter-react` wraps the app, making `useConnection()` available to all components (replacing the per-context `Connection` instantiation in `CoinflipContext`).
+The app must connect to a configurable Solana RPC endpoint. Note: `.env.example` currently uses `VITE_SOLANA_RPC_URL` but code reads `VITE_RPC_URL` — this mismatch must be resolved (standardize on `VITE_RPC_URL`). The `ConnectionProvider` from `@solana/wallet-adapter-react` wraps the app, making `useConnection()` available to all components (replacing the per-context `Connection` instantiation in `FlipYouContext`).
 
 **Acceptance Criteria:**
 - [x] RPC URL is read from VITE_RPC_URL environment variable <!-- satisfied: WalletProvider.tsx:18-22 reads import.meta.env?.VITE_RPC_URL -->
@@ -160,7 +160,7 @@ The wallet swap must not alter the site's visual appearance.
 
 ## Success Criteria
 
-- A player can connect a real wallet, submit a backend-partially-signed coinflip create transaction, and see the match on-chain
+- A player can connect a real wallet, submit a backend-partially-signed flipyou create transaction, and see the match on-chain
 - The site looks identical before and after the wallet swap (verified by visual regression)
 - E2E tests can run with TestWalletProvider against a local validator
 - MockWalletProvider still works for visual/component testing (no chain needed)
@@ -208,9 +208,9 @@ The wallet swap must not alter the site's visual appearance.
 - [x] [frontend] `WalletProvider.tsx` delegates to `MockWalletProvider` or lazy-loaded `RealWalletProvider` based on `VITE_MOCK_MODE` (done: pre-existing scaffold)
 - [x] [frontend] `useBalance.ts` checks `isMock` flag — mock mode reads from `getBalanceLamports()`, real mode polls `connection.getBalance()` every 10s (done: pre-existing scaffold)
 - [x] [frontend] RPG wallet icon in `App.tsx` calls `connect()`/`disconnect()` — `WalletBridge.connect()` opens Unified Wallet modal via `setShowModal(true)` (done: pre-existing scaffold)
-- [x] [frontend] `parseTransactionError()` in `CoinflipContext.tsx` handles: wallet rejection, insufficient funds, network errors, program errors, generic fallback (done: pre-existing scaffold)
+- [x] [frontend] `parseTransactionError()` in `FlipYouContext.tsx` handles: wallet rejection, insufficient funds, network errors, program errors, generic fallback (done: pre-existing scaffold)
 - [x] [frontend] `.env.example` has `VITE_MOCK_MODE`, `VITE_RPC_URL`, `VITE_SOLANA_NETWORK` (done: pre-existing scaffold)
-- [x] [frontend] `chain.ts` transaction builders (`buildCreateMatchTx`, `buildJoinMatchTx`, `buildCancelMatchTx`, `buildClaimPayoutTx`) integrated into `CoinflipContext` via `sendTransaction` from `useWallet()` (done: pre-existing scaffold)
+- [x] [frontend] `chain.ts` transaction builders (`buildCreateMatchTx`, `buildJoinMatchTx`, `buildCancelMatchTx`, `buildClaimPayoutTx`) integrated into `FlipYouContext` via `sendTransaction` from `useWallet()` (done: pre-existing scaffold)
 
 #### Iteration 1: Build validation in real wallet mode
 - [x] [frontend] Set `VITE_MOCK_MODE=false`, run `pnpm build` for the platform app — fix any TS compilation errors in `packages/wallet/src/real/`, `packages/wallet/src/test/`, and `packages/wallet/src/WalletProvider.tsx`. Run `pnpm lint` (zero errors) and platform `pnpm typecheck` (zero errors). (done: iteration 1)
@@ -218,8 +218,8 @@ The wallet swap must not alter the site's visual appearance.
 #### Iteration 2: Shared ConnectionProvider across all wallet modes
 - [x] [frontend] Move `ConnectionProvider` from inside `RealWalletProvider.tsx` to `WalletProvider.tsx` level — wraps both Mock and Real providers. Endpoint: `VITE_RPC_URL` env var, defaults to `https://api.devnet.solana.com`. `RealWalletProvider` drops its own `ConnectionProvider` wrapper and uses the shared one. Verify build + typecheck pass in both mock and real modes. (done: iteration 2)
 
-#### Iteration 3: CoinflipContext + useBalance use shared Connection
-- [x] [frontend] Update `CoinflipContext.tsx` to use `useConnection()` from `@solana/wallet-adapter-react` instead of `new Connection(RPC_URL)` — delete the `RPC_URL` constant and the `useMemo(() => new Connection(...))`. Update `useBalance.ts` to use `useConnection()` instead of its internal `connectionRef` + `getRpcUrl()` — remove the `getConnection` callback, `connectionRef`, and `DEFAULT_RPC_URL` constant. Verify build + typecheck pass. (done: iteration 3)
+#### Iteration 3: FlipYouContext + useBalance use shared Connection
+- [x] [frontend] Update `FlipYouContext.tsx` to use `useConnection()` from `@solana/wallet-adapter-react` instead of `new Connection(RPC_URL)` — delete the `RPC_URL` constant and the `useMemo(() => new Connection(...))`. Update `useBalance.ts` to use `useConnection()` instead of its internal `connectionRef` + `getRpcUrl()` — remove the `getConnection` callback, `connectionRef`, and `DEFAULT_RPC_URL` constant. Verify build + typecheck pass. (done: iteration 3)
 
 #### Iteration 4: Mock mode + visual regression preservation
 - [x] [test] Run `pnpm test:visual` — all 17 visual regression baselines pass with zero diff (confirms wallet refactor didn't alter mock mode UI). Start dev server in mock mode (default `VITE_MOCK_MODE` unset), load in Playwright headless, verify zero JS console errors. (done: iteration 4)
@@ -246,7 +246,7 @@ The agent MUST complete ALL before outputting the completion signal:
 - [x] All acceptance criteria verified <!-- satisfied: gap analysis confirms all FR-1 through FR-6 criteria SATISFIED -->
 - [x] Wallet connect/disconnect works (validated in Playwright headless — real mode loads, connect() callable) <!-- satisfied: iteration 5 — startup.spec.ts:28,46 real mode loads, connect() callable -->
 - [x] Transaction building compiles and wallet adapter sendTransaction is callable (TypeScript verification) <!-- satisfied: iteration 1 — pnpm build + typecheck zero errors with VITE_MOCK_MODE=false -->
-- [x] Full coinflip lifecycle beyond wallet wiring remains deferred to `001-coinflip` carry-forward (backend-authenticated create + backend settlement integration) <!-- deferred: 001-coinflip carry-forward, not in scope for 205 -->
+- [x] Full flipyou lifecycle beyond wallet wiring remains deferred to `001-flip-you` carry-forward (backend-authenticated create + backend settlement integration) <!-- deferred: 001-flip-you carry-forward, not in scope for 205 -->
 
 #### Visual Verification (if UI)
 - [x] Wallet UI matches existing design (RPG wallet icon preserved) <!-- satisfied: App.tsx:413-422 rpg-wallet-icon unchanged, 17 visual baselines pass -->
@@ -284,15 +284,15 @@ After the spec loop outputs `<promise>DONE</promise>`, `spec-loop.sh` automatica
 - Library: Unified Wallet Kit (`@jup-ag/wallet-adapter`) with `wallets: []` for Wallet Standard auto-detection
 - RPG wallet icon preserved in bottom-right corner; connect triggers Unified Wallet modal via `setShowModal(true)`
 - `ConnectionProvider` shared across all wallet modes (mock, test, real) at `WalletProvider.tsx` level
-- `CoinflipContext` and `useBalance` refactored to use shared `useConnection()` instead of per-context `Connection` instances
+- `FlipYouContext` and `useBalance` refactored to use shared `useConnection()` instead of per-context `Connection` instances
 - `.env.example` mismatch resolved: standardized on `VITE_RPC_URL` (was `VITE_SOLANA_RPC_URL`)
 - Wallet adapter modal styled with `theme: 'dark'` to match medieval theme
 - Mode priority for WalletProvider: mock > test > real (based on env vars)
 - TestWalletWrapper reads seed from `window.__TEST_WALLET_SEED__` for E2E keypair injection
-- Full coinflip lifecycle E2E deferred to 001-coinflip (this spec validates wallet signing infrastructure only)
+- Full flipyou lifecycle E2E deferred to 001-flip-you (this spec validates wallet signing infrastructure only)
 - Existing scaffold code validated and fixed rather than built from scratch
 
 ## Deferred Items
-- Full coinflip lifecycle testing (create -> join -> resolve -> claim) — deferred to 001-coinflip spec
+- Full flipyou lifecycle testing (create -> join -> resolve -> claim) — deferred to 001-flip-you spec
 - Privy/embedded wallets — deferred to V1.5 per DECISIONS.md
 - Backend-partially-signed create transaction flow — FR-3 criterion updated for backend co-signed creates

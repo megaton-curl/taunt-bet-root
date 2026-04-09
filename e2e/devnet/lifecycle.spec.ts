@@ -140,7 +140,7 @@ async function waitForReadyOrResult(page: Page): Promise<void> {
 
 function capturePageDiagnostics(page: Page, sink: string[]) {
   const handler = (msg: ConsoleMessage) => {
-    if (msg.type() === "error" || msg.text().includes("[coinflip]")) {
+    if (msg.type() === "error" || msg.text().includes("[flipyou]")) {
       sink.push(`[${msg.type()}] ${msg.text()}`);
     }
   };
@@ -162,7 +162,7 @@ test.beforeAll(async () => {
 });
 
 // Skipped: requires frontend app (separate project, not yet available)
-test.skip("coinflip devnet lifecycle: create → join → backend settle → verify", async ({
+test.skip("flipyou devnet lifecycle: create → join → backend settle → verify", async ({
   playerAPage,
   playerBPage,
   connection,
@@ -195,7 +195,7 @@ test.skip("coinflip devnet lifecycle: create → join → backend settle → ver
   const settlementEventsA = captureSettlementEvents(playerAPage);
   const settlementEventsB = captureSettlementEvents(playerBPage);
 
-  await po.navigateToCoinflip(playerAPage);
+  await po.navigateToFlipYou(playerAPage);
 
   const createDiagnostics: string[] = [];
   const stopCreateCapture = capturePageDiagnostics(
@@ -247,7 +247,7 @@ test.skip("coinflip devnet lifecycle: create → join → backend settle → ver
   const treasury = await getTreasuryAddress(connection);
   const treasuryBefore = await snapshotBalance(connection, treasury);
 
-  await po.navigateToCoinflip(playerBPage);
+  await po.navigateToFlipYou(playerBPage);
   await po.waitForWalletConnected(playerBPage);
   await po.waitForLobbyMatch(playerBPage, 30_000);
   await po.joinMatchById(playerBPage, matchPda.toBase58());
@@ -322,7 +322,7 @@ test.skip("coinflip devnet lifecycle: create → join → backend settle → ver
   const { assertProfileTransactions } = await import("../helpers/profile-assertions");
   await assertProfileTransactions(playerAPage, {
     gameName: "Flip You",
-    gameRoute: "/coinflip/",
+    gameRoute: "/flipyou/",
     minRows: 2,
   });
   console.log("[profile] Profile transactions verified ✓");

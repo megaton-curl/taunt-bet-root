@@ -27,8 +27,8 @@ Items graduate here from `TECH_DEBT.md`, gap-analysis recommendations, or ad-hoc
 
 ### Config & Constants
 
-- [ ] [frontend] Centralized config package — create `packages/config/` exporting all program IDs (`COINFLIP_PROGRAM_ID`, `PLATFORM_PROGRAM_ID`), network defaults (`DEFAULT_RPC_URL`), fairness-backend base URLs, and fee constants. Update runtime consumers to import from it instead of hardcoding. IDL `address` fields and `Anchor.toml` remain authoritative at build time; runtime code uses one source.
-- [ ] [frontend] Remove deprecated `PROGRAM_IDS` export in `packages/game-engine/src/coinflip.ts:15-17` — replace all usages with `COINFLIP_PROGRAM_ID` directly.
+- [ ] [frontend] Centralized config package — create `packages/config/` exporting all program IDs (`FLIPYOU_PROGRAM_ID`, `PLATFORM_PROGRAM_ID`), network defaults (`DEFAULT_RPC_URL`), fairness-backend base URLs, and fee constants. Update runtime consumers to import from it instead of hardcoding. IDL `address` fields and `Anchor.toml` remain authoritative at build time; runtime code uses one source.
+- [ ] [frontend] Remove deprecated `PROGRAM_IDS` export in `packages/game-engine/src/flipyou.ts:15-17` — replace all usages with `FLIPYOU_PROGRAM_ID` directly.
 - [ ] [frontend] Consolidate fairness backend config — move create/verification endpoint base URLs and environment-specific defaults into centralized config (depends on config package above).
 - [ ] [frontend] `.env` template cleanup — reconcile `.env.example`, `.env.devnet`, backend env templates, and any other env files. Ensure all runtime vars are documented in one place.
 
@@ -54,7 +54,7 @@ Items graduate here from `TECH_DEBT.md`, gap-analysis recommendations, or ad-hoc
 
 ### On-Chain Contract Hardening (Resolved)
 
-- [x] ~~**Make Coinflip nonce consumption atomic inside `create_match`**~~: **Resolved** — Replaced nonce-based PDA derivation with backend-generated random 8-byte match IDs (`[u8; 8]`). `PlayerProfile` removed entirely; stats moved off-chain. Match PDA seeds are now `["match", creator, match_id]` where `match_id` is generated server-side via `crypto.randomBytes(8)`. No nonce, no profile CPI, no duplicate-PDA footgun.
+- [x] ~~**Make FlipYou nonce consumption atomic inside `create_match`**~~: **Resolved** — Replaced nonce-based PDA derivation with backend-generated random 8-byte match IDs (`[u8; 8]`). `PlayerProfile` removed entirely; stats moved off-chain. Match PDA seeds are now `["match", creator, match_id]` where `match_id` is generated server-side via `crypto.randomBytes(8)`. No nonce, no profile CPI, no duplicate-PDA footgun.
 
 ---
 

@@ -1,4 +1,4 @@
-# Specification: 001 Coinflip
+# Specification: 001 FlipYou
 
 ## Meta
 
@@ -14,50 +14,50 @@
 
 ## Overview
 
-Coinflip is the simplest game on the platform and the first end-to-end delivery target. Two players wager equal custom amounts in a 1v1 match. The V1 contract is the backend-assisted commit-reveal flow defined by `005-hybrid-fairness` and implemented by `006-fairness-backend`: the backend generates a secret and commitment, returns a partially-signed create transaction, the opponent's join locks a future entropy slot via `SlotHashes`, and a settlement worker automatically reveals the secret on-chain once the target slot passes. The match PDA is closed after settlement (funds distributed, account zeroed). Authentication uses JWT Bearer tokens issued via challenge-response sign-in — no per-request Ed25519 signatures. Coinflip is only complete when that backend-backed flow works locally and on devnet, with full E2E coverage from create through verification.
+FlipYou is the simplest game on the platform and the first end-to-end delivery target. Two players wager equal custom amounts in a 1v1 match. The V1 contract is the backend-assisted commit-reveal flow defined by `005-hybrid-fairness` and implemented by `006-fairness-backend`: the backend generates a secret and commitment, returns a partially-signed create transaction, the opponent's join locks a future entropy slot via `SlotHashes`, and a settlement worker automatically reveals the secret on-chain once the target slot passes. The match PDA is closed after settlement (funds distributed, account zeroed). Authentication uses JWT Bearer tokens issued via challenge-response sign-in — no per-request Ed25519 signatures. FlipYou is only complete when that backend-backed flow works locally and on devnet, with full E2E coverage from create through verification.
 
 ## User Stories
 
-- As a player, I want to create a coinflip match by entering a custom SOL amount and choosing a side so that I can challenge an opponent at stakes I'm comfortable with.
-- As a player, I want to browse open coinflip lobbies so that I can join a match quickly.
-- As a player, I want to see a fair coin flip animation and result so that I trust the outcome is legitimate.
+- As a player, I want to create a flipyou match by entering a custom SOL amount and choosing a side so that I can challenge an opponent at stakes I'm comfortable with.
+- As a player, I want to browse open flipyou lobbies so that I can join a match quickly.
+- As a player, I want to see a fair flip you animation and result so that I trust the outcome is legitimate.
 - As a player, I want settlement to happen automatically after both players are locked so that I do not need to submit a separate claim transaction.
 - As a player, I want to verify the fairness of any completed match so that I can confirm the result was not manipulated.
-- As an operator, I want a documented way to run the fairness backend locally and on devnet so that coinflip can be tested outside of mock mode.
+- As an operator, I want a documented way to run the fairness backend locally and on devnet so that flipyou can be tested outside of mock mode.
 
 ---
 
 ## Scope Alignment
 
-- **`docs/SCOPE.md` references**: Section 2 (Product Scope - V1 In Scope: Coinflip), Section 5 (V1 Game Scope - Coinflip), Section 8 (Delivery Plan - Phase 1)
+- **`docs/SCOPE.md` references**: Section 2 (Product Scope - V1 In Scope: FlipYou), Section 5 (V1 Game Scope - FlipYou), Section 8 (Delivery Plan - Phase 1)
 - **Scope status**: V1 In Scope
-- **Phase boundary**: Phase 1 - Coinflip End-to-End
+- **Phase boundary**: Phase 1 - FlipYou End-to-End
 
 ## Required Context Files
 
-- `backend/docs/COINFLIP.md` (game concept source)
+- `backend/docs/FLIPYOU.md` (game concept source)
 - `backend/docs/PLATFORM.md` (custom-amount betting, platform fee, provably fair system)
 - `docs/SCOPE.md` (scope boundary and shared game requirements)
 - `docs/specs/005-hybrid-fairness/spec.md` (commit-reveal + slot hash fairness contract)
-- `docs/specs/006-fairness-backend/spec.md` (coinflip backend service contract)
+- `docs/specs/006-fairness-backend/spec.md` (flipyou backend service contract)
 
 ## Contract Files
 
 ### Frontend (Existing UI — preserve design/UX)
-- `apps/platform/src/features/coinflip/context/CoinflipContext.tsx` — game state management
-- `apps/platform/src/features/coinflip/components/` — ActiveMatchView, CoinAnimation, CoinSideSelector, MatchCard, OpenMatchesList
-- `apps/platform/src/features/coinflip/types.ts` — frontend type definitions
-- `apps/platform/src/features/coinflip/utils/chain.ts` — on-chain reads/writes for the backend-backed commit-reveal flow
-- `apps/platform/src/features/coinflip/utils/verification.ts` — client-side verification helpers / UX payload shaping
+- `apps/platform/src/features/flipyou/context/FlipYouContext.tsx` — game state management
+- `apps/platform/src/features/flipyou/components/` — ActiveMatchView, CoinAnimation, CoinSideSelector, MatchCard, OpenMatchesList
+- `apps/platform/src/features/flipyou/types.ts` — frontend type definitions
+- `apps/platform/src/features/flipyou/utils/chain.ts` — on-chain reads/writes for the backend-backed commit-reveal flow
+- `apps/platform/src/features/flipyou/utils/verification.ts` — client-side verification helpers / UX payload shaping
 - `packages/ui/src/layouts/WagerInput.tsx` — shared numeric input with quick-select preset buttons (0.005, 0.01, 0.05, 0.1, 0.25, 0.5, 1.0 SOL)
 
 ### Game Engine (TS instruction builders)
-- `packages/game-engine/src/coinflip.ts` — PDA derivation, instruction builders, payout calc
+- `packages/game-engine/src/flipyou.ts` — PDA derivation, instruction builders, payout calc
 - `packages/game-engine/src/types.ts` — shared types + fee constants
 - `packages/game-engine/src/payouts.ts` — payout math
 
 ### On-Chain (Anchor programs — current implementation)
-- `solana/programs/coinflip/` — Coinflip program implementing the commit-reveal settlement path (create, join, settle, cancel, request_refund, timeout_refund)
+- `solana/programs/flipyou/` — FlipYou program implementing the commit-reveal settlement path (create, join, settle, cancel, request_refund, timeout_refund)
 - `solana/programs/platform/` — Platform program (fee config; PlayerProfile removed)
 - `solana/shared/` — Shared Rust lib (fees, wager validation, fairness/commit-reveal, escrow, timeout, pause, constants)
 
@@ -79,15 +79,15 @@ Coinflip is the simplest game on the platform and the first end-to-end delivery 
 
 ### FR-1: Match Creation
 
-A player can create a new coinflip match by entering a custom SOL amount (minimum 0.0026 SOL) and a side (Heads or Tails). The frontend requests a backend-generated partial transaction via JWT-authenticated endpoint, the player co-signs once in-wallet, and the match appears in the open games list for other players to join. The on-chain `create_match` instruction takes `amount: u64` (not a tier index). The backend request body uses `amountLamports`.
+A player can create a new flipyou match by entering a custom SOL amount (minimum 0.0026 SOL) and a side (Heads or Tails). The frontend requests a backend-generated partial transaction via JWT-authenticated endpoint, the player co-signs once in-wallet, and the match appears in the open games list for other players to join. The on-chain `create_match` instruction takes `amount: u64` (not a tier index). The backend request body uses `amountLamports`.
 
 **Acceptance Criteria:**
 - [x] Player can enter any custom SOL amount at or above 0.001 SOL <!-- satisfied: shared/wager.rs MIN_WAGER_LAMPORTS=1_000_000, create.ts MIN_WAGER_LAMPORTS=1_000_000 -->
 - [x] Player can choose Heads or Tails <!-- satisfied: shared/src/constants.rs:2-3 SIDE_HEADS/TAILS, CoinSideSelector.tsx:19 -->
-- [x] Create flow uses `POST /fairness/coinflip/create` to obtain a server-partially-signed transaction, `matchPda`, and commitment before wallet submission <!-- satisfied: create.ts returns {transaction, matchPda, matchId, commitment, lastValidBlockHeight} -->
+- [x] Create flow uses `POST /fairness/flipyou/create` to obtain a server-partially-signed transaction, `matchPda`, and commitment before wallet submission <!-- satisfied: create.ts returns {transaction, matchPda, matchId, commitment, lastValidBlockHeight} -->
 - [x] Create request is authenticated by JWT Bearer token (wallet read from `sub` claim); body includes `{wallet, amountLamports, side}` <!-- satisfied: jwt-auth.ts middleware + create.ts defense-in-depth wallet===jwtWallet check -->
 - [ ] Created match appears in the lobby browser with creator name, entered amount, and side chosen <!-- out of scope: frontend is a separate project -->
-- [x] Match creation requires a connected wallet with sufficient balance <!-- satisfied: CoinflipContext.tsx:169 createMatch, error.rs:19 InsufficientFunds -->
+- [x] Match creation requires a connected wallet with sufficient balance <!-- satisfied: FlipYouContext.tsx:169 createMatch, error.rs:19 InsufficientFunds -->
 - [x] Duplicate create attempts with the same match PDA are rejected cleanly (HTTP 409 / actionable UI error) <!-- satisfied: create.ts checks db.getRoundByPda + unique constraint race handling, returns 409 -->
 
 ### FR-2: Match Joining
@@ -97,9 +97,9 @@ A second player can join an open match. The joiner is automatically assigned the
 **Acceptance Criteria:**
 - [ ] Player can browse open matches sorted by newest/oldest/amount (no tier-based filtering) <!-- out of scope: frontend is a separate project -->
 - [x] Joining assigns the opposite side automatically <!-- satisfied: join_match.rs opponent set, chain.ts onChainMatchToUI -->
-- [x] Both players' wagers are equal (joiner deposits exact `entry_amount` from match PDA) <!-- satisfied: join_match.rs:47 `entry_amount = coinflip_match.entry_amount` transferred from opponent -->
+- [x] Both players' wagers are equal (joiner deposits exact `entry_amount` from match PDA) <!-- satisfied: join_match.rs:47 `entry_amount = flipyou_match.entry_amount` transferred from opponent -->
 - [x] Amount is locked on-chain at create time (entry_amount stored on match PDA, immutable after init) <!-- satisfied: create_match.rs:74 m.entry_amount = entry_amount -->
-- [x] Join requires connected wallet with sufficient balance <!-- satisfied: CoinflipContext.tsx:206 joinMatch, chain.ts buildJoinMatchTx -->
+- [x] Join requires connected wallet with sufficient balance <!-- satisfied: FlipYouContext.tsx:206 joinMatch, chain.ts buildJoinMatchTx -->
 
 ### FR-3: Flip Resolution
 
@@ -131,7 +131,7 @@ All cancellations refund deposited amounts in full. No platform fee is kept on c
 **Acceptance Criteria:**
 - [x] Creator can cancel a match in WAITING phase (before opponent joins) <!-- satisfied: cancel_match.rs, phase==WAITING check -->
 - [x] Cancel refunds full entry amount + rent to creator <!-- satisfied: cancel_match.rs close=creator, all lamports returned -->
-- [x] Timeout refund returns both players' principal if backend settlement does not complete before the resolve_deadline (COINFLIP_RESOLVE_TIMEOUT_SECONDS = 86400s / 24h) <!-- satisfied: timeout_refund.rs:43 is_expired(m.resolve_deadline, now), opponent gets entry_amount, creator gets remaining -->
+- [x] Timeout refund returns both players' principal if backend settlement does not complete before the resolve_deadline (FLIPYOU_RESOLVE_TIMEOUT_SECONDS = 86400s / 24h) <!-- satisfied: timeout_refund.rs:43 is_expired(m.resolve_deadline, now), opponent gets entry_amount, creator gets remaining -->
 - [x] Mutual refund via `request_refund` — either player can vote, when both have voted the match refunds immediately <!-- satisfied: request_refund.rs creator_wants_refund/opponent_wants_refund flags, both_voted triggers PHASE_REFUNDED -->
 - [x] No platform fee is deducted on any cancellation <!-- satisfied: cancel_match.rs, request_refund.rs, and timeout_refund.rs have no fee calculation -->
 - [x] Timeout refund is permissionless (any signer can trigger after deadline) <!-- satisfied: timeout_refund.rs caller: Signer, no creator/opponent check on caller -->
@@ -147,7 +147,7 @@ Players can verify the outcome of any completed match by inspecting the MatchSet
 
 ### FR-5b: Backend Operations and Testability
 
-Coinflip V1 requires a documented, repeatable backend run path for local development, devnet smoke testing, and full E2E validation.
+FlipYou V1 requires a documented, repeatable backend run path for local development, devnet smoke testing, and full E2E validation.
 
 **Acceptance Criteria:**
 - [ ] A local backend run profile is documented and exercised: Postgres available, migrations applied, backend booted, health endpoint returns ready state
@@ -157,7 +157,7 @@ Coinflip V1 requires a documented, repeatable backend run path for local develop
 
 ### FR-6: Lobby Browser UI
 
-A browsable list of open coinflip matches with creation controls. No tier-based filtering — lobby shows all open matches with their custom entry amounts.
+A browsable list of open flipyou matches with creation controls. No tier-based filtering — lobby shows all open matches with their custom entry amounts.
 
 **Acceptance Criteria:**
 - [ ] Open games list shows creator name/avatar, wager amount, side, and join button <!-- out of scope: frontend is a separate project -->
@@ -167,11 +167,11 @@ A browsable list of open coinflip matches with creation controls. No tier-based 
 
 ### FR-7: Active Game and Result UI
 
-The in-match view showing both players, coin flip animation, and result. UI phases: Created (waiting for opponent) -> Countdown (3-2-1 when opponent joins) -> Flipping (coin spinning + slot progress bar + "Settling...") -> Complete (You Won/Lost + payout breakdown + verify fairness). Refund buttons shown after 30s of flipping as a safety net, not during normal flow.
+The in-match view showing both players, flip you animation, and result. UI phases: Created (waiting for opponent) -> Countdown (3-2-1 when opponent joins) -> Flipping (coin spinning + slot progress bar + "Settling...") -> Complete (You Won/Lost + payout breakdown + verify fairness). Refund buttons shown after 30s of flipping as a safety net, not during normal flow.
 
 **Acceptance Criteria:**
 - [x] Both players shown with avatars, names, and wager amounts <!-- satisfied: ActiveMatchView.tsx PlayerAvatarCompact, side labels, entry amount -->
-- [x] 3D coin flip animation with multiple rotations and gradual slowdown <!-- satisfied: CoinAnimation.tsx CSS 3D transform (front/back faces), spinning classes -->
+- [x] 3D flip you animation with multiple rotations and gradual slowdown <!-- satisfied: CoinAnimation.tsx CSS 3D transform (front/back faces), spinning classes -->
 - [x] Winning side highlighted with glow effect <!-- satisfied: ActiveMatchView.tsx result color + textShadow glow -->
 - [x] "YOU WIN!" or "YOU LOSE" overlay displayed <!-- satisfied: ActiveMatchView.tsx "You Won!", "You Lost" with heart+shards animation -->
 - [x] Payout amount shown for winner <!-- satisfied: ActiveMatchView.tsx match.payoutAmount.toFixed(4) SOL -->
@@ -179,10 +179,10 @@ The in-match view showing both players, coin flip animation, and result. UI phas
 
 ### FR-8: Audio Feedback
 
-Sound effects accompany the coinflip experience.
+Sound effects accompany the flipyou experience.
 
 **Acceptance Criteria:**
-- [x] ~~Coin flip spinning sound during animation~~ [DEFERRED] <!-- deferred: audio integration deferred (Scope Decisions) -->
+- [x] ~~Flip you spinning sound during animation~~ [DEFERRED] <!-- deferred: audio integration deferred (Scope Decisions) -->
 - [x] ~~Dramatic pause before landing~~ [DEFERRED] <!-- deferred: audio integration deferred (Scope Decisions) -->
 - [x] ~~Victory sound for winner~~ [DEFERRED] <!-- deferred: audio integration deferred (Scope Decisions) -->
 - [x] ~~Coin clink on landing~~ [DEFERRED] <!-- deferred: audio integration deferred (Scope Decisions) -->
@@ -203,7 +203,7 @@ Sound effects accompany the coinflip experience.
 ## Dependencies
 
 - Wallet connection via `@solana/wallet-adapter-react` (Privy removed)
-- Coinflip Anchor program (`solana/programs/coinflip`) implementing commit-reveal settlement (create, join, settle, cancel, request_refund, timeout_refund)
+- FlipYou Anchor program (`solana/programs/flipyou`) implementing commit-reveal settlement (create, join, settle, cancel, request_refund, timeout_refund)
 - Platform Anchor program (`solana/programs/platform`) for fee config (PlayerProfile removed)
 - `packages/anchor-client/` (generated from IDL via `scripts/sync-idl`)
 - `services/backend/` fairness service (Hono API + JWT auth + settlement worker)
@@ -213,14 +213,14 @@ Sound effects accompany the coinflip experience.
 
 ## Assumptions
 
-- Coinflip uses custom wager amounts (no tiers) with a platform-wide minimum of 0.0026 SOL; on-chain `create_match` takes `amount: u64`, backend uses `amountLamports` in request body
-- `CoinflipMatch` account fields: creator, opponent, server, entry_amount, creator_side, phase, commitment, algorithm_ver, target_slot, resolve_deadline, result_hash, result, winner, created_at, match_id, bump, creator_wants_refund, opponent_wants_refund
-- PDA seeds: `["match", creator.key(), match_id]` where match_id is backend-generated random 8 bytes; Config PDA: `["coinflip_config"]`
+- FlipYou uses custom wager amounts (no tiers) with a platform-wide minimum of 0.0026 SOL; on-chain `create_match` takes `amount: u64`, backend uses `amountLamports` in request body
+- `FlipYouMatch` account fields: creator, opponent, server, entry_amount, creator_side, phase, commitment, algorithm_ver, target_slot, resolve_deadline, result_hash, result, winner, created_at, match_id, bump, creator_wants_refund, opponent_wants_refund
+- PDA seeds: `["match", creator.key(), match_id]` where match_id is backend-generated random 8 bytes; Config PDA: `["flipyou_config"]`
 - Platform fee is 500 bps (5%), flat fee to a single treasury. Fee rate and treasury address are read from PlatformConfig at settlement time.
-- Coinflip fairness is backend-assisted commit-reveal: secret generated server-side, SHA256(secret) = commitment stored on-chain at create, entropy from SlotHashes at target_slot, result = SHA256(secret || entropy || match_pda || algo_ver)
+- FlipYou fairness is backend-assisted commit-reveal: secret generated server-side, SHA256(secret) = commitment stored on-chain at create, entropy from SlotHashes at target_slot, result = SHA256(secret || entropy || match_pda || algo_ver)
 - Authentication uses JWT Bearer tokens issued via challenge-response sign-in (not per-request Ed25519 signatures). Frontend authenticates once, gets access/refresh token pair.
 - Non-custodial wallet flow via `@solana/wallet-adapter-react` (no Privy, no internal balance model)
-- Backend service is a required part of the coinflip product, not optional operator tooling
+- Backend service is a required part of the flipyou product, not optional operator tooling
 - Match PDA is closed after settlement (all lamports distributed, account data zeroed) — no `claimed` field or separate claim step
 - PlayerProfile removed — no on-chain player stats tracking
 
@@ -232,7 +232,7 @@ Sound effects accompany the coinflip experience.
 
 - Backend env must provide: `DATABASE_URL`, `RPC_URL`, `SERVER_KEYPAIR`, and optional tuning values from `services/backend/src/config.ts`
 - Minimum startup flow: `pnpm --filter @rng-utopia/backend migrate` then `pnpm --filter @rng-utopia/backend dev`
-- Local platform/frontend config must point coinflip create + verification requests at the local backend base URL
+- Local platform/frontend config must point flipyou create + verification requests at the local backend base URL
 - Ready signal: `GET /health` reports DB connected, worker running, and server balance above threshold for the chosen localnet flow
 
 ### Devnet
@@ -266,11 +266,11 @@ Sound effects accompany the coinflip experience.
 
 ### Implementation Checklist
 
-Phases 1-2 below capture the historical implementation work that previously marked this spec done. Phase 3 is the active carry-forward needed to align Coinflip with the backend-assisted V1 contract defined by specs 005 and 006.
+Phases 1-2 below capture the historical implementation work that previously marked this spec done. Phase 3 is the active carry-forward needed to align FlipYou with the backend-assisted V1 contract defined by specs 005 and 006.
 
 **Phase 1: Core Implementation (complete)**
-- [x] [on-chain] CoinflipConfig PDA + initialize_config instruction (done: TDD stubs commit)
-- [x] [on-chain] `CoinflipMatch` state + `create_match` instruction with custom `amount: u64` (no tiers), `validate_wager()` enforces minimum 0.0026 SOL (done: commit-reveal rewrite)
+- [x] [on-chain] FlipYouConfig PDA + initialize_config instruction (done: TDD stubs commit)
+- [x] [on-chain] `FlipYouMatch` state + `create_match` instruction with custom `amount: u64` (no tiers), `validate_wager()` enforces minimum 0.0026 SOL (done: commit-reveal rewrite)
 - [x] [on-chain] Shared wager validation via `rng_shared::wager::validate_wager` enforcing platform minimum 0.0026 SOL (done: shared crate)
 - [x] [on-chain] Implement join_match — phase check, opponent != creator, escrow transfer, set LOCKED, set target_slot (done: iteration 2)
 - [x] [on-chain] Implement settle — verify commitment, derive result from secret+entropy+match_pda+algo_ver, fee to treasury, winner takes remaining, PDA zeroed (done: commit-reveal rewrite, replaced resolve_match + claim_payout)
@@ -279,8 +279,8 @@ Phases 1-2 below capture the historical implementation work that previously mark
 - [x] [on-chain] Implement timeout_refund — permissionless after resolve_deadline (24h), refunds both players (done: commit-reveal rewrite)
 - [x] [on-chain] Platform program scaffold — PlatformConfig (PlayerProfile removed) (done: iteration 6, profile deleted later)
 - [x] [engine] Create anchor-client package + sync-idl script (done: iteration 1, engine phase)
-- [x] [engine] Align game-engine with on-chain — types.ts side values, coinflip.ts PDA rewrite (done: iteration 7)
-- [x] [frontend] Wire CoinflipContext to anchor-client — delete mock-simulation.ts, real chain calls (done: iteration 8)
+- [x] [engine] Align game-engine with on-chain — types.ts side values, flipyou.ts PDA rewrite (done: iteration 7)
+- [x] [frontend] Wire FlipYouContext to anchor-client — delete mock-simulation.ts, real chain calls (done: iteration 8)
 - [x] [frontend] Wire lobby browser + error handling (done: iteration 9)
 
 **Phase 1b: Shared Infrastructure + Commit-Reveal Rewrite (complete — specs 004, 005, 006)**
@@ -294,44 +294,44 @@ Phases 1-2 below capture the historical implementation work that previously mark
 
 **Phase 2: Data Consistency (complete)**
 - [x] [engine] Tier enums removed; custom amount helpers in place. `packages/game-engine/src/types.ts` uses `amountLamports`, no named-tier dependencies remain. (done: custom-amount rewrite)
-- [x] [frontend] Tier selection UI replaced with `WagerInput` component (numeric input + quick-select preset buttons: 0.005, 0.01, 0.05, 0.1, 0.25, 0.5, 1.0 SOL). CoinflipPage, MatchCard, and `chain.ts` all use custom amounts. (done: custom-amount rewrite)
+- [x] [frontend] Tier selection UI replaced with `WagerInput` component (numeric input + quick-select preset buttons: 0.005, 0.01, 0.05, 0.1, 0.25, 0.5, 1.0 SOL). FlipYouPage, MatchCard, and `chain.ts` all use custom amounts. (done: custom-amount rewrite)
 
 **Phase 2: Active Matches (G-1)**
-- [x] [frontend] Add `fetchClaimableMatches(connection, playerPubkey)` to `features/coinflip/utils/chain.ts` — use `getProgramAccounts` with memcmp filters for matches where player is `creator` OR `opponent` in WAITING or LOCKED phase. Must handle both cases (player as creator and player as opponent are separate queries since the pubkey is at different offsets). Return `UIMatch[]`. Verify: `pnpm typecheck` passes. (done: iteration 12)
-- [x] [frontend] Surface active matches in CoinflipContext + CoinflipPage — add `claimableMatches: UIMatch[]` to context state, poll via `fetchClaimableMatches` alongside open matches. Show "Your Matches" section in CoinflipPage above the open lobby list with cancel/refund actions per match. Verify: `pnpm build` succeeds. (done: iteration 13)
+- [x] [frontend] Add `fetchClaimableMatches(connection, playerPubkey)` to `features/flipyou/utils/chain.ts` — use `getProgramAccounts` with memcmp filters for matches where player is `creator` OR `opponent` in WAITING or LOCKED phase. Must handle both cases (player as creator and player as opponent are separate queries since the pubkey is at different offsets). Return `UIMatch[]`. Verify: `pnpm typecheck` passes. (done: iteration 12)
+- [x] [frontend] Surface active matches in FlipYouContext + FlipYouPage — add `claimableMatches: UIMatch[]` to context state, poll via `fetchClaimableMatches` alongside open matches. Show "Your Matches" section in FlipYouPage above the open lobby list with cancel/refund actions per match. Verify: `pnpm build` succeeds. (done: iteration 13)
 
 **Phase 2: Fairness Verification (FR-5)**
 - [x] [on-chain] MatchSettled event emits commitment, secret, entropy, result_hash, result_side, payout_amount, fee_amount — all data needed for independent verification (done: settle.rs MatchSettled event)
 - [x] [engine] IDL re-synced after MatchSettled event change (done: sync-idl)
-- [x] [frontend] Build fairness verification utility — `features/coinflip/utils/verification.ts` extracts MatchSettled event from settle tx logs, re-derives `sha256(secret || entropy || match_pda || algo_ver)`, compares to `result_hash`, checks `result_hash[0] % 2` matches `result_side` (done: iteration 16)
+- [x] [frontend] Build fairness verification utility — `features/flipyou/utils/verification.ts` extracts MatchSettled event from settle tx logs, re-derives `sha256(secret || entropy || match_pda || algo_ver)`, compares to `result_hash`, checks `result_hash[0] % 2` matches `result_side` (done: iteration 16)
 - [x] [frontend] Build fairness verification UI — "Verify Fairness" button in ActiveMatchView (visible in completed phase), shows commitment, secret, entropy, result hash, derived result, winner, verification status badge (done: iteration 17)
 
 **Phase 2: Quick Rematch (FR-7.6)**
 - [ ] [frontend] Add / update rematch flow so `ActiveMatchView` can recreate a match with the same amount and the player's original side choice. Creates a new open match in the lobby — the opponent must find and join it manually (no forced rematch). Button text: "Play Again". Reuses the existing `createMatch` context action. <!-- out of scope: frontend is a separate project -->
 
 **Phase 2: Validation & Cleanup**
-- [x] [test] Validate carry-forward invariants — verified: (a) commitment stored on CoinflipMatch + emitted in MatchSettled, (b) result_hash[0]%2 is pure deterministic side derivation, (c) timeout_refund uses `is_expired(resolve_deadline, now)`, (d) join_match rejects non-WAITING phase, settle rejects non-LOCKED phase, (e) create_match calls `check_not_paused()`. (done: iteration 19)
+- [x] [test] Validate carry-forward invariants — verified: (a) commitment stored on FlipYouMatch + emitted in MatchSettled, (b) result_hash[0]%2 is pure deterministic side derivation, (c) timeout_refund uses `is_expired(resolve_deadline, now)`, (d) join_match rejects non-WAITING phase, settle rejects non-LOCKED phase, (e) create_match calls `check_not_paused()`. (done: iteration 19)
 - [x] [frontend] Remove dead code — stale tier/VRF references cleaned up. (done: iteration 20)
 - [x] [docs] Update spec artifacts — replaced VRF/resolve_match references with commit-reveal architecture. (done: iteration 21)
-- [ ] [test] Update visual baselines for coinflip pages (custom-amount UI changes).
+- [ ] [test] Update visual baselines for flipyou pages (custom-amount UI changes).
 
 **Phase 3: Backend Integration and E2E (required for real V1 completion)**
 - [x] [backend] JWT auth system — challenge/verify/refresh/logout routes at `/auth/*`, JWT middleware on POST requests, wallet read from `sub` claim (done: auth.ts + jwt-auth.ts)
-- [x] [backend] Create endpoint — `POST /fairness/coinflip/create` (JWT-authenticated), generates secret+commitment+matchId, builds partially-signed create_match tx, stores round in DB, returns {transaction, matchPda, matchId, commitment, lastValidBlockHeight} (done: create.ts + tx-builder.ts)
+- [x] [backend] Create endpoint — `POST /fairness/flipyou/create` (JWT-authenticated), generates secret+commitment+matchId, builds partially-signed create_match tx, stores round in DB, returns {transaction, matchPda, matchId, commitment, lastValidBlockHeight} (done: create.ts + tx-builder.ts)
 - [x] [backend] Settlement worker — polls every 1s for LOCKED matches where target_slot reached, submits settle tx with secret reveal, uses PermanentSettleError/TransientSettleError for retry classification (done: settlement.ts + settle-tx.ts + retry.ts)
-- [ ] [frontend] Replace any remaining client-side coinflip create secret flow with the backend create contract: JWT Bearer auth, call `POST /fairness/coinflip/create` with `{wallet, amountLamports, side}`, wallet co-signs returned transaction, surface auth / rate-limit / duplicate errors clearly. <!-- out of scope: frontend is a separate project -->
+- [ ] [frontend] Replace any remaining client-side flipyou create secret flow with the backend create contract: JWT Bearer auth, call `POST /fairness/flipyou/create` with `{wallet, amountLamports, side}`, wallet co-signs returned transaction, surface auth / rate-limit / duplicate errors clearly. <!-- out of scope: frontend is a separate project -->
 - [x] [frontend] Align fairness verification UX with `GET /fairness/rounds/:pda` so post-settlement verification uses backend-served secret / result payloads and unsettled rounds never expose secret material. <!-- satisfied: result-screen fairness payload + backend `rounds` endpoint gating -->
-- [ ] [infra] Add a documented local backend run path for coinflip development: env template/profile, Postgres migration step, `pnpm --filter @rng-utopia/backend dev`, frontend backend base URL wiring, and `/health` verification.
-- [x] [infra] Add a documented devnet backend run path for coinflip: funded server keypair, devnet RPC/program config, backend startup, and `/health` verification before tests. <!-- satisfied: Backend Run Modes / Devnet + `run-e2e-devnet.sh` -->
+- [ ] [infra] Add a documented local backend run path for flipyou development: env template/profile, Postgres migration step, `pnpm --filter @rng-utopia/backend dev`, frontend backend base URL wiring, and `/health` verification.
+- [x] [infra] Add a documented devnet backend run path for flipyou: funded server keypair, devnet RPC/program config, backend startup, and `/health` verification before tests. <!-- satisfied: Backend Run Modes / Devnet + `run-e2e-devnet.sh` -->
 - [ ] [test] Extend `pnpm test:e2e` local Playwright coverage to run the backend-backed create -> join -> auto-settle -> verify flow against a running local backend.
 - [x] [test] Extend `pnpm test:e2e:devnet` coverage to run the same backend-backed flow against deployed devnet programs and backend infrastructure. <!-- satisfied: devnet smoke + lifecycle suite green against backend-backed flow -->
 
 ### Scope Decisions
 
-- **Amounts**: Coinflip uses custom wager amounts, not named tiers. Minimum amount is `0.0026 SOL`. On-chain `create_match` takes `amount: u64`, backend uses `amountLamports`. Frontend uses `WagerInput` with numeric input + quick-select preset buttons.
+- **Amounts**: FlipYou uses custom wager amounts, not named tiers. Minimum amount is `0.0026 SOL`. On-chain `create_match` takes `amount: u64`, backend uses `amountLamports`. Frontend uses `WagerInput` with numeric input + quick-select preset buttons.
 - **Side discriminants**: 0/1 canonical (heads=0, tails=1).
-- **Account layout**: `CoinflipMatch` fields: creator, opponent, server, entry_amount, creator_side, phase, commitment, algorithm_ver, target_slot, resolve_deadline, result_hash, result, winner, created_at, match_id, bump, creator_wants_refund, opponent_wants_refund. No `tier` field, no `claimed` field.
-- **PDA seeds**: `["match", creator.key(), match_id]` where match_id is backend-generated random 8 bytes. Config PDA: `["coinflip_config"]`.
+- **Account layout**: `FlipYouMatch` fields: creator, opponent, server, entry_amount, creator_side, phase, commitment, algorithm_ver, target_slot, resolve_deadline, result_hash, result, winner, created_at, match_id, bump, creator_wants_refund, opponent_wants_refund. No `tier` field, no `claimed` field.
+- **PDA seeds**: `["match", creator.key(), match_id]` where match_id is backend-generated random 8 bytes. Config PDA: `["flipyou_config"]`.
 - **Settlement model**: Commit-reveal, backend-assisted. Backend generates secret, SHA256(secret)=commitment stored at create. After join (LOCKED), backend reads entropy at target_slot, derives result=SHA256(secret || entropy || match_pda || algo_ver), submits settle tx. Match PDA is closed after settle (funds distributed, account zeroed).
 - **Auth model**: JWT Bearer tokens. Frontend authenticates once via challenge-response (sign a nonce message), gets access/refresh tokens. Backend create endpoint reads wallet from JWT `sub` claim. No per-request Ed25519 payload signatures.
 - **Fee model**: 500 bps (5%) flat fee to single treasury. Winner takes pool minus fee. Fee rate and treasury read from PlatformConfig on-chain.
@@ -361,8 +361,8 @@ Each checklist item is one autonomous iteration (`claude -p` invocation). The ag
 - **Program ID**: `89raisnHvTCGv8xkwdHst5N4T2QDcsEVTjw2VtbK8fyk`
 - **PDA Seeds**:
   - Match: `["match", creator_pubkey, match_id]` — match_id is 8 random bytes generated by backend
-  - Config: `["coinflip_config"]`
-- **Account — `CoinflipMatch`** (8 discriminator + InitSpace):
+  - Config: `["flipyou_config"]`
+- **Account — `FlipYouMatch`** (8 discriminator + InitSpace):
   - `creator: Pubkey` — match creator
   - `opponent: Pubkey` — joiner (default until joined)
   - `server: Pubkey` — backend co-signer
@@ -379,10 +379,10 @@ Each checklist item is one autonomous iteration (`claude -p` invocation). The ag
   - `created_at: i64` — unix timestamp
   - `match_id: [u8; 8]` — random ID from backend
   - `bump: u8` — PDA bump
-- **Account — `CoinflipConfig`**:
+- **Account — `FlipYouConfig`**:
   - `authority: Pubkey`, `paused: bool`, `bump: u8`
 - **Instructions** (7):
-  - `initialize_config` — creates CoinflipConfig PDA (admin-only)
+  - `initialize_config` — creates FlipYouConfig PDA (admin-only)
   - `create_match(commitment, amount, side, match_id)` — creates match PDA, escrows wager
   - `join_match` — opponent deposits matching wager, sets phase to Locked, records target_slot
   - `settle(secret)` — verifies commitment, derives result from secret+entropy+pda+algo_ver, pays winner minus 500 bps fee, zeroes PDA
@@ -392,15 +392,15 @@ Each checklist item is one autonomous iteration (`claude -p` invocation). The ag
 
 ### Backend
 - **Endpoints**:
-  - `POST /fairness/coinflip/create` — JWT-authenticated; generates secret+commitment+matchId, builds partially-signed tx, stores round in DB; returns `{transaction, matchPda, matchId, commitment, lastValidBlockHeight}`
+  - `POST /fairness/flipyou/create` — JWT-authenticated; generates secret+commitment+matchId, builds partially-signed tx, stores round in DB; returns `{transaction, matchPda, matchId, commitment, lastValidBlockHeight}`
   - `GET /fairness/rounds/:pda` — public; returns round lifecycle data, secret only exposed post-settlement
   - `GET /fairness/rounds/by-id/:matchId` — public; lookup by 16-char hex match ID
-  - `GET /fairness/rounds/history?game=coinflip&limit=N` — public; recent settled rounds
+  - `GET /fairness/rounds/history?game=flipyou&limit=N` — public; recent settled rounds
   - `POST /auth/challenge` / `POST /auth/verify` / `POST /auth/refresh` / `POST /auth/logout` — JWT session lifecycle
   - `GET /health` — operator health (DB, worker, server balance)
 - **DB Table — `rounds`** (migration 001 + 003 + 004 + 007):
   - `pda TEXT PRIMARY KEY` — match PDA address
-  - `game TEXT` — `"coinflip"` (shared table with lord-of-rngs)
+  - `game TEXT` — `"flipyou"` (shared table with lord-of-rngs)
   - `creator TEXT`, `server_key TEXT`
   - `secret BYTEA`, `commitment BYTEA` — server secret material (secret redacted until settled)
   - `amount_lamports BIGINT` — wager amount (replaced tier column in migration 003)
@@ -417,11 +417,11 @@ Each checklist item is one autonomous iteration (`claude -p` invocation). The ag
 
 ## Key Decisions (from refinement)
 
-- **Custom amounts, not tiers**: Coinflip moved from 6 named tiers (Iron-Diamond, 0.005-1.0 SOL) to fully custom wager amounts. Minimum 0.0026 SOL, on-chain `create_match` takes `amount: u64`, backend uses `amountLamports`. Tiers removed from on-chain state and frontend.
+- **Custom amounts, not tiers**: FlipYou moved from 6 named tiers (Iron-Diamond, 0.005-1.0 SOL) to fully custom wager amounts. Minimum 0.0026 SOL, on-chain `create_match` takes `amount: u64`, backend uses `amountLamports`. Tiers removed from on-chain state and frontend.
 - **Coin side discriminants**: 0/1 on-chain canonical (heads=0, tails=1).
 - **Fairness model pivot**: Originally Orao VRF (join embeds VRF request CPI, claim reads randomness at claim time, 3-tx flow). Replaced by backend-assisted commit-reveal per specs 005/006: backend generates secret, SHA256(secret)=commitment at create, entropy from SlotHashes at target_slot, settle reveals secret on-chain.
 - **Settlement model**: Single `settle` instruction replaced old `resolve_match` + `claim_payout` pair. Settle verifies commitment, derives result, transfers fee + payout, zeroes PDA. Backend worker submits settle automatically.
-- **PDA seeds**: `["match", creator.key(), match_id]` where match_id is backend-generated random 8 bytes. Config PDA: `["coinflip_config"]`.
+- **PDA seeds**: `["match", creator.key(), match_id]` where match_id is backend-generated random 8 bytes. Config PDA: `["flipyou_config"]`.
 - **Fee model**: 500 bps (5%) flat fee to single treasury. Fee rate and treasury read from PlatformConfig on-chain (admin-updatable). No split buckets (rakeback/chest removed).
 - **Platform program**: Fee config only. PlayerProfile removed -- no on-chain stats tracking.
 - **Auth model**: JWT Bearer tokens via challenge-response. No per-request Ed25519 signatures.
@@ -437,5 +437,5 @@ Each checklist item is one autonomous iteration (`claude -p` invocation). The ag
 - **Audio feedback (FR-8, all 4 items)**: Spinning sound, dramatic pause, victory sound, coin clink all deferred to a dedicated audio spec. No dedicated audio spec created yet.
 - **Match history for verification (FR-5.3 partial)**: Full match history is a Phase 3 platform feature (spec 003). The /fairness page provides interim access to verification.
 - **Phase transition events (G-2)**: Only MatchSettled event emitted. Create/join/cancel/timeout do not emit Anchor events. Frontend uses account polling. Carried forward to 003-platform-core.
-- **Frontend unit tests**: Zero vitest unit/component tests for coinflip feature. 17 visual regression snapshots cover page rendering but not interaction logic. Tracked by spec 203 (e2e-integration).
+- **Frontend unit tests**: Zero vitest unit/component tests for flipyou feature. 17 visual regression snapshots cover page rendering but not interaction logic. Tracked by spec 203 (e2e-integration).
 - **Local backend E2E**: Local backend-backed create -> join -> auto-settle -> verify flow not yet covered. Devnet E2E is green.

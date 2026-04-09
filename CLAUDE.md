@@ -1,7 +1,7 @@
 # Taunt Bet - Project Rules & Context
 
 ## Project Snapshot
-- **Goal**: Ship a reliable gaming platform (Coinflip -> Crash).
+- **Goal**: Ship a reliable gaming platform (Flip You -> Crash).
 - **Core Principle**: "No proof = not done."
 - **Repo Structure**:
   - `solana/` — git submodule → `taunt-bet/solana.git` (Anchor programs + shared Rust crate). See `solana/CLAUDE.md`.

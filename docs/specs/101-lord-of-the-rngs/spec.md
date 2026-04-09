@@ -15,7 +15,7 @@
 
 Lord of the RNGs is a winner-takes-all jackpot wheel game. A single open round accepts custom-amount entries from any wallet at or above the platform minimum `0.0026 SOL`. Each purchase is an independent entry with its own `amountLamports`, and the win chance of that entry is proportional to `entryAmountLamports / totalRoundAmountLamports`.
 
-The target V1 architecture is the backend-assisted hybrid fairness model used by Coinflip, adapted for a countdown jackpot:
+The target V1 architecture is the backend-assisted hybrid fairness model used by FlipYou, adapted for a countdown jackpot:
 - Backend commits the secret during round creation and co-signs the first entry tx.
 - Countdown starts when two distinct wallets each have at least one entry.
 - Entry close is enforced by wall time (`countdownEndsAtUnix`) with no separate lock tx.
@@ -46,7 +46,7 @@ The target V1 architecture is the backend-assisted hybrid fairness model used by
 
 ## Contract Files
 
-- `solana/programs/coinflip/` — reference program (same architecture pattern)
+- `solana/programs/flipyou/` — reference program (same architecture pattern)
 - `solana/shared/src/` — shared Rust crate (lifecycle, fees, amount constraints, escrow, fairness, pause, timeout)
 - `apps/platform/src/features/lord-of-rngs/` — existing frontend mock (types, components, context, mock-simulation)
 - `packages/game-engine/src/types.ts` — amount helpers, fee constants
@@ -58,14 +58,14 @@ The target V1 architecture is the backend-assisted hybrid fairness model used by
 
 | Decision | Choice | Rationale |
 |----------|--------|-----------|
-| Entry amounts | Custom SOL input with platform minimum `0.0026 SOL` | Uses the same custom-amount model as coinflip; named tiers are retired. |
+| Entry amounts | Custom SOL input with platform minimum `0.0026 SOL` | Uses the same custom-amount model as flipyou; named tiers are retired. |
 | Entry model | Independent weighted entries | Each purchase appends a new entry `{player, amountLamports}`. Odds are proportional to cumulative lamports, not equal slot counts. |
 | Entry cap per player | No hard cap, bounded by round entry vector size (64 total) | A wallet may append multiple entries before close. The V1 cap is on total stored entries per round (`MAX_ENTRIES = 64`), not per-wallet balance. |
 | Max entries per round | 64 (`MAX_ENTRIES`) | Distinct players can join freely until the round reaches 64 total entries (not 64 players). |
 | Account design | Single round PDA with ordered entry vec | Weighted winner selection uses cumulative lamport ranges over the entry vec. |
 | Spin trigger | No separate lock or spin tx in the happy path | Countdown close is implicit at `countdownEndsAtUnix`; backend submits one settlement tx after `targetEntropySlot`. |
 | Claim model | Backend-driven settlement via `claim_payout(round_number, secret)` | Backend reveals the committed secret to settle; winner receives payout automatically. Frontend shows progress and verification rather than asking the winner to claim in the happy path. |
-| Audio (FR-8) | Deferred | No audio in 101 scope. Dedicated audio spec later (same decision as coinflip). |
+| Audio (FR-8) | Deferred | No audio in 101 scope. Dedicated audio spec later (same decision as flipyou). |
 | Visual pulse (FR-2.5) | Frontend-only | CSS animation for final 5 seconds of countdown. No on-chain involvement. |
 
 ---
@@ -200,9 +200,9 @@ Each round includes a public verification payload for independent verification a
 - Round only triggers countdown with minimum 2 distinct wallets
 - Rounds are identified by `round_number` (backend-generated), not scoped by amount
 - PDA seeds: `["jackpot_round", round_number.to_le_bytes()]` — no tier or amount in seeds
-- This is the second V1 game after Coinflip
+- This is the second V1 game after FlipYou
 - SOL-denominated custom amounts with a shared minimum of `0.0026 SOL`
-- Commit-reveal fairness (same model as coinflip), NOT Orao VRF
+- Commit-reveal fairness (same model as flipyou), NOT Orao VRF
 - PlayerProfile removed — no platform CPI for stats
 
 ---
@@ -225,12 +225,12 @@ Each round includes a public verification payload for independent verification a
 
 ### Implementation Checklist
 
-The completed phases below capture the current commit-reveal implementation. The program uses the same backend-assisted hybrid fairness model as Coinflip (commit-reveal + SlotHashes entropy), not Orao VRF.
+The completed phases below capture the current commit-reveal implementation. The program uses the same backend-assisted hybrid fairness model as FlipYou (commit-reveal + SlotHashes entropy), not Orao VRF.
 
 #### Phase A: On-Chain Program (Lord of the RNGs)
 
 - [x] [on-chain] Scaffold `solana/programs/lordofrngs/` — Cargo.toml, Xargo.toml, `src/lib.rs` with `declare_id!`, `src/state.rs` with `LordConfig` + `JackpotRound` + `WeightedEntry` + `RoundSettled` event, `src/error.rs` with error codes. Register in `solana/Cargo.toml` workspace members and `Anchor.toml` programs. Verify: `anchor build -p lordofrngs` succeeds. (done: iteration 1)
-- [x] [on-chain] `initialize_config` instruction — admin creates `LordConfig` PDA (`[b"lord_config"]`) with treasury + authority + paused flag. Pattern: copy from coinflip `initialize_config.rs`. Verify: bankrun test creates config, reads back fields. (done: iteration 2)
+- [x] [on-chain] `initialize_config` instruction — admin creates `LordConfig` PDA (`[b"lord_config"]`) with treasury + authority + paused flag. Pattern: copy from flipyou `initialize_config.rs`. Verify: bankrun test creates config, reads back fields. (done: iteration 2)
 - [x] [on-chain] `create_round` instruction — server co-signs, creates a `JackpotRound` PDA (`[b"jackpot_round", round_number.to_le_bytes()]`). Creator pays rent and is first entry. Stores `commitment = SHA256(server_secret)`, sets phase=Waiting, records first `WeightedEntry`, transfers `amount` lamports to round PDA escrow. Requires: config not paused, amount at or above `0.0026 SOL`, `round_number` is backend-generated (no on-chain counter). Verify: bankrun test creates round, checks PDA data + escrow balance. (done: iteration 3)
 - [x] [on-chain] `join_round` instruction — any player joins an existing round. Validates: phase is Waiting or Active, entries < `MAX_ENTRIES` (64), countdown not expired (if Active). Appends a new `WeightedEntry {player, amount_lamports}` — multiple entries per player allowed (each independent). Transfers `amount` to escrow. If this is the 2nd distinct wallet, transition Waiting→Active: set `countdown_started_at`, `countdown_ends_at = clock + 60`, `target_entropy_slot = current_slot + 150 + 12`, `resolve_deadline`. Verify: bankrun tests for happy path (join triggers countdown), max entries rejection, wrong phase rejection. (done: iteration 4)
 - [x] [on-chain] `buy_more_entries` instruction — delegates to same logic as `join_round` internally. Any player (new or existing) can call. Validates: phase is Waiting or Active, entries < `MAX_ENTRIES` (64), countdown not expired. Appends new `WeightedEntry`, updates `total_amount_lamports` and `distinct_players`. Also triggers Waiting→Active if this is the 2nd distinct wallet. Verify: bankrun test buys more, checks updated entry count + pool. (done: iteration 5)
@@ -246,12 +246,12 @@ The completed phases below capture the current commit-reveal implementation. The
 #### Phase C: Game Engine + Anchor Client
 
 - [x] [engine] Update `lordofrngs.ts` in `packages/game-engine/src/` — exports: `getRoundPda(matchId)`, `getConfigPda()`, `determineWinnerFromRandomness()`, `mapOffsetToPlayer()`, `verifyLordRound()`, `calculateJackpotPayout()`. <!-- satisfied: game-engine/src/lordofrngs.ts — all exports present, uses matchId Buffer -->
-- [x] [engine] Add Lord of the RNGs verification function to `packages/game-engine/src/` or `packages/fairness/src/` — given a tx signature, extract RoundSettled event, re-derive result_hash from secret + entropy + round_pda, verify winning offset and winner match. Pattern: mirror coinflip `verification.ts` (commit-reveal, not VRF). Verify: TypeScript compiles. (done: iteration 12)
+- [x] [engine] Add Lord of the RNGs verification function to `packages/game-engine/src/` or `packages/fairness/src/` — given a tx signature, extract RoundSettled event, re-derive result_hash from secret + entropy + round_pda, verify winning offset and winner match. Pattern: mirror flipyou `verification.ts` (commit-reveal, not VRF). Verify: TypeScript compiles. (done: iteration 12)
 - [x] [engine] Run `anchor build -p lordofrngs` and sync IDL to `packages/anchor-client/src/lordofrngs.json`. Export typed program interface from anchor-client package. Verify: `pnpm build:all` succeeds. (done: iteration 13)
 
 #### Phase D: Frontend Wiring (Replace Mocks)
 
-- [ ] [frontend] Update `features/lord-of-rngs/utils/chain.ts` for round-number-keyed rounds: `buildJoinRoundTx`, `buildBuyMoreEntriesTx`, `buildStartSpinTx`, `fetchRound`, `fetchActiveRounds`. Backend handles `create_round` and `claim_payout` (server co-sign required). Pattern: mirror coinflip `chain.ts`. Verify: TypeScript compiles. <!-- out of scope: frontend is a separate project -->
+- [ ] [frontend] Update `features/lord-of-rngs/utils/chain.ts` for round-number-keyed rounds: `buildJoinRoundTx`, `buildBuyMoreEntriesTx`, `buildStartSpinTx`, `fetchRound`, `fetchActiveRounds`. Backend handles `create_round` and `claim_payout` (server co-sign required). Pattern: mirror flipyou `chain.ts`. Verify: TypeScript compiles. <!-- out of scope: frontend is a separate project -->
 - [ ] [frontend] Update `LordOfRngsContext.tsx` — replace mock-simulation imports with chain.ts calls. Wire join/buyMore actions around round-number-keyed rounds. Poll/subscribe round account so all clients detect phase transitions (Active → Settled). `start_spin` is a deprecated shim kept for frontend compatibility but performs no state transition. Verify: TypeScript compiles, `pnpm lint` clean. <!-- out of scope: frontend is a separate project -->
 - [ ] [frontend] Replace tier types / selectors with amount input + round state. Ensure `ActiveRoundView` and lobby views display the entered SOL amount and enforce the `0.0026 SOL` minimum. Verify: `pnpm lint` clean. <!-- out of scope: frontend is a separate project -->
 - [x] [frontend] Wire fairness verification — update sidebar fairness section to show commit-reveal data from RoundSettled event (commitment, secret, entropy, result_hash). Add Lord of the RNGs section to `/fairness` page (paste tx signature → verify winning offset). Verify: TypeScript compiles. (done: iteration 17)
@@ -277,7 +277,7 @@ The completed phases below capture the current commit-reveal implementation. The
 
 #### Phase F: Validation
 
-- [ ] [test] All existing tests pass (coinflip bankrun, platform bankrun, visual regression, lint, typecheck)
+- [ ] [test] All existing tests pass (flipyou bankrun, platform bankrun, visual regression, lint, typecheck)
 - [ ] [test] Lord bankrun tests pass (≥15 tests)
 - [ ] [test] `pnpm lint` clean, `pnpm build:all` succeeds
 - [ ] [test] No JS console errors on Lord of the RNGs pages
@@ -316,7 +316,7 @@ If ANY check fails:
   - `GET /fairness/rounds/history?game=lord` — settled lord round history
   - `GET /fairness/rounds/by-id/:matchId` — round details + fairness payload (16-char hex matchId)
   - `GET /fairness/rounds/:pda` — round lookup by PDA address
-- **DB Table**: `rounds` (shared with coinflip) — pda, game (`"lord"`), creator, server_key, secret, commitment, amount_lamports, side, match_id (hex), phase, target_slot, settle_tx, settle_attempts, result_hash, result_side (winning_entry_index), winner, entries, created_at, updated_at
+- **DB Table**: `rounds` (shared with flipyou) — pda, game (`"lord"`), creator, server_key, secret, commitment, amount_lamports, side, match_id (hex), phase, target_slot, settle_tx, settle_attempts, result_hash, result_side (winning_entry_index), winner, entries, created_at, updated_at
 - **Settlement**: PDA watcher (`onAccountChange` WebSocket) detects phase transitions. After countdown expires and `target_entropy_slot` is reached, backend calls `claim_payout(match_id, secret)` revealing the committed secret. On-chain derives `result_hash = SHA256(secret || entropy || round_pda || algo_ver)`, maps winning offset to entry, transfers payout to winner and fee to treasury. 1s poll fallback if WebSocket misses events.
 
 ---
@@ -325,7 +325,7 @@ If ANY check fails:
 
 - Entry model changed from equal-cost tier slots to independent weighted entries with custom SOL amounts (minimum 0.0026 SOL). Named tiers retired.
 - Winner selection uses cumulative lamport ranges over the ordered entry vector, not equal slot counts. `winning_offset = u64_le(result_hash[0..8]) % total_amount_lamports`.
-- Fairness model: backend-assisted commit-reveal + SlotHashes entropy (same as coinflip). NOT Orao VRF — switched during spec pivot.
+- Fairness model: backend-assisted commit-reveal + SlotHashes entropy (same as flipyou). NOT Orao VRF — switched during spec pivot.
 - No entry cap per player (whale-friendly by design). Entries field is u32 counter per `PlayerEntry`.
 - Max 64 total entries per round (`MAX_ENTRIES = 64`, `Vec<WeightedEntry>` account size cap). Not 64 players — 64 entries across all players.
 - Countdown: 60 seconds, starts when 2nd distinct wallet joins. Stores both `countdownEndsAtUnix` and precomputed `targetEntropySlot` on-chain.

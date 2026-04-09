@@ -2,7 +2,7 @@
 /**
  * Lord of RNGs VRF fallback + claim helpers for devnet lifecycle tests.
  *
- * Mirrors the coinflip mock-vrf-fallback.ts pattern but adapted for Lord of RNGs:
+ * Mirrors the flipyou mock-vrf-fallback.ts pattern but adapted for Lord of RNGs:
  *   - claim_payout requires tier + round_number as instruction args
  *   - CPI into platform for player profile updates (game_type = 1)
  *   - Winner determined by: u64_from_le(randomness[0..8]) % total_entries

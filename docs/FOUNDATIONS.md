@@ -35,9 +35,9 @@ Cross-cutting patterns that affect every game and every package. These topics re
 
 ### Per-Feature Test Strategy (Define As We Go)
 Not every test type applies to every feature. When implementing a feature, define which layers apply. Example thinking:
-- Coinflip state machine → unit tests (vitest)
-- Coinflip settlement → on-chain program test (bankrun)
-- Coinflip full flow → integration (Playwright + local validator)
+- FlipYou state machine → unit tests (vitest)
+- FlipYou settlement → on-chain program test (bankrun)
+- FlipYou full flow → integration (Playwright + local validator)
 - Challenge engine handlers → integration tests (vitest + real Postgres)
 - API endpoints → integration tests (Hono test client + real Postgres)
 
@@ -54,7 +54,7 @@ Separate deployable programs per game + a platform program for shared on-chain s
 
 | Program | Type | Purpose |
 |---------|------|---------|
-| `solana/programs/coinflip` | Deployable | Coinflip game logic, settlement |
+| `solana/programs/flipyou` | Deployable | FlipYou game logic, settlement |
 | `solana/programs/lordofrngs` | Deployable | Jackpot (Lord of RNGs) game logic, settlement |
 | `solana/programs/closecall` | Deployable | Close Call game logic, oracle-based settlement |
 | `solana/programs/platform` | Deployable | Platform settings (fee config, treasury, pause) |
@@ -102,7 +102,7 @@ Mocks are deleted as real implementations land. No adapter layers, no feature fl
 ### Error Code Ranges (Per Program)
 Each deployable program owns a code range to avoid collisions:
 - `platform`: 6000–6099
-- `coinflip`: 6100–6199
+- `flipyou`: 6100–6199
 - `crash`: 6200–6299
 - (Reserve ranges for future games)
 
@@ -152,7 +152,7 @@ See `docs/DESIGN_REFERENCE.md` for the full 8-game roadmap including planned gam
 
 | Game | Fairness | Status |
 |------|----------|--------|
-| **Coinflip** | Commit-reveal + SlotHashes | Shipped |
+| **FlipYou** | Commit-reveal + SlotHashes | Shipped |
 | **Jackpot (Lord of RNGs)** | Commit-reveal + SlotHashes | Shipped |
 | **Close Call** | Pyth oracle (BTC/USD) via Hermes REST | Shipped |
 

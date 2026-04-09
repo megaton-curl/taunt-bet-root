@@ -5,7 +5,7 @@ set -euo pipefail
 # spec-loop.sh — Autonomous spec implementation loop
 #
 # Usage: ./scripts/spec-loop.sh <spec-id-or-prefix>
-# Example: ./scripts/spec-loop.sh 001-coinflip
+# Example: ./scripts/spec-loop.sh 001-flip-you
 # Example: ./scripts/spec-loop.sh 004
 #
 # Runs claude in pipe mode, one iteration per unchecked checklist item.
@@ -227,7 +227,7 @@ user input. Do NOT use interactive tools. Work autonomously.
 2. Pick the FIRST unchecked `- [ ]` item from the **Implementation Checklist** section.
 3. Implement ONLY that one item — small, focused changes.
 4. Run the relevant targeted check:
-   - Rust/Anchor changes: `cd solana && anchor build -p coinflip && anchor test --skip-local-validator --skip-deploy`
+   - Rust/Anchor changes: `cd solana && anchor build -p flipyou && anchor test --skip-local-validator --skip-deploy`
    - TypeScript changes: `cd backend && pnpm lint && pnpm typecheck`
 5. If the targeted check FAILS and you cannot fix it within this iteration:
    - Output `<blocker>DESCRIPTION OF WHAT FAILED AND WHY</blocker>`
@@ -265,7 +265,7 @@ user input. Do NOT use interactive tools. Work autonomously.
   areas of code (e.g., a provider + its consumers + tests), spawn parallel Task
   agents instead of reading files one-by-one. This is faster and protects your
   context window. Example: one agent explores the wallet package, another
-  explores CoinflipContext, a third checks existing tests.
+  explores FlipYouContext, a third checks existing tests.
 
 ## Files to Read First
 
@@ -481,7 +481,7 @@ while true; do
         # ---------------------------------------------------------------
         # Devnet E2E gate (non-blocking)
         # ---------------------------------------------------------------
-        if grep -qiE 'vrf|coinflip|lord.of.the.rngs|lordofrngs' "$SPEC_FILE" 2>/dev/null; then
+        if grep -qiE 'vrf|flipyou|lord.of.the.rngs|lordofrngs' "$SPEC_FILE" 2>/dev/null; then
             echo ""
             echo -e "${CYAN}──────────────────────────────────────${NC}"
             echo -e "${CYAN}  Running devnet E2E verification...${NC}"

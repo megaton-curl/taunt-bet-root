@@ -113,7 +113,7 @@ Added to `/workspaces/rng-utopia/backend/services/backend/src/db.ts`:
 - `GameBreakdownStats` interface: `{ gamesPlayed: number, totalWagered: bigint, totalWins: number, winRate: number, netPnl: bigint }`
 - `getGameBreakdown(wallet)` method on `Db` interface + implementation
 - SQL: same aggregation as `getPlayerStats` but with `GROUP BY game`
-- Maps DB game names to frontend names: `lord` → `lord-of-rngs`, `closecall` → `close-call`, `coinflip` → `coinflip`
+- Maps DB game names to frontend names: `lord` → `lord-of-rngs`, `closecall` → `close-call`, `flipyou` → `flipyou`
 - Games with zero `gamesPlayed` are omitted from the result
 - Verified: `pnpm lint` (0 errors, 1 existing warning) and `pnpm typecheck` both pass
 
@@ -229,7 +229,7 @@ Created `/workspaces/rng-utopia/backend/services/backend/src/__tests__/player-st
 - 3 consecutive wins → current=3 best=3
 - win-win-loss-win → current=1 best=2
 - Refund-only match skipped in streak calculation
-- Game breakdown groups by frontend game name (coinflip, lord-of-rngs, close-call) with correct stats per game
+- Game breakdown groups by frontend game name (flipyou, lord-of-rngs, close-call) with correct stats per game
 - Public stats expose only gamesPlayed, totalWins, winRate (no totalWagered/netPnl)
 - Aggregate stats correctness (mixed wins/losses/refunds, correct netPnl computation)
 

@@ -24,7 +24,7 @@ the program verifies the commitment, derives the outcome deterministically, and 
 
 ### Why Not VRF
 
-| Amount (Coinflip, per player) | Pool (2 players) | 3% Revenue | VRF Cost (~0.01 SOL) | VRF % of Revenue |
+| Amount (FlipYou, per player) | Pool (2 players) | 3% Revenue | VRF Cost (~0.01 SOL) | VRF % of Revenue |
 |-------------------------------|------------------|------------|----------------------|------------------|
 | 0.0026 SOL (minimum) | 0.0052 SOL | 0.000156 | 0.01 | **6410%** |
 | 0.005 SOL | 0.01 SOL | 0.0003 | 0.01 | **3333%** |
@@ -39,7 +39,7 @@ costs ~0.000005 SOL (one settlement tx fee).
 
 ## Scope Alignment
 
-- **`docs/SCOPE.md` references**: Applies to all RNG-based games (Coinflip, Lord of RNGs, Crash, Slots Utopia, Tug of Earn). Does NOT apply to oracle-settled games (Close Call, Game of Trades) or skill-scored games (Chart the Course uses simple commit-reveal for asset selection only).
+- **`docs/SCOPE.md` references**: Applies to all RNG-based games (FlipYou, Lord of RNGs, Crash, Slots Utopia, Tug of Earn). Does NOT apply to oracle-settled games (Close Call, Game of Trades) or skill-scored games (Chart the Course uses simple commit-reveal for asset selection only).
 - **Scope status**: V1 In Scope
 - **Phase boundary**: Shared infrastructure — prerequisite for all RNG game programs.
 
@@ -139,7 +139,7 @@ Implementation (shared crate `fairness.rs`):
 - Returns `FairnessError::InvalidEntropyAccount` if wrong account
 - Returns `FairnessError::EntropySlotExpired` if target slot rolled off the ~512-slot window
 
-Both `coinflip::settle` and `lordofrngs::claim_payout` use `#[account(address = SLOT_HASHES_ID)]`
+Both `flipyou::settle` and `lordofrngs::claim_payout` use `#[account(address = SLOT_HASHES_ID)]`
 to enforce this at the Anchor account validation level.
 
 ```rust
@@ -160,7 +160,7 @@ settlement fails entirely.
 #### Creation (User-Submitted, Server Pre-Signed)
 
 ```
-User → API: "create 0.1 SOL coinflip, HEADS"
+User → API: "create 0.1 SOL flipyou, HEADS"
 
 API generates:
   - secret = random 32 bytes
@@ -345,7 +345,7 @@ The system must support a future upgrade to VRF without changing game logic.
 
 ## Per-Game Integration
 
-### Coinflip
+### FlipYou
 
 | Step | Instruction | Who Submits | Entropy |
 |------|-------------|-------------|---------|
@@ -481,7 +481,7 @@ through over the 60s window. Exact curve interpolation TBD in Tug of Earn spec.
 
 | Game | Randomness Source | Commitment | Slot Hash Entropy | Server Settles | Timeout |
 |------|-------------------|------------|-------------------|----------------|---------|
-| **Coinflip** | Commit-reveal + slot hash | Yes | Yes (at join) | Yes | 120s |
+| **FlipYou** | Commit-reveal + slot hash | Yes | Yes (at join) | Yes | 120s |
 | **Lord of RNGs** | Commit-reveal + slot hash | Yes | Yes (at spin) | Yes | 120s |
 | **Crash** | Commit-reveal + slot hash | Yes | Yes (at betting close) | Yes | 180s |
 | **Slots Utopia** | Commit-reveal + slot hash | Yes | Yes (at spin) | Yes | 120s |
@@ -614,7 +614,7 @@ and refund is correct).
 - [ ] `derive_result()` function
 - [ ] `read_slot_hash_entropy()` function (with skipped-slot handling)
 - [ ] Feature-gate `vrf_orao.rs` behind `orao-vrf` flag
-- [ ] Update Coinflip program: replace VRF with commit-reveal
+- [ ] Update FlipYou program: replace VRF with commit-reveal
 - [ ] Update Lord of RNGs program: replace VRF with commit-reveal
 - [ ] Update Crash spec: document commit-reveal + engine timing
 - [ ] Bankrun tests for all settlement and timeout paths

@@ -61,7 +61,7 @@ Set up Playwright for screenshot testing in the platform app.
 Capture a baseline screenshot of every route in its default state.
 
 **Acceptance Criteria:**
-- [x] Screenshot captured for: `/`, `/coinflip`, `/lord-of-rngs`, `/close-call`, `/crash`, `/game-of-trades`, `/profile`, `/quests`, `/loot`, `/fairness`, `/leaderboard` <!-- satisfied: routes.spec.ts:1-63, 12 baselines in e2e/__snapshots__/visual/routes.spec.ts/ -->
+- [x] Screenshot captured for: `/`, `/flipyou`, `/lord-of-rngs`, `/close-call`, `/crash`, `/game-of-trades`, `/profile`, `/quests`, `/loot`, `/fairness`, `/leaderboard` <!-- satisfied: routes.spec.ts:1-63, 12 baselines in e2e/__snapshots__/visual/routes.spec.ts/ -->
 - [x] Each screenshot is at a fixed viewport (1280x1080 desktop) <!-- satisfied: playwright.config.ts:25,31. Updated from 720 to 1080 to accommodate central container with overflow:hidden. -->
 - [x] Screenshots are deterministic (same input → same pixels) when using MockWalletProvider <!-- satisfied: fixtures.ts:36-66 (seeded PRNG + frozen Date.now), fixtures.ts:3-13 (CSS freeze), fixtures.ts:82-88 (SVG SMIL pause). Iteration 16 confirmed zero-diff. -->
 - [x] 404 page (`/nonexistent`) is captured <!-- satisfied: routes.spec.ts:59-62, e2e/__snapshots__/visual/routes.spec.ts/404.png -->
@@ -71,11 +71,11 @@ Capture a baseline screenshot of every route in its default state.
 Capture key UI states that differ visually from the default.
 
 **Acceptance Criteria:**
-- [x] Wallet disconnected vs. connected states captured for at least the home page and coinflip page <!-- satisfied: states.spec.ts:4-48 (home), states.spec.ts:87-131 (coinflip). Baselines: home-disconnected.png, home-connected.png, coinflip-disconnected.png, coinflip-connected.png -->
+- [x] Wallet disconnected vs. connected states captured for at least the home page and flipyou page <!-- satisfied: states.spec.ts:4-48 (home), states.spec.ts:87-131 (flipyou). Baselines: home-disconnected.png, home-connected.png, flipyou-disconnected.png, flipyou-connected.png -->
 - [x] Profile page: default profile view <!-- satisfied: states.spec.ts:50-85, baseline: profile-connected.png -->
 - [x] Each state variant is a separate named snapshot <!-- satisfied: 5 distinct named PNGs in e2e/__snapshots__/visual/states.spec.ts/ -->
 
-> **Deferred**: Complex coinflip game states (empty lobby, lobby with matches, active match waiting/win/loss) require mock data seeding infrastructure. These are deferred to a follow-up spec once the baseline visual regression framework is in place.
+> **Deferred**: Complex flipyou game states (empty lobby, lobby with matches, active match waiting/win/loss) require mock data seeding infrastructure. These are deferred to a follow-up spec once the baseline visual regression framework is in place.
 
 ### FR-4: Diff and Threshold
 
@@ -93,7 +93,7 @@ The visual tests must be runnable in a headless CI environment.
 **Acceptance Criteria:**
 - [x] Tests pass in headless Chromium (no GPU required) <!-- satisfied: playwright.config.ts:6,28-32 (devices["Desktop Chrome"], forbidOnly in CI) -->
 - [x] Font loading is deterministic (fonts bundled or preloaded before screenshot) <!-- satisfied: fixtures.ts:91 (document.fonts.ready) -->
-- [x] Animated elements (shooting stars, coin flip) are either paused or waited past before capture <!-- satisfied: fixtures.ts:3-13 (CSS animation/transition 0s), fixtures.ts:82-88 (svg.pauseAnimations()), fixtures.ts:94 (300ms settle) -->
+- [x] Animated elements (shooting stars, flip you) are either paused or waited past before capture <!-- satisfied: fixtures.ts:3-13 (CSS animation/transition 0s), fixtures.ts:82-88 (svg.pauseAnimations()), fixtures.ts:94 (300ms settle) -->
 
 ---
 
@@ -148,13 +148,13 @@ The visual tests must be runnable in a headless CI environment.
 - [x] [test] Run `pnpm test:visual` a second time — verify it passes (screenshot matches baseline, zero diff) (done: iteration 9)
 
 #### Iteration 3: All route baselines
-- [x] [test] Add tests for all remaining routes to `routes.spec.ts`: `/coinflip`, `/lord-of-rngs`, `/close-call`, `/crash`, `/game-of-trades`, `/profile`, `/quests`, `/loot`, `/fairness`, `/leaderboard`, `/nonexistent` (404) (done: iteration 10)
+- [x] [test] Add tests for all remaining routes to `routes.spec.ts`: `/flipyou`, `/lord-of-rngs`, `/close-call`, `/crash`, `/game-of-trades`, `/profile`, `/quests`, `/loot`, `/fairness`, `/leaderboard`, `/nonexistent` (404) (done: iteration 10)
 - [x] [test] Run `pnpm test:visual --update-snapshots` to generate all baselines, then run `pnpm test:visual` to verify all pass with zero diff (done: iteration 11)
 - [x] [test] Verify: 13 baseline screenshot files exist (12 routes + 404) (done: iteration 11 — actual count is 12: 11 routes + 404; the "13" was a counting error in the checklist)
 
 #### Iteration 4: State variant tests
 - [x] [test] Create `apps/platform/e2e/visual/states.spec.ts` with wallet connected vs. disconnected variants for the home page — manipulate `localStorage` key `rng-utopia-mock-wallet` before navigation to seed connected/disconnected state (done: iteration 12)
-- [x] [test] Add wallet connected vs. disconnected variants for the coinflip page to the same file (done: iteration 13)
+- [x] [test] Add wallet connected vs. disconnected variants for the flipyou page to the same file (done: iteration 13)
 - [x] [test] Add default profile view variant (profile page with wallet connected) (done: iteration 14)
 - [x] [test] Run `pnpm test:visual --update-snapshots` to generate state variant baselines, verify all pass on re-run (done: iteration 15)
 
@@ -211,7 +211,7 @@ After the spec loop outputs `<promise>DONE</promise>`, `spec-loop.sh` automatica
 ## Key Decisions (from refinement)
 - Playwright location: `apps/platform/` (config + tests scoped to platform app)
 - Font handling: wait for `document.fonts.ready` in test fixture (no font bundling)
-- State variants: connected/disconnected wallet states only; complex coinflip game states deferred
+- State variants: connected/disconnected wallet states only; complex flipyou game states deferred
 - Turbo integration: `test:visual` task added to `turbo.json` + root `package.json` with `cache: false`
 - Viewport updated from 1280x720 to 1280x1080 to accommodate central container with `overflow: hidden`
 - Diff threshold set to `maxDiffPixelRatio: 0.015` (1.5%) for anti-aliasing stability; spec example was 0.1%
@@ -221,5 +221,5 @@ After the spec loop outputs `<promise>DONE</promise>`, `spec-loop.sh` automatica
 - Full verify blocked by pre-existing `vite/client` typecheck errors in 7 unrelated packages (not caused by this spec)
 
 ## Deferred Items
-- Complex coinflip game states (empty lobby, lobby with matches, active match waiting/win/loss) — requires mock data seeding infrastructure; no target spec created yet
+- Complex flipyou game states (empty lobby, lobby with matches, active match waiting/win/loss) — requires mock data seeding infrastructure; no target spec created yet
 - Mobile viewport baselines — deferred to post-V1

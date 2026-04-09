@@ -485,7 +485,7 @@ The referral earnings calculation hooks into the existing settlement worker. No 
 - [x] Settlement worker checks for referrer after each game settlement <!-- satisfied: settle-tx.ts:143 checks getReferralLinkByReferee for each player in recordReferralEarnings -->
 - [x] Referrer earnings are calculated using correct formula (bps of total fee, not total wager) <!-- satisfied: settle-tx.ts:152-156 feeLamports * referrerRateBps / 10000 -->
 - [x] KOL custom rate is used when present, default rate otherwise <!-- satisfied: settle-tx.ts:147-150 getReferrerRate(referrerUserId, referralDefaultRateBps) -->
-- [x] Earnings row is inserted in the same DB transaction as settlement (atomicity) <!-- satisfied: settle-tx.ts:382 inside db.withTransaction (coinflip); :595 (lord) -->
+- [x] Earnings row is inserted in the same DB transaction as settlement (atomicity) <!-- satisfied: settle-tx.ts:382 inside db.withTransaction (flipyou); :595 (lord) -->
 - [ ] Referral event emitted to async queue for downstream processing (referee rewards, notifications) <!-- gap: REFERRAL_GAME_SETTLED event type defined in event-types.ts:10 but never emitted in recordReferralEarnings -->
 - [x] No additional RPC calls — purely DB-level <!-- satisfied: recordReferralEarnings only performs DB queries (no Connection calls) -->
 - [x] Settlement latency increase is negligible (< 5ms additional) <!-- satisfied: pure DB operations (1 SELECT + 1 optional SELECT + 1 INSERT per referred player); integration tests pass -->
@@ -572,7 +572,7 @@ Note: `referral.game_settled` earnings are written synchronously in the settleme
 
 - Fee structure is 500 bps (5%) flat fee to single treasury (PlatformConfig on-chain)
 - Treasury wallet is funded and managed outside this spec
-- Referral system launches alongside or after existing games (coinflip, lord-of-rngs)
+- Referral system launches alongside or after existing games (flipyou, lord-of-rngs)
 - No on-chain enforcement of referral economics needed for v1
 - Postgres `SKIP LOCKED` is available (Postgres 9.5+ — already met)
 
@@ -757,7 +757,7 @@ After the spec loop outputs `<promise>DONE</promise>`, `spec-loop.sh` automatica
   - `backend/services/backend/migrations/011_referral.sql` — creates all 5 tables
   - `backend/services/backend/migrations/012_referral_claim_retry.sql` — adds `retry_count`, `error` status, concurrent claim guard
 - **Integration Points**:
-  - **Settlement**: `recordReferralEarnings()` in `settle-tx.ts` is called after coinflip and lord-of-rngs settlement. For each player, looks up `referral_links` for a referrer, checks `referral_kol_rates` for custom rate, calculates earnings/rebate, inserts into `referral_earnings`. Errors are logged but never bubble (referral must not fail settlement). `UNIQUE(referee_wallet, round_id)` provides idempotency on retries.
+  - **Settlement**: `recordReferralEarnings()` in `settle-tx.ts` is called after flipyou and lord-of-rngs settlement. For each player, looks up `referral_links` for a referrer, checks `referral_kol_rates` for custom rate, calculates earnings/rebate, inserts into `referral_earnings`. Errors are logged but never bubble (referral must not fail settlement). `UNIQUE(referee_wallet, round_id)` provides idempotency on retries.
   - **Event Queue (spec 301)**: `POST /referral/claim` atomically inserts a `referral_claims` row + emits `referral.claim_requested` event in the same DB transaction via `emitEvent()`. The claim handler (`referral-claim.ts`) is registered at startup in `index.ts:187-190` before the event worker starts.
   - **Claim handler flow**: load claim -> verify not already completed/failed -> update to `processing` -> re-verify `getPendingBalance() >= amount` -> `SystemProgram.transfer` from `serverKeypair` -> record `tx_signature` -> `completed`. Transient failures increment `retry_count`; permanent failure after 5 retries.
 

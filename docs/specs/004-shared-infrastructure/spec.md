@@ -32,7 +32,7 @@ This spec formalizes the architecture approved in `docs/DESIGN_REFERENCE.md` (su
 
 - **`docs/SCOPE.md` references**: Section 3 (Architecture Direction), Section 4 (Source of Truth), Section 6 (Functional Requirements - on-chain settlement)
 - **Scope status**: V1 In Scope
-- **Phase boundary**: Phase 1 (blocks Coinflip rewrite and all subsequent games)
+- **Phase boundary**: Phase 1 (blocks FlipYou rewrite and all subsequent games)
 
 ## Required Context Files
 
@@ -78,7 +78,7 @@ Historical VRF-era material below is retained as implementation history, but it 
 
 Reusable functions for depositing SOL to a round PDA and letting participants claim their funds. Uses a **claim-based payout pattern**: for VRF games, the `claim_payout` instruction reads the VRF result at claim time (no separate settle tx), derives the winner, and transfers funds — all in one tx. For commit-reveal games, the server's reveal instruction writes the outcome, then players claim. Either way, the claim instruction is what moves funds.
 
-**Three-transaction flow for VRF games (e.g., coinflip):**
+**Three-transaction flow for VRF games (e.g., flipyou):**
 1. `create_match` — creator deposits SOL, phase = WAITING
 2. `join_match` — opponent deposits SOL, requests Orao VRF, phase = LOCKED, `resolve_deadline` set
 3. `claim_payout` — either player calls. Reads fulfilled Orao randomness account, derives winner, transfers payout + fee, emits audit event, closes match.
@@ -94,7 +94,7 @@ Frontend reads the Orao randomness PDA (free, no tx) to show the result. The cla
 - [x] `refund(round_pda, caller)` — each depositor calls individually to pull their refund after timeout <!-- satisfied: timeout_cancel.rs:75-77 refunds both via transfer_lamports_from_pda (atomic, design variance) -->
 - [x] `close_round(round_pda, rent_recipient)` closes the PDA and returns rent <!-- satisfied: Anchor close=creator constraint on claim_payout.rs:20, cancel_match.rs:17, timeout_cancel.rs:29 -->
 - [x] No escrow function touches fee math (fees handled separately in FR-3) <!-- satisfied: escrow.rs has only lamport transfer functions; fees in fees.rs, called separately in claim_payout.rs:116 -->
-- [x] **Claimable games query**: match PDAs in LOCKED phase (VRF fulfilled) or SETTLED phase (commit-reveal settled) with `claimed == false` are discoverable via `getProgramAccounts` filter by player pubkey + phase. Frontend must maintain a "claimable / unresolved games" list per user. <!-- satisfied: resolved via 001-coinflip gap-analysis carry-forward (G-1); fetchClaimableMatches + "Your Matches" UI implemented in 001 iterations 12-13 -->
+- [x] **Claimable games query**: match PDAs in LOCKED phase (VRF fulfilled) or SETTLED phase (commit-reveal settled) with `claimed == false` are discoverable via `getProgramAccounts` filter by player pubkey + phase. Frontend must maintain a "claimable / unresolved games" list per user. <!-- satisfied: resolved via 001-flip-you gap-analysis carry-forward (G-1); fetchClaimableMatches + "Your Matches" UI implemented in 001 iterations 12-13 -->
 
 ### FR-2: Commit-Reveal Verifier
 
@@ -129,7 +129,7 @@ Integrate **Orao** as the single VRF provider for all games requiring randomness
 
 **Integration Contract (Authoritative Shape):**
 
-- **Request path**: VRF is requested as part of an existing game instruction (e.g., `join_match` for coinflip). No separate `request_vrf` instruction.
+- **Request path**: VRF is requested as part of an existing game instruction (e.g., `join_match` for flipyou). No separate `request_vrf` instruction.
 - **Request side effects**:
   - CPIs into Orao to request randomness with a unique seed (derived from match PDA or round ID).
   - Stores `vrf_request_key` on the round account for later lookup.
@@ -153,7 +153,7 @@ Integrate **Orao** as the single VRF provider for all games requiring randomness
 - [x] Outcome derivation from VRF is deterministic and uses only on-chain/public inputs <!-- satisfied: claim_payout.rs:107 from_randomness(randomness[0]) in constants.rs:15 — byte % 2 -->
 - [x] Timeout path remains permissionless when VRF is not fulfilled (refund, not stuck funds) <!-- satisfied: timeout_cancel.rs:11-14 any signer, :58-70 checks deadline+VRF unfulfilled -->
 - [x] `mock-vrf` feature flag: in test builds, skip Orao CPI on request and allow test authority to write mock randomness for claim <!-- satisfied: shared/Cargo.toml mock-vrf feature; vrf_orao.rs:80-91 no-op, :96-105 raw bytes -->
-- [x] Reference implementation: Coinflip (001) as first consumer <!-- satisfied: coinflip program fully rewritten with shared crate + Orao VRF, 26 coinflip + 5 platform bankrun tests pass -->
+- [x] Reference implementation: FlipYou (001) as first consumer <!-- satisfied: flipyou program fully rewritten with shared crate + Orao VRF, 26 flipyou + 5 platform bankrun tests pass -->
 - [x] Drop all MagicBlock VRF references from codebase and docs <!-- satisfied: grep returns zero matches in solana/ and CLAUDE.md; iteration 16 confirmed -->
 
 ### FR-5: On-Chain Lifecycle State Machine
@@ -167,7 +167,7 @@ WAITING -> ACTIVE -> LOCKED -> RESOLVING -> SETTLED
 ```
 
 **Phase usage by game type:**
-- **VRF-only games** (coinflip, Lord of RNGs, slots): WAITING → LOCKED → SETTLED/REFUNDED. VRF requested at lock, result read at claim. No RESOLVING needed.
+- **VRF-only games** (flipyou, Lord of RNGs, slots): WAITING → LOCKED → SETTLED/REFUNDED. VRF requested at lock, result read at claim. No RESOLVING needed.
 - **Commit-reveal games** (crash, chart the course, game of trades): WAITING → ACTIVE → LOCKED → RESOLVING → SETTLED/REFUNDED. Server submits reveal during RESOLVING.
 - **Mixed VRF + commit-reveal** (tug of earn): Uses RESOLVING for server reveal phase.
 
@@ -178,7 +178,7 @@ WAITING -> ACTIVE -> LOCKED -> RESOLVING -> SETTLED
 - [x] **Pause invariant**: Global pause (platform-level) and per-game pause (game config). Paused games reject new rounds but existing rounds can still settle or refund. <!-- satisfied: pause.rs:13 check_not_paused; create_match.rs:39 calls it; claim_payout/timeout_cancel do NOT check (settle/refund still work) -->
 - [x] **Refund invariant**: Any round that doesn't reach `Settled` before its deadline AND whose resolution source is not fulfilled is refundable. No player funds get stuck. Refund is not available if a valid result exists (prevents racing claim vs refund). <!-- satisfied: timeout_cancel.rs:67-70 checks VRF NOT fulfilled; rejects if fulfilled (must claim) -->
 - [x] ~~Phase transitions emit Anchor events for frontend consumption~~ [DEFERRED] <!-- deferred: only MatchSettled emitted (claim_payout.rs:156); create/join/cancel/timeout events carried forward to 003-platform-core gap-analysis carry-forward (G-2); account polling works as fallback -->
-- [x] ~~Timestamp tracking: `created_at`, `locked_at`, `resolve_deadline`, `settled_at` fields~~ [DEFERRED] <!-- deferred: CoinflipMatch has created_at/locked_at/resolve_deadline; settled_at omitted because PDA closes after claim — tx timestamp on MatchSettled event serves as proxy (G-3, no action for V1) -->
+- [x] ~~Timestamp tracking: `created_at`, `locked_at`, `resolve_deadline`, `settled_at` fields~~ [DEFERRED] <!-- deferred: FlipYouMatch has created_at/locked_at/resolve_deadline; settled_at omitted because PDA closes after claim — tx timestamp on MatchSettled event serves as proxy (G-3, no action for V1) -->
 
 ### FR-6: ~~Platform CPI Helpers~~ [REMOVED]
 
@@ -249,17 +249,17 @@ Phases A-C below capture the historical shared-crate and VRF-era delivery that o
 
 - [x] [on-chain] Create `solana/shared/src/pause.rs` — `check_not_paused(global_paused: bool, game_paused: bool) -> Result<()>` returns `PauseError::PlatformPaused` or `PauseError::GamePaused`. Error type: `#[error_code] PauseError { PlatformPaused, GamePaused }`. This is a pure validation helper — games pass their config flags in. Unit tests: both flags false → Ok, global true → PlatformPaused, game true → GamePaused, both true → PlatformPaused (global takes precedence). Re-export from `lib.rs`. Verify: `cargo test -p rng-shared`. (done: iteration 5)
 
-- [x] [on-chain] Create `solana/shared/src/escrow.rs` — Helper functions for raw lamport transfers: `transfer_lamports_from_pda(pda: &AccountInfo, recipient: &AccountInfo, amount: u64) -> Result<()>` using `try_borrow_mut_lamports` pattern (extracted from coinflip's claim_payout.rs). `transfer_lamports_to_pda(from: &AccountInfo, pda: &AccountInfo, amount: u64, system_program: &AccountInfo) -> Result<()>` using `system_program::transfer` CPI. Error types: `EscrowError::InsufficientEscrowBalance`. Unit tests may be limited (lamport transfers need runtime); add doc-tests with usage examples. Re-export from `lib.rs`. Verify: `anchor build` succeeds (tests that need runtime context deferred to bankrun in Phase C). (done: iteration 6)
+- [x] [on-chain] Create `solana/shared/src/escrow.rs` — Helper functions for raw lamport transfers: `transfer_lamports_from_pda(pda: &AccountInfo, recipient: &AccountInfo, amount: u64) -> Result<()>` using `try_borrow_mut_lamports` pattern (extracted from flipyou's claim_payout.rs). `transfer_lamports_to_pda(from: &AccountInfo, pda: &AccountInfo, amount: u64, system_program: &AccountInfo) -> Result<()>` using `system_program::transfer` CPI. Error types: `EscrowError::InsufficientEscrowBalance`. Unit tests may be limited (lamport transfers need runtime); add doc-tests with usage examples. Re-export from `lib.rs`. Verify: `anchor build` succeeds (tests that need runtime context deferred to bankrun in Phase C). (done: iteration 6)
 
-- [x] [on-chain] Create `solana/shared/src/cpi.rs` — Extract platform CPI helper from coinflip's `claim_payout.rs`. Function signature: `update_player_profile_cpi(platform_program: &AccountInfo, profile: &AccountInfo, authority: &AccountInfo, signer_seeds: &[&[u8]], total_games_delta: u64, wins_delta: u64, total_wagered_delta: u64, total_won_delta: u64) -> Result<()>`. Guard: if `profile.data_is_empty()`, skip silently (return Ok). Uses `platform::cpi::update_player_profile` with CpiContext. Re-export from `lib.rs`. Verify: `anchor build` succeeds. (done: iteration 7)
+- [x] [on-chain] Create `solana/shared/src/cpi.rs` — Extract platform CPI helper from flipyou's `claim_payout.rs`. Function signature: `update_player_profile_cpi(platform_program: &AccountInfo, profile: &AccountInfo, authority: &AccountInfo, signer_seeds: &[&[u8]], total_games_delta: u64, wins_delta: u64, total_wagered_delta: u64, total_won_delta: u64) -> Result<()>`. Guard: if `profile.data_is_empty()`, skip silently (return Ok). Uses `platform::cpi::update_player_profile` with CpiContext. Re-export from `lib.rs`. Verify: `anchor build` succeeds. (done: iteration 7)
 
 **Phase B: Orao VRF Integration**
 
 - [x] [on-chain] Add `orao-solana-vrf` dependency to `solana/Cargo.toml` workspace deps (with `cpi` feature). Create `solana/shared/src/vrf_orao.rs` with: `VrfAuditFields` struct (`vrf_request_key: Pubkey`, `vrf_requested_at: i64`). Helper `request_orao_randomness(orao_program, network_state, treasury, random, payer, system_program, seed: [u8; 32]) -> Result<()>` that CPIs into Orao's request instruction. Helper `read_orao_randomness(randomness_account: &AccountInfo) -> Result<[u8; 32]>` that reads fulfilled randomness from Orao's `RandomnessAccountData`. `is_fulfilled(randomness: &[u8; 32]) -> bool` checks if randomness is non-zero (all-zeros = unfulfilled). Add `mock-vrf` feature flag to shared crate: under `mock-vrf`, `request_orao_randomness` is a no-op and `read_orao_randomness` reads from a simple test account instead of Orao's type. Re-export from `lib.rs`. Verify: `anchor build` succeeds. (done: iteration 8)
 
-**Phase C: Coinflip Rewrite** (validates all shared modules end-to-end via the 3-tx flow: create → join+request → claim+read)
+**Phase C: FlipYou Rewrite** (validates all shared modules end-to-end via the 3-tx flow: create → join+request → claim+read)
 
-- [x] [on-chain] Rewrite `solana/programs/coinflip/src/state.rs` — Replace `phase: u8` with `phase: RoundPhase` from shared crate. Add fields: `resolve_deadline: i64`, `vrf_request_key: Pubkey` (Orao randomness PDA address, used to look up result at claim time). Add `paused: bool` to `CoinflipConfig`. Remove `oracle_authority` from config (Orao uses account constraints, not signer trust). Remove `ephemeral-vrf-sdk` from `Cargo.toml`, add `orao-solana-vrf` workspace dep. Update `CoinflipMatch` seeds and space calculation. Add `MatchSettled` Anchor event struct: `creator`, `opponent`, `winner`, `randomness: [u8; 32]`, `payout_amount`, `fee_amount`. Verify: `anchor build` succeeds (tests will fail — expected, fixed in later iterations). (done: iteration 9)
+- [x] [on-chain] Rewrite `solana/programs/flipyou/src/state.rs` — Replace `phase: u8` with `phase: RoundPhase` from shared crate. Add fields: `resolve_deadline: i64`, `vrf_request_key: Pubkey` (Orao randomness PDA address, used to look up result at claim time). Add `paused: bool` to `FlipYouConfig`. Remove `oracle_authority` from config (Orao uses account constraints, not signer trust). Remove `ephemeral-vrf-sdk` from `Cargo.toml`, add `orao-solana-vrf` workspace dep. Update `FlipYouMatch` seeds and space calculation. Add `MatchSettled` Anchor event struct: `creator`, `opponent`, `winner`, `randomness: [u8; 32]`, `payout_amount`, `fee_amount`. Verify: `anchor build` succeeds (tests will fail — expected, fixed in later iterations). (done: iteration 9)
 
 - [x] [on-chain] Rewrite `create_match.rs` + `cancel_match.rs` — `create_match`: use `shared::lifecycle::transition` for initial phase (Waiting), use `shared::pause::check_not_paused(config.paused, false)`, use `shared::escrow::transfer_lamports_to_pda` for deposit, set `created_at` timestamp. `cancel_match`: use `shared::lifecycle::transition(current, Refunded)`, use `shared::escrow::transfer_lamports_from_pda` for refund, close match PDA. Both instructions use shared `RoundPhase` enum instead of raw u8 phase constants. Verify: `anchor build` succeeds. (done: iteration 10)
 
@@ -269,17 +269,17 @@ Phases A-C below capture the historical shared-crate and VRF-era delivery that o
 
 - [x] [on-chain] Rewrite `timeout_cancel.rs` — Check `phase == Locked`, check `shared::timeout::is_expired(resolve_deadline, now)`, check that Orao randomness is NOT fulfilled via `shared::vrf_orao::is_fulfilled` (reject if VRF resolved — must use claim instead), use `shared::escrow::transfer_lamports_from_pda` for refunds to both players, transition to `Refunded` via `shared::lifecycle::transition`, close match PDA. Permissionless — any signer can trigger after deadline, but only when result is genuinely unavailable. Verify: `anchor build` succeeds. (done: iteration 13)
 
-- [x] [test] Rewrite `solana/tests/coinflip.ts` bankrun tests for new 3-tx program — Setup: deploy coinflip + platform programs with `mock-vrf` feature, initialize configs. Tests: create_match (phase=Waiting, escrow correct, pause check), join_match (phase=Locked, escrow doubled, vrf_request_key set, resolve_deadline set), claim_payout with mock randomness (reads mock account, derives winner HEADS/TAILS, fee math correct, treasury transfer, profile CPI for both players, MatchSettled event emitted, match PDA closed), cancel_match (Waiting-only, full refund), timeout_cancel (after resolve_deadline expired AND VRF unfulfilled, permissionless, both players refunded), error cases (invalid phase transitions, double-claim, unauthorized, self-join, claim with unfulfilled randomness rejected, timeout_cancel rejected when VRF IS fulfilled — must claim instead). Target: all tests green. Verify: `anchor test --skip-local-validator`. (done: iteration 14)
+- [x] [test] Rewrite `solana/tests/flipyou.ts` bankrun tests for new 3-tx program — Setup: deploy flipyou + platform programs with `mock-vrf` feature, initialize configs. Tests: create_match (phase=Waiting, escrow correct, pause check), join_match (phase=Locked, escrow doubled, vrf_request_key set, resolve_deadline set), claim_payout with mock randomness (reads mock account, derives winner HEADS/TAILS, fee math correct, treasury transfer, profile CPI for both players, MatchSettled event emitted, match PDA closed), cancel_match (Waiting-only, full refund), timeout_cancel (after resolve_deadline expired AND VRF unfulfilled, permissionless, both players refunded), error cases (invalid phase transitions, double-claim, unauthorized, self-join, claim with unfulfilled randomness rejected, timeout_cancel rejected when VRF IS fulfilled — must claim instead). Target: all tests green. Verify: `anchor test --skip-local-validator`. (done: iteration 14)
 
-- [x] [engine] Re-run `scripts/sync-idl` to update `packages/anchor-client/` with new coinflip IDL (new CoinflipMatch shape with RoundPhase + vrf_request_key, removed resolve_match instruction, updated claim_payout accounts to include Orao randomness). Verify: `anchor build && pnpm lint` in anchor-client package. (done: iteration 15)
+- [x] [engine] Re-run `scripts/sync-idl` to update `packages/anchor-client/` with new flipyou IDL (new FlipYouMatch shape with RoundPhase + vrf_request_key, removed resolve_match instruction, updated claim_payout accounts to include Orao randomness). Verify: `anchor build && pnpm lint` in anchor-client package. (done: iteration 15)
 
-- [x] [docs] Drop all MagicBlock VRF references from codebase: update `backend/CLAUDE.md` locked decisions table (MagicBlock → Orao), remove MagicBlock comments from coinflip source files, clean up any remaining `ephemeral-vrf-sdk` references. Verify: `grep -r "MagicBlock\|ephemeral.vrf" solana/ backend/CLAUDE.md` returns zero matches. (done: iteration 16)
+- [x] [docs] Drop all MagicBlock VRF references from codebase: update `backend/CLAUDE.md` locked decisions table (MagicBlock → Orao), remove MagicBlock comments from flipyou source files, clean up any remaining `ephemeral-vrf-sdk` references. Verify: `grep -r "MagicBlock\|ephemeral.vrf" solana/ backend/CLAUDE.md` returns zero matches. (done: iteration 16)
 
 ### Phase D: Hybrid Fairness Realignment (required for active contract)
 
 - [ ] [docs] Rewrite the active fairness framing in this spec so shared infrastructure is described in terms of backend-assisted hybrid fairness rather than VRF-first claim flows.
 - [ ] [on-chain] Ensure the shared crate API surface explicitly supports commitment verification, slot-hash entropy capture/reading, and deterministic result derivation as first-class helpers.
-- [ ] [docs] Update lifecycle guidance so Coinflip, Lord of the RNGs, Crash, and future RNG games are described against the same backend-assisted settlement contract.
+- [ ] [docs] Update lifecycle guidance so FlipYou, Lord of the RNGs, Crash, and future RNG games are described against the same backend-assisted settlement contract.
 - [ ] [test] Align validation expectations with specs `005-hybrid-fairness` and `006-fairness-backend`, including timeout behavior and public verification payload requirements.
 
 ### Testing Requirements
@@ -329,14 +329,14 @@ Actual shared crate modules as of the current implementation (`solana/shared/src
 | Module | File | Exports | Notes |
 |--------|------|---------|-------|
 | `commit_reveal` | `solana/shared/src/commit_reveal.rs` | `store_commitment()`, `verify_reveal()`, `CommitRevealError` | SHA256 commitment verification primitive |
-| `constants` | `solana/shared/src/constants.rs` | `SIDE_HEADS`, `SIDE_TAILS`, `LOCK_TIMEOUT_SECONDS`, `from_randomness()`, `is_valid_side()` | Coinflip-specific constants (legacy u8 phase constants retained for compat) |
+| `constants` | `solana/shared/src/constants.rs` | `SIDE_HEADS`, `SIDE_TAILS`, `LOCK_TIMEOUT_SECONDS`, `from_randomness()`, `is_valid_side()` | FlipYou-specific constants (legacy u8 phase constants retained for compat) |
 | `escrow` | `solana/shared/src/escrow.rs` | `transfer_lamports_to_pda()`, `transfer_lamports_from_pda()`, `close_pda()`, `EscrowError` | Raw lamport transfers: system CPI deposit, direct manipulation payout/refund, PDA close+drain |
 | `fairness` | `solana/shared/src/fairness.rs` | `verify_commitment()`, `derive_result()`, `read_slot_hash_entropy()`, `read_mock_entropy()`, `ALGORITHM_VERSION`, `ENTROPY_SLOT_OFFSET`, `SLOT_HASHES_ID`, `FairnessError` | **Primary fairness module**: SlotHashes entropy reading (O(1) lookup + scan fallback), deterministic result derivation `SHA256(secret \|\| entropy \|\| pda \|\| algo_ver)`, commitment verification |
 | `fees` | `solana/shared/src/fees.rs` | `calculate_fee()`, `calculate_net_payout()`, `DEFAULT_FEE_BPS`, `MAX_FEE_BPS` | Integer-only fee math, 500 bps default, 1000 bps compile-time safety cap |
 | `lifecycle` | `solana/shared/src/lifecycle.rs` | `RoundPhase` enum, `RoundTimestamps`, `transition()`, `LifecycleError` | 6-phase state machine (Waiting/Active/Locked/Resolving/Settled/Refunded) with validated transitions |
 | `pause` | `solana/shared/src/pause.rs` | `check_not_paused()`, `PauseError` | Global + per-game pause validation |
 | `platform_config` | `solana/shared/src/platform_config.rs` | `read_platform_config()`, `PLATFORM_PROGRAM_ID`, `PlatformConfigError` | Zero-CPI read of PlatformConfig account (fee_bps + treasury) via raw data parsing with owner validation |
-| `timeout` | `solana/shared/src/timeout.rs` | `is_expired()`, `enforce_not_expired()`, `DEFAULT_RESOLVE_TIMEOUT_SECONDS`, `COINFLIP_RESOLVE_TIMEOUT_SECONDS`, `TimeoutError` | Deadline enforcement for refund liveness |
+| `timeout` | `solana/shared/src/timeout.rs` | `is_expired()`, `enforce_not_expired()`, `DEFAULT_RESOLVE_TIMEOUT_SECONDS`, `FLIPYOU_RESOLVE_TIMEOUT_SECONDS`, `TimeoutError` | Deadline enforcement for refund liveness |
 | `wager` | `solana/shared/src/wager.rs` | `validate_wager()`, `MIN_WAGER_LAMPORTS`, `MAX_WAGER_LAMPORTS`, `WagerError` | Wager bounds: 0.001 SOL min, 100 SOL max |
 | `vrf_orao` | `solana/shared/src/vrf_orao.rs` | Orao VRF request/read helpers | **Feature-gated**: `#[cfg(feature = "orao-vrf")]` only. Not compiled by default. |
 
@@ -345,10 +345,10 @@ Actual shared crate modules as of the current implementation (`solana/shared/src
 ## Key Decisions (from refinement)
 
 - **Orao VRF model**: Request-then-read (not callback). Game requests randomness at join, Orao fulfills to PDA, game reads at claim time (3-tx flow: create -> join+request -> claim+read). Later superseded by backend-assisted commit-reveal for V1 (specs 005/006).
-- **Coinflip rewrite scope**: On-chain + IDL sync only. Game-engine + frontend wiring handled by spec 001 separately.
+- **FlipYou rewrite scope**: On-chain + IDL sync only. Game-engine + frontend wiring handled by spec 001 separately.
 - **VRF testing approach**: `mock-vrf` feature flag for bankrun tests + devnet smoke tests separately.
 - **Shared crate pattern**: Pure Rust modules with types, validation functions, and helpers. No Anchor `#[account]` structs (those stay per-program). Games import and call shared helpers. Consistency via compile-time shared crate, not CPI at runtime.
-- **Coinflip phase migration**: WAITING(0)/LOCKED(1)/SETTLED(2)/CANCELLED(3) u8 constants replaced by shared `RoundPhase` enum (Waiting, Active, Locked, Resolving, Settled, Refunded).
+- **FlipYou phase migration**: WAITING(0)/LOCKED(1)/SETTLED(2)/CANCELLED(3) u8 constants replaced by shared `RoundPhase` enum (Waiting, Active, Locked, Resolving, Settled, Refunded).
 - **Claim-based payout**: 3-tx pattern for VRF games. Claim reads Orao randomness, derives winner, transfers funds in one tx. No separate settle/resolve instruction. Later replaced by backend-assisted settle for V1.
 - **Fee model**: Moved from 200/70/30 bps split (revenue/rakeback/chest) to 500 bps flat fee to single treasury via PlatformConfig. Admin-updatable. MAX_FEE_BPS=1000 compile-time safety cap.
 - **MagicBlock VRF dropped**: All MagicBlock and ephemeral-vrf-sdk references removed. Orao selected as VRF provider (documented in DECISIONS.md).
@@ -359,6 +359,6 @@ Actual shared crate modules as of the current implementation (`solana/shared/src
 
 - **Commit-reveal failure -> REFUNDED transition (FR-2 AC-4)**: Module provides the verification primitive; transition-to-REFUNDED logic belongs in the consuming game's handler. Deferred until 002-crash (first commit-reveal consumer, Draft status).
 - **Phase transition events (G-2)**: Only MatchSettled emitted on claim. Create/join/cancel/timeout do not emit Anchor events. Frontend relies on account polling. Carried forward to 003-platform-core.
-- **`settled_at` timestamp (G-3)**: CoinflipMatch lacks settled_at field. PDA closes after claim so the field would be unreadable on-chain. The tx timestamp on MatchSettled event serves as proxy. No action for V1.
+- **`settled_at` timestamp (G-3)**: FlipYouMatch lacks settled_at field. PDA closes after claim so the field would be unreadable on-chain. The tx timestamp on MatchSettled event serves as proxy. No action for V1.
 - **Game discriminator in CPI (G-4)**: CPI helper and platform `update_player_profile` lacked a game type discriminator. PlayerProfile stats were aggregated without per-game attribution. Became moot when PlayerProfile was removed entirely. Would need to be addressed if per-game stats tracking is re-added.
 - **Phase D: Hybrid Fairness Realignment**: Rewriting shared infrastructure framing and lifecycle guidance for the backend-assisted commit-reveal model (specs 005/006). Unchecked items remain in implementation checklist.

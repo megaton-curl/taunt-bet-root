@@ -3,9 +3,9 @@
 #   build → deploy → copy IDL → init config → verify sync
 #
 # Usage:
-#   ./scripts/deploy-devnet.sh coinflip        # deploy one program
+#   ./scripts/deploy-devnet.sh flipyou        # deploy one program
 #   ./scripts/deploy-devnet.sh all             # deploy all programs
-#   ./scripts/deploy-devnet.sh coinflip --fresh # close + new keypair + deploy
+#   ./scripts/deploy-devnet.sh flipyou --fresh # close + new keypair + deploy
 
 set -euo pipefail
 
@@ -14,7 +14,7 @@ SOLANA_DIR="$ROOT/solana"
 CLIENT_DIR="$ROOT/backend/packages/anchor-client/src"
 RPC="https://lb.drpc.live/solana-devnet/AvfNVeH0_E7ajvkIaZ0OS6QiksDa5ZMR76q4qi5fk9AX"
 
-PROGRAMS=("coinflip" "lordofrngs" "closecall" "platform")
+PROGRAMS=("flipyou" "lordofrngs" "closecall" "platform")
 
 get_toml_id() {
   sed -n "s/^${1} *= *\"\([^\"]*\)\"/\1/p" "$SOLANA_DIR/Anchor.toml" | tail -1

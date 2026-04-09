@@ -1,4 +1,4 @@
-# Specification: [006] Fairness Backend — Coinflip MVP
+# Specification: [006] Fairness Backend — FlipYou MVP
 
 ## Meta
 
@@ -19,7 +19,7 @@ client-side (dev-mode) for some flows — this service moves secret generation t
 server, co-signs creation transactions, watches for rounds that have reached their stored
 entropy target, and settles them by revealing the secret on-chain.
 
-Coinflip is the proven MVP path. Lord of the RNGs now follows the same backend-assisted
+FlipYou is the proven MVP path. Lord of the RNGs now follows the same backend-assisted
 pattern, with a game-specific timing contract: countdown starts when two distinct wallets
 have entered, the round closes by wall time without a separate lock tx, and the backend
 submits one settlement tx after the precomputed entropy slot.
@@ -41,25 +41,25 @@ submits one settlement tx after the precomputed entropy slot.
 
 ## Scope Alignment
 
-- **`docs/SCOPE.md` references**: Coinflip (Phase 1), Backend Services
+- **`docs/SCOPE.md` references**: FlipYou (Phase 1), Backend Services
 - **Scope status**: V1 In Scope
-- **Phase boundary**: Phase 1 — required before coinflip can leave dev-mode fairness
+- **Phase boundary**: Phase 1 — required before flipyou can leave dev-mode fairness
 
 ## Required Context Files
 
 - `docs/specs/005-hybrid-fairness/spec.md` — On-chain commit-reveal + slot hash model
 - `docs/FOUNDATIONS.md` — Architecture patterns, testing strategy
 - `docs/DECISIONS.md` — VRF provider decision, fee structure
-- `solana/programs/coinflip/src/instructions/create_match.rs` — Account layout, signer requirements
-- `solana/programs/coinflip/src/instructions/settle.rs` — Permissionless settlement, account layout, event shape
-- `solana/programs/coinflip/src/state.rs` — `CoinflipMatch` fields, phases, `MatchSettled` event
+- `solana/programs/flipyou/src/instructions/create_match.rs` — Account layout, signer requirements
+- `solana/programs/flipyou/src/instructions/settle.rs` — Permissionless settlement, account layout, event shape
+- `solana/programs/flipyou/src/state.rs` — `FlipYouMatch` fields, phases, `MatchSettled` event
 - `solana/shared/src/fairness.rs` — `verify_commitment()`, `derive_result()`, `ALGORITHM_VERSION`
 - `solana/shared/src/fees.rs` — `calculate_net_payout()` (fee_bps read from PlatformConfig)
 
 ## Contract Files
 
 - `backend/packages/fairness/src/commitment.ts` — `computeCommitment()`, `verifyCommitment()` (reuse in backend)
-- `backend/packages/anchor-client/src/coinflip.json` — Typed IDL for tx building
+- `backend/packages/anchor-client/src/flipyou.json` — Typed IDL for tx building
 
 ---
 
@@ -89,8 +89,8 @@ internal modules:
 └─────────────────────────────────────────────┘
 ```
 
-**Signing Module** — Handles `POST /fairness/coinflip/create`. Generates secret,
-computes commitment, builds the `create_match` transaction using the coinflip IDL,
+**Signing Module** — Handles `POST /fairness/flipyou/create`. Generates secret,
+computes commitment, builds the `create_match` transaction using the flipyou IDL,
 partially signs with the server keypair, returns the serialized transaction to the caller.
 
 **Settlement Worker** — Polls for matches in PHASE_LOCKED where `target_slot` has been
@@ -153,7 +153,7 @@ Two tables — `rounds` for state, `operator_events` for append-only audit trail
 | Column | Type | Notes |
 |--------|------|-------|
 | `pda` | `TEXT PRIMARY KEY` | Base58 match PDA address |
-| `game` | `TEXT NOT NULL` | `'coinflip'` (extensible later) |
+| `game` | `TEXT NOT NULL` | `'flipyou'` (extensible later) |
 | `creator` | `TEXT NOT NULL` | Base58 creator wallet |
 | `server_key` | `TEXT NOT NULL` | Base58 server pubkey used |
 | `secret` | `BYTEA NOT NULL` | 32-byte server secret |
@@ -199,7 +199,7 @@ The service generates a cryptographically secure secret, computes the commitment
 builds a `create_match` transaction with the server's partial signature, and returns it
 to the requesting wallet for co-signing and submission.
 
-**Endpoint**: `POST /fairness/coinflip/create`
+**Endpoint**: `POST /fairness/flipyou/create`
 
 **Authentication**: JWT Bearer token (see FR-5). The backend reads `userId` from the
 JWT `sub` claim, resolves the wallet from the player profile, and cross-checks it against
@@ -228,7 +228,7 @@ the `wallet` field in the request body.
 **Acceptance Criteria:**
 - [x] Secret is 32 bytes generated via Node.js `crypto.randomBytes(32)` (CSPRNG) <!-- satisfied: fairness.ts:10 — randomBytes(32) from node:crypto -->
 - [x] Commitment is computed using the same algorithm as `packages/fairness/src/commitment.ts` (`sha256(secret)`) <!-- satisfied: fairness.ts:18 — createHash("sha256").update(secret).digest(); cross-checked in fairness.test.ts -->
-- [x] Transaction is built using the coinflip IDL (`create_match` instruction) with correct accounts and args, passing `amountLamports` (not tier). Instruction data is 57 bytes: 8 disc + 32 commitment + 8 amount u64 LE + 1 side + 8 matchId <!-- satisfied: tx-builder.ts:56-80 — encodeCreateMatchData produces 57-byte buffer -->
+- [x] Transaction is built using the flipyou IDL (`create_match` instruction) with correct accounts and args, passing `amountLamports` (not tier). Instruction data is 57 bytes: 8 disc + 32 commitment + 8 amount u64 LE + 1 side + 8 matchId <!-- satisfied: tx-builder.ts:56-80 — encodeCreateMatchData produces 57-byte buffer -->
 - [x] Server keypair partially signs the transaction (server appears as `server: Signer`) <!-- satisfied: tx-builder.ts:96 isSigner:true + tx-builder.ts:120 tx.partialSign(serverKeypair) -->
 - [x] User's wallet is set as fee payer — server pays zero on-chain cost for creation <!-- satisfied: tx-builder.ts:113 — feePayer: creator -->
 - [x] Secret is stored in the `rounds` table keyed by match PDA before the response is returned <!-- satisfied: routes/create.ts:140-151 — db.insertRound({...secret...}) before response at line 172 -->
@@ -243,7 +243,7 @@ A background process that detects locked matches and submits settlement transact
 once entropy is available.
 
 **Acceptance Criteria:**
-- [x] Worker polls the chain (via `getProgramAccounts`) for `CoinflipMatch` accounts in `PHASE_LOCKED` where the `server` field matches the service's keypair. Account size: 247 bytes. Offsets: server@72, phase@113, target_slot@147 <!-- satisfied: worker/settlement.ts:14-17 — ACCOUNT_SIZE=247, SERVER_OFFSET=72, PHASE_OFFSET=113, TARGET_SLOT_OFFSET=147; settlement.ts:53-69 — getProgramAccounts with memcmp filters -->
+- [x] Worker polls the chain (via `getProgramAccounts`) for `FlipYouMatch` accounts in `PHASE_LOCKED` where the `server` field matches the service's keypair. Account size: 247 bytes. Offsets: server@72, phase@113, target_slot@147 <!-- satisfied: worker/settlement.ts:14-17 — ACCOUNT_SIZE=247, SERVER_OFFSET=72, PHASE_OFFSET=113, TARGET_SLOT_OFFSET=147; settlement.ts:53-69 — getProgramAccounts with memcmp filters -->
 - [x] For each locked match, worker checks if `target_slot` has been reached (current slot >= target_slot) <!-- satisfied: worker/settlement.ts:95 — BigInt(currentSlot) >= targetSlot -->
 - [x] Worker retrieves the stored secret from the `rounds` table using the match PDA <!-- satisfied: worker/settle-tx.ts:137 — db.getRoundByPda(pda), line 147 reads round.secret -->
 - [x] Worker builds and submits the `settle` instruction with the secret, all required accounts (caller, match PDA, config, entropy, treasury, creator, opponent, system_program — 8 accounts, no profiles or platform_program CPI), and the server keypair as caller. Uses parallel RPC calls (`Promise.all` for getAccountInfo × 3 + getLatestBlockhash) <!-- satisfied: worker/settle-tx.ts:150-158 — Promise.all for 4 parallel fetches; settle-tx.ts:199-216 — 8 accounts in IDL order, signed with serverKeypair -->
@@ -279,7 +279,7 @@ Public endpoint serving round lifecycle data and post-settlement verification pa
 ```json
 {
   "pda": "<base58>",
-  "game": "coinflip",
+  "game": "flipyou",
   "phase": "settled",
   "commitment": "<hex>",
   "secret": "<hex>",
@@ -322,7 +322,7 @@ is the active authentication middleware.
 5. Backend reads `userId` from JWT `sub` and resolves wallet from the player profile via `db.getProfileByUserId(userId)` — no wallet claim in JWT, no per-request wallet signature needed
 
 **Acceptance Criteria:**
-- [x] `POST /fairness/coinflip/create` requires a valid JWT Bearer token in the `Authorization` header <!-- satisfied: middleware/jwt-auth.ts wired at index.ts:65-68 on /fairness/* -->
+- [x] `POST /fairness/flipyou/create` requires a valid JWT Bearer token in the `Authorization` header <!-- satisfied: middleware/jwt-auth.ts wired at index.ts:65-68 on /fairness/* -->
 - [x] JWT is verified as HS256, `sub` (`userId`) is extracted as the canonical request identity, and wallet is resolved from player profile <!-- satisfied: middleware/jwt-auth.ts — jwtVerify with HS256, c.set("userId", payload.sub); wallet resolved via db.getProfileByUserId(userId) -->
 - [x] Create endpoint cross-checks the profile-resolved wallet against the `wallet` field in the request body (defense-in-depth) <!-- satisfied: routes/create.ts — resolved wallet !== body.wallet → 403 -->
 - [x] Requests with missing, malformed, or expired tokens return 401 Unauthorized <!-- satisfied: middleware/jwt-auth.ts:26-30 (missing), jwt-auth.ts:48-53 (invalid/expired). Tests: auth.test.ts, endpoints.test.ts -->
@@ -366,7 +366,7 @@ Operational endpoints and structured logging for monitoring service health.
 Per-userId and global rate limits to prevent abuse of the create endpoint.
 
 **Acceptance Criteria:**
-- [x] `POST /fairness/coinflip/create` is rate-limited per userId (default: 10 requests per minute) <!-- satisfied: middleware/rate-limit.ts:74-86 per-userId window; config.ts:45-48 RATE_LIMIT_PER_WALLET default 10 -->
+- [x] `POST /fairness/flipyou/create` is rate-limited per userId (default: 10 requests per minute) <!-- satisfied: middleware/rate-limit.ts:74-86 per-userId window; config.ts:45-48 RATE_LIMIT_PER_WALLET default 10 -->
 - [x] A global rate limit caps total create requests (default: 100 requests per minute) <!-- satisfied: middleware/rate-limit.ts:56-60 global window; config.ts:49-52 RATE_LIMIT_GLOBAL default 100 -->
 - [x] Rate limiting is in-memory (no Redis dependency for MVP) <!-- satisfied: middleware/rate-limit.ts:44-45 — Map + SlidingWindow object, no external deps -->
 - [x] Exceeded limits return HTTP 429 with a `Retry-After` header <!-- satisfied: middleware/rate-limit.ts:58-59 (global) and 82-83 (per-userId) — Retry-After header + 429. Test: rate-limit.test.ts -->
@@ -389,15 +389,15 @@ Per-userId and global rate limits to prevent abuse of the create endpoint.
 ## Dependencies
 
 - Spec 005 (Hybrid Fairness) — on-chain commit-reveal model must be implemented. **Spec 005 must set timeout to 300s** (not 120s) so that if the backend is down, players get a permissionless refund. The backend requires server co-sign for new games, so no new matches can be created during downtime anyway — timeout refund is the complete safety net.
-- Coinflip program deployed with `server: Signer` on `create_match` and permissionless `settle`
+- FlipYou program deployed with `server: Signer` on `create_match` and permissionless `settle`
 - `packages/fairness/` — `computeCommitment()` and `verifyCommitment()` functions
-- `packages/anchor-client/src/coinflip.json` — Typed IDL for transaction building
+- `packages/anchor-client/src/flipyou.json` — Typed IDL for transaction building
 - Postgres instance (local Docker for dev, managed for production)
 - Solana RPC endpoint with `getProgramAccounts` support
 
 ## Assumptions
 
-- The on-chain coinflip program is already deployed with the Spec 005 commit-reveal model
+- The on-chain flipyou program is already deployed with the Spec 005 commit-reveal model
 - A single server keypair is sufficient for MVP (no key rotation during operation)
 - In-memory rate limiting is acceptable (service restarts reset counters)
 - Postgres is the only external dependency (no Redis, no message queue)
@@ -410,7 +410,7 @@ Per-userId and global rate limits to prevent abuse of the create endpoint.
 
 | Item | Rationale |
 |------|-----------|
-| Multi-game support (Crash, Lord of RNGs, Slots) | Prove the model on coinflip first; each game has different entropy capture timing |
+| Multi-game support (Crash, Lord of RNGs, Slots) | Prove the model on flipyou first; each game has different entropy capture timing |
 | Key rotation / split authorities | Single keypair is fine for MVP; add when operational maturity requires it |
 | WebSocket push for settlement notifications | Frontend already polls on-chain state; adding WS is a UX optimization, not a blocker |
 | Redis-backed rate limiting | In-memory is sufficient until horizontal scaling is needed |
@@ -456,14 +456,14 @@ Per-userId and global rate limits to prevent abuse of the create endpoint.
 #### Core Signing Module
 - [x] [backend] Secret generation + commitment utilities (`src/fairness.ts`): generate 32-byte secret via `crypto.randomBytes(32)`, compute commitment using same algorithm as `packages/fairness/src/commitment.ts` (sha256). PDA derivation matching on-chain seeds `["match", creator, matchId]` where `matchId` is a backend-generated random 8-byte ID. Export typed functions. Add unit tests in `src/__tests__/fairness.test.ts`. (done: iteration 4)
 - [x] [backend] Partial transaction builder (`src/tx-builder.ts`): build `create_match` instruction with raw Borsh encoding (57 bytes: 8 disc + 32 commitment + 8 amount u64 LE + 1 side + 8 matchId), set creator wallet as fee payer, server keypair as `server` signer. Partially sign with server keypair. Return base64-serialized transaction + match PDA + lastValidBlockHeight. Fetch recent blockhash at build time. (done: tx-builder.ts)
-- [x] [backend] `POST /fairness/coinflip/create` endpoint handler (`src/routes/create.ts`): validate request body, generate secret, compute commitment, derive PDA, check for duplicate PDA in DB (409 Conflict), build + partial-sign tx, store round in DB (phase `created`), write `secret_generated` operator event, return `{transaction, matchPda, commitment}`. Wire into Hono router. (done: iteration 6)
+- [x] [backend] `POST /fairness/flipyou/create` endpoint handler (`src/routes/create.ts`): validate request body, generate secret, compute commitment, derive PDA, check for duplicate PDA in DB (409 Conflict), build + partial-sign tx, store round in DB (phase `created`), write `secret_generated` operator event, return `{transaction, matchPda, commitment}`. Wire into Hono router. (done: iteration 6)
 
 #### Authentication & Rate Limiting
 - [x] [backend] JWT auth middleware (`src/middleware/jwt-auth.ts`): verify HS256 JWT Bearer token on POST requests. Extract `userId` from `sub` claim, set on request context; wallet resolved from player profile when needed. Skip for GET routes. Old Ed25519 per-request signature middleware (`src/middleware/auth.ts`) retained but not mounted. Auth endpoints (`/auth/*`: challenge, verify, refresh, logout) in `src/routes/auth.ts` with challenge DB in `src/auth-db.ts`. (done: jwt-auth.ts + auth.ts routes)
 - [x] [backend] Rate limiting middleware (`src/middleware/rate-limit.ts`): in-memory sliding window, per-userId limit (default 10/min via `RATE_LIMIT_PER_WALLET`), global limit (default 100/min via `RATE_LIMIT_GLOBAL`). Return 429 with `Retry-After` header. Apply only to POST routes. Counters reset on service restart (acceptable for MVP). (done: iteration 8)
 
 #### Settlement Worker
-- [x] [backend] Settlement worker poll loop (`src/worker/settlement.ts`): poll chain via `getProgramAccounts` for `CoinflipMatch` accounts in `PHASE_LOCKED` where `server` field matches service keypair. Check `target_slot` reached (current slot >= target_slot). Configurable poll interval (default 1s via `WORKER_POLL_INTERVAL_MS`). Start worker on service boot. Log `match_detected` operator event for newly discovered locked matches. (done: iteration 9)
+- [x] [backend] Settlement worker poll loop (`src/worker/settlement.ts`): poll chain via `getProgramAccounts` for `FlipYouMatch` accounts in `PHASE_LOCKED` where `server` field matches service keypair. Check `target_slot` reached (current slot >= target_slot). Configurable poll interval (default 1s via `WORKER_POLL_INTERVAL_MS`). Start worker on service boot. Log `match_detected` operator event for newly discovered locked matches. (done: iteration 9)
 - [x] [backend] Settle transaction builder + submission (`src/worker/settle-tx.ts`): retrieve secret from `rounds` table by PDA, build `settle` instruction with 8 accounts (caller, match PDA, config PDA, entropy account, treasury, creator, opponent, system_program — no profiles or platform_program CPI). Uses `Promise.all` for parallel RPC fetches (getAccountInfo × 3 + getLatestBlockhash). Entropy account address configurable via `ENTROPY_ACCOUNT` env var (mock for tests, SlotHashes sysvar for production). Submit with server keypair as caller. On success: update DB phase to `settled`, store `settle_tx`, `result_hash`, `result_side`, `winner`. Log `settle_submitted` / `settle_confirmed` operator events. (done: iteration 10)
 - [x] [backend] Settlement retry logic (`src/worker/retry.ts`): on transient failure (tx dropped, blockhash expired, network error), retry up to 5 times with exponential backoff (base 2s, max 30s). On permanent failure (commitment mismatch, invalid phase, account not found), mark round as failed, log `settle_failed` operator event, do not retry. If `resolve_deadline` passed without settlement, log `timeout_detected` event (on-chain refund is user-triggered, not backend-triggered). Log `settle_retried` on each retry attempt. (done: iteration 11)
 
@@ -547,28 +547,28 @@ After the spec loop outputs `<promise>DONE</promise>`, `spec-loop.sh` automatica
 ### Backend
 
 - **Endpoints**:
-  - `POST /fairness/coinflip/create` -- generate secret, build co-signed create_match tx (JWT auth)
+  - `POST /fairness/flipyou/create` -- generate secret, build co-signed create_match tx (JWT auth)
   - `POST /fairness/lord/create` -- generate secret, build co-signed create_lord_round tx (JWT auth)
   - `GET  /fairness/lord/current` -- active Lord round with on-chain enrichment
   - `GET  /fairness/rounds/:pda` -- round lifecycle + post-settlement verification payload
-  - `GET  /fairness/rounds/by-id/:matchId` -- lookup by match_id (coinflip/lord hex or closecall numeric)
+  - `GET  /fairness/rounds/by-id/:matchId` -- lookup by match_id (flipyou/lord hex or closecall numeric)
   - `GET  /fairness/rounds/history?game=<game>&limit=<n>` -- recent settled rounds
   - `POST /closecall/bet` -- co-sign a Close Call bet tx (JWT auth)
   - `GET  /closecall/current-round` -- active round from on-chain
   - `GET  /closecall/history?limit=<n>` -- last N settled/refunded rounds
   - `GET  /closecall/candles?limit=<n>` -- minute-boundary BTC price candles
 - **DB Tables**:
-  - `rounds` (PK: `pda`) -- commit-reveal round state for coinflip + lord. Key columns: `game`, `creator`, `secret`, `commitment`, `amount_lamports`, `side`, `match_id`, `phase`, `target_slot`, `settle_tx`, `result_hash`, `result_side`, `winner`, `entries`
+  - `rounds` (PK: `pda`) -- commit-reveal round state for flipyou + lord. Key columns: `game`, `creator`, `secret`, `commitment`, `amount_lamports`, `side`, `match_id`, `phase`, `target_slot`, `settle_tx`, `result_hash`, `result_side`, `winner`, `entries`
   - `closecall_rounds` (PK: `round_id`) -- pari-mutuel rounds. Key columns: `pda`, `phase`, `open_price`, `close_price`, `outcome`, `green_pool`, `red_pool`, `green_entries`, `red_entries`, `settle_tx`
   - `operator_events` (PK: `id`) -- append-only audit trail. Key columns: `pda`, `event_type`, `payload`
   - `closecall_candles` (PK: `minute_ts`) -- cached Hermes BTC boundary prices
 - **Key Files**:
-  - `services/backend/src/routes/create.ts` -- coinflip create endpoint
+  - `services/backend/src/routes/create.ts` -- flipyou create endpoint
   - `services/backend/src/routes/lord-create.ts` -- lord create + current round endpoints
   - `services/backend/src/routes/rounds.ts` -- round verification/lookup endpoints
   - `services/backend/src/routes/closecall.ts` -- Close Call bet + read endpoints
   - `services/backend/src/worker/settlement.ts` -- poll-based settlement worker (discovers locked rounds)
-  - `services/backend/src/worker/settle-tx.ts` -- settlement tx builder + submission (coinflip `settleMatch`, lord `settleLordRound`, closecall ix builders)
+  - `services/backend/src/worker/settle-tx.ts` -- settlement tx builder + submission (flipyou `settleMatch`, lord `settleLordRound`, closecall ix builders)
   - `services/backend/src/worker/pda-watcher.ts` -- WebSocket PDA subscription for instant join/lock detection
   - `services/backend/src/worker/closecall-clock.ts` -- minute-boundary price capture + Close Call settlement
   - `services/backend/src/worker/retry.ts` -- retry logic for transient settlement failures
@@ -594,7 +594,7 @@ After the spec loop outputs `<promise>DONE</promise>`, `spec-loop.sh` automatica
 ## Deferred Items
 
 - **Privileged historical entropy submission**: Allow backend to submit historical slot hash and settle matches that missed the ~200s SlotHashes window. Requires on-chain trusted caller + slot hash verification
-- **Multi-game support** (Crash, Lord of RNGs, Slots): Prove the model on coinflip first; each game has different entropy capture timing
+- **Multi-game support** (Crash, Lord of RNGs, Slots): Prove the model on flipyou first; each game has different entropy capture timing
 - **Key rotation / split authorities**: Single keypair fine for MVP; add when operational maturity requires it
 - **WebSocket push for settlement notifications**: Frontend already polls on-chain state; WS is a UX optimization
 - **Redis-backed rate limiting**: In-memory sufficient until horizontal scaling needed

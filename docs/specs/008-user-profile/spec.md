@@ -55,7 +55,7 @@ No on-chain footprint. No social accounts (X/Discord) — deferred TBD.
 ## Required Context Files
 
 - `services/backend/src/db.ts` — DB client & query functions
-- `services/backend/src/worker/settle-tx.ts` — settlement write path (coinflip + lord)
+- `services/backend/src/worker/settle-tx.ts` — settlement write path (flipyou + lord)
 - `services/backend/src/worker/closecall-clock.ts` — closecall settlement write path (settleRound function)
 - `services/backend/src/routes/` — existing route patterns
 - `services/backend/migrations/` — migration files (see Developer Reference below)
@@ -91,7 +91,7 @@ for displaying transaction history. Stats and leaderboard use
 | `id` | `BIGINT GENERATED ALWAYS AS IDENTITY` | PK | Auto-increment |
 | `user_id` | `TEXT` | | Player user_id (nullable — backfillable) |
 | `wallet` | `TEXT` | NOT NULL | Player wallet address |
-| `game` | `TEXT` | NOT NULL, CHECK | `coinflip`, `lord`, `closecall` |
+| `game` | `TEXT` | NOT NULL, CHECK | `flipyou`, `lord`, `closecall` |
 | `match_id` | `TEXT` | NOT NULL | Links to rounds/closecall_rounds |
 | `tx_type` | `TEXT` | NOT NULL, CHECK | `deposit`, `payout`, `refund` |
 | `amount_lamports` | `BIGINT` | NOT NULL | SOL amount moved |
@@ -113,8 +113,8 @@ Two tables are written during the game lifecycle:
 2. **`transactions`** — real on-chain SOL movements. Written at settlement
    only (deposit/payout/refund with `tx_sig`). Used for transaction history API.
 
-**Coinflip** (commit-reveal, 1v1):
-- **Participation**: Creator's `game_entry` written at `POST /coinflip/create`.
+**FlipYou** (commit-reveal, 1v1):
+- **Participation**: Creator's `game_entry` written at `POST /flipyou/create`.
 - **Settlement**: UPSERT both entries (creator update, opponent insert) with
   `is_winner`, `payout_lamports`, `settled_at`. Insert payout `transaction`
   for winner.
@@ -130,18 +130,18 @@ Two tables are written during the game lifecycle:
 - **Settlement**: UPSERT entries with results. Refund rounds: `is_winner = NULL`,
   `payout_lamports = amount_lamports`. Non-refund: computed pari-mutuel payouts.
 
-**Game name mapping**: DB stores `coinflip`, `lord`, `closecall`. API maps to
+**Game name mapping**: DB stores `flipyou`, `lord`, `closecall`. API maps to
 frontend `GameId`: `lord` → `lord-of-rngs`, `closecall` → `close-call`.
 
 **Acceptance Criteria:**
-- [x] Coinflip: creator game_entry written at create time <!-- satisfied: routes/create.ts — upsertGameEntry after insertRound -->
-- [x] Coinflip: both entries UPSERT'd at settlement with results <!-- satisfied: worker/settle-tx.ts — upsertGameEntries with getOrCreateProfile for opponent -->
+- [x] FlipYou: creator game_entry written at create time <!-- satisfied: routes/create.ts — upsertGameEntry after insertRound -->
+- [x] FlipYou: both entries UPSERT'd at settlement with results <!-- satisfied: worker/settle-tx.ts — upsertGameEntries with getOrCreateProfile for opponent -->
 - [x] Lord: creator game_entry written at create time <!-- satisfied: routes/lord-create.ts — upsertGameEntry after insertRound -->
 - [x] Lord: all entries UPSERT'd at settlement <!-- satisfied: worker/settle-tx.ts — upsertGameEntries with profileMap for all players -->
 - [x] Close Call: bettor game_entry written at bet time <!-- satisfied: routes/closecall.ts — upsertGameEntry in /bet handler -->
 - [x] Close Call: entries UPSERT'd at settlement (including refund handling) <!-- satisfied: worker/closecall-clock.ts — withTransaction, upsertGameEntries -->
 - [x] Transaction rows written for real SOL movements at settlement <!-- satisfied: insertTransactions in settle-tx.ts and closecall-clock.ts -->
-- [x] `match_id` links back to the correct round <!-- satisfied: coinflip/lord use round.match_id; closecall uses roundId -->
+- [x] `match_id` links back to the correct round <!-- satisfied: flipyou/lord use round.match_id; closecall uses roundId -->
 - [x] No duplicate entries (idempotent via UPSERT) <!-- satisfied: UNIQUE(wallet, round_pda) + ON CONFLICT DO UPDATE -->
 
 ### FR-3: API Endpoint — Transaction History
@@ -155,14 +155,14 @@ GET /profile/transactions?cursor=<id>&limit=<n>&game=<filter>
   enumeration.
 - **Pagination**: Cursor-based using `id` (descending). Default limit 20,
   max 50.
-- **Filtering**: Optional `game` query param (`coinflip`, `lord`, `closecall`).
+- **Filtering**: Optional `game` query param (`flipyou`, `lord`, `closecall`).
 - **Response shape**:
   ```json
   {
     "transactions": [
       {
         "id": 123,
-        "game": "coinflip",
+        "game": "flipyou",
         "matchId": "a1b2c3d4e5f67890",
         "txType": "payout",
         "amountLamports": "5000000",
@@ -192,7 +192,7 @@ Replace mock transaction data in the profile page with real API calls.
 - Infinite scroll or "load more" pagination using `nextCursor`.
 - Show loading skeleton while fetching.
 - Show empty state when no transactions exist.
-- Each row links to the match deep-link page (`/coinflip/:matchId`,
+- Each row links to the match deep-link page (`/flipyou/:matchId`,
   `/lord-of-rngs/:matchId`, `/close-call/:matchId`).
 
 **Acceptance Criteria:**
@@ -364,7 +364,7 @@ All profile interaction points for the frontend.
       "winStreakBest": 7,
       "netPnl": "5000000000",
       "gameBreakdown": {
-        "coinflip": { "gamesPlayed": 20, "totalWins": 11, "winRate": 0.55, "totalWagered": "...", "netPnl": "..." },
+        "flipyou": { "gamesPlayed": 20, "totalWins": 11, "winRate": 0.55, "totalWagered": "...", "netPnl": "..." },
         "lord-of-rngs": { ... },
         "close-call": { ... }
       }
@@ -423,7 +423,7 @@ All profile interaction points for the frontend.
 ## Dependencies
 
 - JWT auth system (spec 007 — already shipped)
-- Settlement worker (coinflip + lord + closecall — already shipped)
+- Settlement worker (flipyou + lord + closecall — already shipped)
 - PDA watcher for join detection (already shipped)
 - `game_entries` table (consolidated migration 001_init.sql — single source of truth)
 - `transactions` table (SOL movement audit trail — still used for `/profile/transactions` endpoint)
@@ -467,8 +467,8 @@ Written at participation time (create/bet), updated at settlement via UPSERT.
 
 | Game | Actor | When | File |
 |------|-------|------|------|
-| Coinflip creator | Participation | `POST /coinflip/create` | `routes/create.ts` |
-| Coinflip joiner | Settlement | `settleMatch()` | `worker/settle-tx.ts` |
+| FlipYou creator | Participation | `POST /flipyou/create` | `routes/create.ts` |
+| FlipYou joiner | Settlement | `settleMatch()` | `worker/settle-tx.ts` |
 | Lord creator | Participation | `POST /lord/create` | `routes/lord-create.ts` |
 | Lord joiners | Settlement | `settleLordRound()` | `worker/settle-tx.ts` |
 | Close Call bettor | Participation | `POST /closecall/bet` | `routes/closecall.ts` |
@@ -481,7 +481,7 @@ existing participation entries with results, inserts new entries for joiners.
 
 | Table | PK | Purpose |
 |-------|----|---------|
-| `rounds` | `pda` | Commit-reveal rounds (coinflip + lord) |
+| `rounds` | `pda` | Commit-reveal rounds (flipyou + lord) |
 | `closecall_rounds` | `round_id` | Pari-mutuel rounds (oracle-resolved) |
 | `game_entries` | `id` | Participation + stats. Has `user_id`, `wallet`, `game`, `side`, `is_winner`, `payout_lamports`, `settled_at` |
 | `transactions` | `id` | Real on-chain SOL movements (deposit/payout/refund). Has `tx_sig` |
@@ -502,7 +502,7 @@ existing participation entries with results, inserts new entries for joiners.
 | # | Acceptance Criterion | Validation Method | Evidence Required |
 |---|---------------------|-------------------|-------------------|
 | 1 | Migration creates table + indexes | Run `pnpm migrate` on fresh + existing DB | Migration status shows applied |
-| 2 | Settlement writes correct rows | Settle a coinflip match on devnet, query table | Row with correct wallet, game, event, amount, tx_sig |
+| 2 | Settlement writes correct rows | Settle a flipyou match on devnet, query table | Row with correct wallet, game, event, amount, tx_sig |
 | 3 | API returns own transactions only | Call endpoint with two different JWTs | Each sees only their own rows |
 | 4 | Pagination works | Insert > 20 rows, paginate | Second page returns remaining rows |
 | 5 | Frontend displays real data | Play a game, check profile page | Transaction appears with correct details |
@@ -529,12 +529,12 @@ existing participation entries with results, inserts new entries for joiners.
 ### Implementation Checklist
 
 - [x] [engine] Migration `007_user_transactions.sql` — create table with schema from FR-1 (id, wallet, game, match_id, event, amount_lamports, tx_sig, created_at) + indexes `idx_user_tx_wallet_created` and `idx_user_tx_match_id` + UNIQUE constraint on `(wallet, match_id, event)` for idempotency. Add `insertUserTransaction()` and `getUserTransactions(wallet, cursor?, limit?, game?)` query functions to `db.ts`. Verify migration runs cleanly: `cd services/backend && pnpm migrate:status`. (done: iteration 1)
-- [x] [engine] Coinflip write paths — (a) In `src/routes/create.ts`: after inserting round into DB, write a `join` row for the creator (wallet = creator, game = "coinflip", amount_lamports = wager). (b) In `src/worker/pda-watcher.ts` `handleCoinflipChange()`: after lock detection (~line 113), read opponent from on-chain account, write a `join` row for the opponent. (c) In `src/worker/settle-tx.ts` `settleMatch()`: after `settle_confirmed` event (~line 286), write one `win` row (amount_lamports = payoutAmount) and one `loss` row (amount_lamports = original wager) with tx_sig. All writes use `ON CONFLICT DO NOTHING`. (done: iteration 2)
+- [x] [engine] FlipYou write paths — (a) In `src/routes/create.ts`: after inserting round into DB, write a `join` row for the creator (wallet = creator, game = "flipyou", amount_lamports = wager). (b) In `src/worker/pda-watcher.ts` `handleFlipYouChange()`: after lock detection (~line 113), read opponent from on-chain account, write a `join` row for the opponent. (c) In `src/worker/settle-tx.ts` `settleMatch()`: after `settle_confirmed` event (~line 286), write one `win` row (amount_lamports = payoutAmount) and one `loss` row (amount_lamports = original wager) with tx_sig. All writes use `ON CONFLICT DO NOTHING`. (done: iteration 2)
 - [x] [engine] Lord of the RNGs write paths — In `src/worker/settle-tx.ts` `settleLordRound()`: after `settle_confirmed` event (~line 466), write one `win` row for the winner (amount_lamports = payoutAmount) and one `loss` row per losing entry (amount_lamports = that entry's amountLamports). Entries array is available from `roundData.entries`. Game = "lord". No join rows for Lord (deferred — PDA watcher doesn't see individual entries). All writes use `ON CONFLICT DO NOTHING`. (done: iteration 3)
 - [x] [engine] Close Call write paths — In `src/worker/closecall-clock.ts` `settleRound()`: after DB settle update (~line 487), iterate `green_entries` and `red_entries` arrays. For each entry write: (a) one `join` row (amount_lamports = entry.amountLamports), (b) one outcome row — `win` (amount_lamports = computed payout) if entry is on winning side, `loss` (amount_lamports = entry.amountLamports) if losing side, or `refund` (amount_lamports = entry.amountLamports) if `isRefund`. Game = "closecall", match_id = round_id. Payout per winner = `(entryAmount / winningSidePool) * (totalPool - fee)`. All writes use `ON CONFLICT DO NOTHING`. (done: iteration 4)
 - [x] [engine] API route `GET /profile/transactions` — Add `src/routes/profile.ts`, register at `/profile/transactions`. Require JWT auth middleware (reuse existing). Extract userId from JWT `sub`, resolve wallet from player profile. Query params: `cursor` (id, optional), `limit` (default 20, max 50), `game` (optional filter — accept both DB names and frontend names: `lord`/`lord-of-rngs`, `closecall`/`close-call`). Call `db.getUserTransactions()`. Map response: `game` field mapped to frontend names (`lord` → `lord-of-rngs`, `closecall` → `close-call`), `amountLamports` as string, `matchId` camelCase. Return `{ transactions: [...], nextCursor: string | null }`. (done: iteration 5)
 - [x] [engine] SOL/USD price endpoint — Add `GET /price/sol-usd` to backend. Fetch from Pyth Hermes REST API (SOL/USD feed ID: `0xef0d8b6fda2ceba41da15d4095d1da392a0d2f8ed0c6c7bc0f4cfac8c280b56d`). Cache in-memory with ~60s TTL. Response: `{ price: number, expo: number, updatedAt: string }`. No auth required (public endpoint). Reuse existing Hermes fetch patterns from `closecall-clock.ts`. (done: iteration 6)
-- [x] [frontend] Wire `ProfileTransactions` to real API — Update `ProfileTransaction` type in `types.ts` to match API shape: add `event` field (`join`/`win`/`loss`/`refund`), rename `outcome` → `event`, keep `gameId` mapped from API `game`. Create `useTransactions(cursor?, game?)` hook that calls `GET /profile/transactions` with auth header. Replace `getTransactions()` mock import in `ProfileTransactions.tsx` with the hook. Implement "Load more" button using `nextCursor`. Add loading skeleton and empty state. Each row links to deep-link page: `/coinflip/:matchId`, `/lord-of-rngs/:matchId`, `/close-call/:matchId` based on game. Display `join`/`win`/`loss`/`refund` event types with appropriate styling. (done: iteration 7)
+- [x] [frontend] Wire `ProfileTransactions` to real API — Update `ProfileTransaction` type in `types.ts` to match API shape: add `event` field (`join`/`win`/`loss`/`refund`), rename `outcome` → `event`, keep `gameId` mapped from API `game`. Create `useTransactions(cursor?, game?)` hook that calls `GET /profile/transactions` with auth header. Replace `getTransactions()` mock import in `ProfileTransactions.tsx` with the hook. Implement "Load more" button using `nextCursor`. Add loading skeleton and empty state. Each row links to deep-link page: `/flipyou/:matchId`, `/lord-of-rngs/:matchId`, `/close-call/:matchId` based on game. Display `join`/`win`/`loss`/`refund` event types with appropriate styling. (done: iteration 7)
 - [x] [frontend] SOL amount display with USD estimate — Fetch SOL/USD price from `GET /price/sol-usd` (create `useSolPrice()` hook, cache in React state, refresh every 60s). Convert lamports → SOL (`amount / 1e9`). Display as `"0.50 SOL (~$75.00)"`. If price unavailable, show SOL only (no error). Apply to all amount cells in `ProfileTransactions`. (done: iteration 8)
 - [x] [test] Add local deterministic E2E coverage for primary user flow(s) in `e2e/local/**` (or mark N/A with reason for non-web/non-interactive specs) (done: iteration 9)
 - [x] [test] Add visual route/state coverage in `e2e/visual/**`; run `pnpm test:visual` and update baselines only for intentional UI changes (done: iteration 10)
@@ -549,7 +549,7 @@ existing participation entries with results, inserts new entries for joiners.
 - [x] [engine] Profile creation hook in auth verify — in `services/backend/src/routes/auth.ts`, in the POST `/verify` handler: after successful signature verification (after the `nacl.sign.detached.verify` check) and before issuing tokens, add: `const profile = await deps.db.getProfileByWallet(body.wallet); if (!profile) { try { await deps.db.createPlayerProfile(body.wallet); } catch (e) { console.error("Profile creation failed:", e); } }`. This is fire-and-forget — auth success MUST NOT depend on profile creation succeeding. Update `AuthRoutesDeps` interface to include `db`. Verify: `cd services/backend && pnpm lint`. (done: iteration 16)
 - [x] [engine] Aggregate stats query — add `getPlayerStats(wallet: string)` to `db.ts`. Single SQL query against the `transactions` table: `gamesPlayed` = COUNT(DISTINCT match_id) WHERE tx_type='deposit', `totalWagered` = SUM(amount_lamports) WHERE tx_type='deposit', `totalWins` = COUNT(DISTINCT match_id) WHERE tx_type='payout', `winRate` = totalWins / gamesPlayed (0.0 if no games), `netPnl` = SUM(CASE WHEN tx_type IN ('payout','refund') THEN amount_lamports ELSE -amount_lamports END). Returns `{ gamesPlayed: number, totalWagered: bigint, totalWins: number, winRate: number, netPnl: bigint }`. Add `getPublicPlayerStats(wallet)` that calls getPlayerStats and returns only `{ gamesPlayed, totalWins, winRate }`. Verify: `cd services/backend && pnpm lint`. (done: iteration 17)
 - [x] [engine] Win streak computation — add `getWinStreaks(wallet: string)` to `db.ts`. Query approach: get all distinct match_ids for this wallet from `transactions`, determine outcome per match (has tx_type='payout' row = win, has 'deposit' but no 'payout' = loss, only 'refund' = skip). Order by MAX(created_at) DESC per match. Walk the ordered list: count consecutive wins from the most recent for `current`, track longest run for `best`. Refund-only matches are excluded. Returns `{ current: number, best: number }`. This can be done in SQL with window functions or in application code — implementer's choice. Verify: `cd services/backend && pnpm lint`. (done: iteration 18)
-- [x] [engine] Per-game breakdown query — add `getGameBreakdown(wallet: string)` to `db.ts`. Same computation as `getPlayerStats` but grouped by `game` column. Returns `Record<string, { gamesPlayed, totalWagered, totalWins, winRate, netPnl }>` keyed by frontend game name (map DB `lord` → `lord-of-rngs`, `closecall` → `close-call`, `coinflip` → `coinflip`). Games with zero activity are omitted from the result (not returned as zeroes). Verify: `cd services/backend && pnpm lint`. (done: iteration 19)
+- [x] [engine] Per-game breakdown query — add `getGameBreakdown(wallet: string)` to `db.ts`. Same computation as `getPlayerStats` but grouped by `game` column. Returns `Record<string, { gamesPlayed, totalWagered, totalWins, winRate, netPnl }>` keyed by frontend game name (map DB `lord` → `lord-of-rngs`, `closecall` → `close-call`, `flipyou` → `flipyou`). Games with zero activity are omitted from the result (not returned as zeroes). Verify: `cd services/backend && pnpm lint`. (done: iteration 19)
 - [x] [engine] `GET /profile/me` endpoint — add to `services/backend/src/routes/profile.ts` (already behind JWT middleware). Handler: get userId from `c.get("userId")` (JWT `sub`), resolve wallet via `db.getProfileByUserId(userId)`. If no profile, return 404 `{ error: "PROFILE_NOT_FOUND" }`. Fetch stats via `db.getPlayerStats(wallet)`, streaks via `db.getWinStreaks(wallet)`, breakdown via `db.getGameBreakdown(wallet)`. Assemble response per FR-9 shape: `{ userId, username, avatarUrl, heatMultiplier, pointsBalance (string), stats: { gamesPlayed, totalWagered (string), totalWins, winRate, winStreakCurrent, winStreakBest, netPnl (string), gameBreakdown }, usernameNextEditAt (null if username_updated_at is null, else +30 days ISO), createdAt }`. No `wallet` field anywhere. Verify: `cd services/backend && pnpm lint`. (done: iteration 20)
 - [x] [engine] `PUT /profile/username` endpoint — add to `services/backend/src/routes/profile.ts` (already behind JWT middleware). Handler: get userId from `c.get("userId")` (JWT `sub`), resolve wallet via profile lookup, parse body `{ username: string }`. Validate format: regex `^[a-zA-Z0-9_-]{3,20}$`, return 400 `{ error: "INVALID_FORMAT" }` if fails. Fetch current profile. Check cooldown: if `username_updated_at` is not null and less than 30 days ago, return 429 `{ error: "COOLDOWN_ACTIVE", nextEditAvailableAt }`. Call `db.updateUsername(wallet, username)`. On UNIQUE violation (case-insensitive index), return 409 `{ error: "USERNAME_TAKEN" }`. On success, return `{ username, nextEditAvailableAt }`. Verify: `cd services/backend && pnpm lint`. (done: iteration 21)
 - [x] [engine] `GET /public-profile/:identifier` endpoint — create `services/backend/src/routes/public-profile.ts`. Export `createPublicProfileRoutes(deps)` following the existing route factory pattern. Single GET `/:identifier` handler (no auth middleware). Resolve identifier via `db.getProfileByIdentifier(identifier)`. If not found, return 404 `{ error: "NOT_FOUND" }`. Fetch public stats via `db.getPublicPlayerStats(profile.wallet)`. Return FR-9 public shape: `{ userId, username, avatarUrl, heatMultiplier, stats: { gamesPlayed, totalWins, winRate }, createdAt }`. No `wallet` anywhere. Register in `index.ts`: `app.route("/public-profile", createPublicProfileRoutes({ db }))` — NO JWT middleware. Verify: `cd services/backend && pnpm lint`. (done: iteration 22)
@@ -581,7 +581,7 @@ The agent MUST complete ALL before outputting the completion signal:
 #### Smoke Test (Human-in-the-Loop)
 
 **Iteration 1:**
-- [ ] Settle a coinflip match → transaction appears in profile within seconds
+- [ ] Settle a flipyou match → transaction appears in profile within seconds
 - [ ] Settle a lord round → transaction appears in profile
 - [ ] Place a closecall bet + settle → join and result rows appear
 - [ ] Pagination loads older transactions correctly
@@ -639,11 +639,11 @@ After the spec loop outputs `<promise>DONE</promise>`, `spec-loop.sh` automatica
   - Waitlist signup (if applicable entry point exists) -- same logic
 
 - **Write Paths (Iteration 1)**:
-  - Coinflip settlement: `worker/settle-tx.ts` `settleMatch()` -- writes win + loss rows after `settle_confirmed`
+  - FlipYou settlement: `worker/settle-tx.ts` `settleMatch()` -- writes win + loss rows after `settle_confirmed`
   - Lord settlement: `worker/settle-tx.ts` `settleLordRound()` -- writes win row for winner + loss rows for all losers
   - Close Call settlement: `worker/closecall-clock.ts` `settleRound()` -- writes join + outcome (win/loss/refund) per entry
-  - Coinflip creator deposit: frontend reports via `POST /profile/confirm-tx` after tx confirmation
-  - Coinflip opponent join: `worker/pda-watcher.ts` on PHASE_LOCKED detection
+  - FlipYou creator deposit: frontend reports via `POST /profile/confirm-tx` after tx confirmation
+  - FlipYou opponent join: `worker/pda-watcher.ts` on PHASE_LOCKED detection
 
 - **Key Files**:
   - `services/backend/src/routes/profile.ts` -- transaction history + confirm-tx + profile/me + username (all behind JWT)
@@ -652,9 +652,9 @@ After the spec loop outputs `<promise>DONE</promise>`, `spec-loop.sh` automatica
   - `services/backend/src/utils/username-gen.ts` -- generateUserId() + generateUsername() pure functions
   - `services/backend/src/routes/price.ts` -- SOL/USD price endpoint (Pyth HermesClient)
   - `services/backend/src/db.ts` -- query functions (add: createPlayerProfile, getProfileByWallet, getProfileByIdentifier, updateUsername, getPlayerStats, getPublicPlayerStats)
-  - `services/backend/src/worker/settle-tx.ts` -- coinflip + lord settlement write paths
+  - `services/backend/src/worker/settle-tx.ts` -- flipyou + lord settlement write paths
   - `services/backend/src/worker/closecall-clock.ts` -- Close Call settlement write paths
-  - `services/backend/src/worker/pda-watcher.ts` -- opponent join detection (coinflip)
+  - `services/backend/src/worker/pda-watcher.ts` -- opponent join detection (flipyou)
   - `services/backend/migrations/009_transactions.sql` -- transactions table schema
   - `services/backend/migrations/013_player_profiles.sql` -- player profiles table schema
 
@@ -664,10 +664,10 @@ After the spec loop outputs `<promise>DONE</promise>`, `spec-loop.sh` automatica
 
 ### Iteration 1 (Transaction History)
 - **Amounts**: SOL + USD estimate (Pyth SOL/USD feed via Hermes REST API, 60s cache TTL)
-- **Refunds**: Close Call only — coinflip/lord refunds are permissionless on-chain, backend doesn't process them
+- **Refunds**: Close Call only — flipyou/lord refunds are permissionless on-chain, backend doesn't process them
 - **Lord joins**: Skipped — PDA watcher sees round state, not individual entries. Win/loss only at settlement
 - **Close Call joins**: Written at settlement time (not at /bet route) — avoids false positives from unsubmitted txs
-- **Coinflip joins**: Creator at create route, opponent at PDA watcher lock detection
+- **FlipYou joins**: Creator at create route, opponent at PDA watcher lock detection
 - **Game name mapping**: DB `lord`/`closecall` mapped to API `lord-of-rngs`/`close-call`
 - **Idempotency**: UNIQUE constraint on `(wallet, match_id, event)` with `ON CONFLICT DO NOTHING` on all write paths
 

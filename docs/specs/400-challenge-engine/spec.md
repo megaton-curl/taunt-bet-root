@@ -92,7 +92,7 @@ Extend the settlement workers to emit a `game.settled` event into the async even
 {
   roundId: string;          // match_id (hex)
   roundPda: string;         // on-chain PDA
-  game: "coinflip" | "lord" | "closecall";
+  game: "flipyou" | "lord" | "closecall";
   players: Array<{
     userId: string;
     wallet: string;
@@ -110,7 +110,7 @@ The event MUST be emitted within the same DB transaction as the settlement write
 
 **Acceptance Criteria:**
 - [x] `game.settled` event type added to `EventTypes` in `event-types.ts` <!-- satisfied: event-types.ts:11 -->
-- [x] `settle-tx.ts` emits `game.settled` within the settlement transaction for coinflip rounds <!-- satisfied: settle-tx.ts:442 inside withTransaction (lines 354-467) -->
+- [x] `settle-tx.ts` emits `game.settled` within the settlement transaction for flipyou rounds <!-- satisfied: settle-tx.ts:442 inside withTransaction (lines 354-467) -->
 - [x] `settle-tx.ts` emits `game.settled` within the settlement transaction for lord (jackpot) rounds <!-- satisfied: settle-tx.ts:729 inside withTransaction (lines 620-744) -->
 - [x] `closecall-clock.ts` emits `game.settled` within the settlement transaction for closecall rounds <!-- satisfied: closecall-clock.ts:611 inside withTransaction (lines 444-621) -->
 - [x] Event payload matches the schema above (all fields present, amounts as string-encoded lamports) <!-- satisfied: integration tests verify payload shape (iterations 1, 2) -->
@@ -194,7 +194,7 @@ CREATE TABLE challenges (
   title           TEXT NOT NULL,
   description     TEXT,
   action          TEXT NOT NULL,                 -- M1 adapter type: game_won, game_completed, lobby_filled
-  scope           TEXT NOT NULL DEFAULT 'any' CHECK (scope IN ('any', 'coinflip', 'lord', 'closecall')),
+  scope           TEXT NOT NULL DEFAULT 'any' CHECK (scope IN ('any', 'flipyou', 'lord', 'closecall')),
   condition       TEXT NOT NULL DEFAULT 'count', -- M1: count, unique_game_types
   threshold       INT NOT NULL,                  -- target value
   reward_type     TEXT NOT NULL CHECK (reward_type IN ('points', 'crate')),
@@ -231,7 +231,7 @@ CREATE TABLE progress_events (
   round_id            TEXT NOT NULL,             -- match_id from game.settled event
   user_id             TEXT NOT NULL,
   progress_delta      INT NOT NULL DEFAULT 1,    -- how much this event advanced progress
-  metadata            JSONB NOT NULL DEFAULT '{}', -- adapter context (e.g., {"game":"coinflip"} for unique_game_types)
+  metadata            JSONB NOT NULL DEFAULT '{}', -- adapter context (e.g., {"game":"flipyou"} for unique_game_types)
   created_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
   UNIQUE (assignment_id, round_id)               -- idempotency: same round can't count twice
 );
@@ -742,7 +742,7 @@ Internal endpoints for operators to manage campaigns, challenges, Dogpile events
 
 ## Success Criteria
 
-1. A player who plays 5 coinflip games in a day sees their "Play 5 games" daily challenge progress from 0/5 to 5/5 and transition to completed — without any manual action.
+1. A player who plays 5 flipyou games in a day sees their "Play 5 games" daily challenge progress from 0/5 to 5/5 and transition to completed — without any manual action.
 2. A player who completes all 3 daily challenges receives a bonus crate.
 3. A new player who has never played sees onboarding challenges guiding them through their first games.
 4. Points accumulate proportionally to wagered volume across all games.
@@ -794,10 +794,10 @@ Internal endpoints for operators to manage campaigns, challenges, Dogpile events
 Tightenings applied during spec review (2026-04-03). Rationale for each:
 
 ### 1. `progress_events.metadata` JSONB column added (FR-2)
-The `unique_game_types` condition requires knowing which game types have already been counted for an assignment. Without metadata, the adapter would need to join back to round data via `round_id` on every evaluation — fragile and slow. Storing `{"game":"coinflip"}` in the progress event lets the adapter query `SELECT DISTINCT metadata->>'game' FROM progress_events WHERE assignment_id = ?` directly. This is in the M1 critical path (onboarding step 3 and weekly "play every game type" both use `unique_game_types`).
+The `unique_game_types` condition requires knowing which game types have already been counted for an assignment. Without metadata, the adapter would need to join back to round data via `round_id` on every evaluation — fragile and slow. Storing `{"game":"flipyou"}` in the progress event lets the adapter query `SELECT DISTINCT metadata->>'game' FROM progress_events WHERE assignment_id = ?` directly. This is in the M1 critical path (onboarding step 3 and weekly "play every game type" both use `unique_game_types`).
 
 ### 2. `challenges.scope` CHECK constraint added (FR-2)
-Without validation, a typo like `'coinflp'` in seed data or admin API would silently create a challenge that never matches any settled game. The CHECK constraint (`scope IN ('any', 'coinflip', 'lord', 'closecall')`) catches this at insert time. When new game types ship, the constraint must be extended via migration — an acceptable cost vs silent misconfiguration.
+Without validation, a typo like `'coinflp'` in seed data or admin API would silently create a challenge that never matches any settled game. The CHECK constraint (`scope IN ('any', 'flipyou', 'lord', 'closecall')`) catches this at insert time. When new game types ship, the constraint must be extended via migration — an acceptable cost vs silent misconfiguration.
 
 ### 3. `challenges.eligible_if` JSONB column added (FR-2)
 The reference spec defined `EligibilityRule` (min_heat_tier, min_games_played) as a first-class entity. M1 doesn't need eligibility gating, but adding a JSONB column now is zero runtime cost and avoids a schema migration once targeted challenges are needed in M2. The engine ignores it in M1 (empty object = no rules). When eligibility logic is implemented, it reads this field — no DDL change required.
@@ -835,7 +835,7 @@ Each item is one autonomous iteration (one `claude -p` invocation). Tests are bu
 
 **Phase 0: Event Plumbing**
 
-- [x] [backend] Add `GAME_SETTLED`, `REWARD_POOL_FUND`, `POINTS_GRANT`, `CRATE_DROP`, `CRATE_SOL_PAYOUT` event types to `event-types.ts`. Emit `game.settled` event in `settle-tx.ts` within the existing settlement DB transaction for both coinflip and lord (jackpot) rounds — payload must match FR-1 schema (roundId, roundPda, game, players[], feeLamports, settledAt). Integration test: settle a coinflip round, verify `game.settled` event row in `event_queue` with correct payload shape; duplicate settlement retry produces duplicate event rows safely. Verify: `cd backend && pnpm lint && pnpm typecheck && pnpm test` (FR-1) (done: iteration 1)
+- [x] [backend] Add `GAME_SETTLED`, `REWARD_POOL_FUND`, `POINTS_GRANT`, `CRATE_DROP`, `CRATE_SOL_PAYOUT` event types to `event-types.ts`. Emit `game.settled` event in `settle-tx.ts` within the existing settlement DB transaction for both flipyou and lord (jackpot) rounds — payload must match FR-1 schema (roundId, roundPda, game, players[], feeLamports, settledAt). Integration test: settle a flipyou round, verify `game.settled` event row in `event_queue` with correct payload shape; duplicate settlement retry produces duplicate event rows safely. Verify: `cd backend && pnpm lint && pnpm typecheck && pnpm test` (FR-1) (done: iteration 1)
 
 - [x] [backend] Emit `game.settled` event in `closecall-clock.ts` within the closecall settlement transaction — same payload schema as FR-1 with `game: "closecall"`. Integration test: settle a closecall round, verify event row in queue with correct payload. Verify: `cd backend && pnpm lint && pnpm typecheck && pnpm test` (FR-1) (done: iteration 2)
 

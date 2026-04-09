@@ -14,7 +14,7 @@ Updated 2026-03-30 to reflect current decisions.
 | **Treasury wallet** | Receives all fees (500 bps / 5%) | Fee loss |
 | **RPC provider** | Relays transactions and account data | Censorship, delays (mitigated by fallback RPCs) |
 
-### Commit-Reveal Fairness (Coinflip, Jackpot)
+### Commit-Reveal Fairness (FlipYou, Jackpot)
 
 ```
 Server generates: secret (32 random bytes)
@@ -96,7 +96,7 @@ VRF (Orao) is optional for future games, not default infrastructure. See `DECISI
 
 | ID | Game | Resolution | Status | Notes |
 |----|------|-----------|--------|-------|
-| 001 | Coinflip | Commit-reveal + SlotHashes | **Shipped** | 2-player, winner-takes-all |
+| 001 | FlipYou | Commit-reveal + SlotHashes | **Shipped** | 2-player, winner-takes-all |
 | 101 | Jackpot (Lord of RNGs) | Commit-reveal + SlotHashes | **Shipped** | Weighted entries, jackpot pool |
 | 100 | Close Call | Pyth oracle (BTC/USD) | **Shipped** | Pari-mutuel, green/red binary |
 | 002 | Crash | TBD (commit-reveal + VRF seed?) | **Deferred** | Real-time multiplier, complex sync |

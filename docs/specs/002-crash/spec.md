@@ -14,7 +14,7 @@
 
 ## Overview
 
-Crash is a competitive P2P multiplayer game where players watch a multiplier climb from 1.00x and must cash out before it crashes. Within each amount-scoped pool, the player with the highest valid cashout wins that pool's entire prize. Rounds run in a continuous loop of betting, running, crashed, and winner reveal phases. This game is planned after the first two V1 games (Coinflip and Lord of the RNGs).
+Crash is a competitive P2P multiplayer game where players watch a multiplier climb from 1.00x and must cash out before it crashes. Within each amount-scoped pool, the player with the highest valid cashout wins that pool's entire prize. Rounds run in a continuous loop of betting, running, crashed, and winner reveal phases. This game is planned after the first two V1 games (FlipYou and Lord of the RNGs).
 
 ## User Stories
 
@@ -200,7 +200,7 @@ Players can verify crash points and commit-reveal proofs for any completed round
 - Shared UI components (PLAT-003)
 - Game engine package (PLAT-005) for round state machine
 - Real-time state sync infrastructure [NEEDS CLARIFICATION - WebSocket vs polling decision pending]
-- Coinflip (001) validates core settlement + fairness flows first
+- FlipYou (001) validates core settlement + fairness flows first
 
 ## Assumptions
 
@@ -315,9 +315,9 @@ If ANY check fails:
 ### Checklist Notes
 
 - Source material (CRASH.md) is very detailed for P2P mode; Classic house mode explicitly deferred
-- More blocking items than Coinflip due to real-time infrastructure decisions
+- More blocking items than FlipYou due to real-time infrastructure decisions
 - 11 functional requirements extracted (most complex game spec)
-- Crash point generation uses HMAC-SHA256 (different verification path than Coinflip's VRF)
+- Crash point generation uses HMAC-SHA256 (different verification path than FlipYou's VRF)
 - Boost mechanic adds complexity: needs separate validation
 - The CRASH.md Technical Research Notes section documents several open architecture decisions
 - Item #10: spec references HMAC-SHA256 directly - consider abstracting to "deterministic cryptographic function" for purity, but retained for precision since it's specified in source
@@ -350,9 +350,9 @@ If ANY check fails:
 ### Notes (from checklist)
 
 - Source material (CRASH.md) is very detailed for P2P mode; Classic house mode explicitly deferred
-- More blocking items than Coinflip due to real-time infrastructure decisions
+- More blocking items than FlipYou due to real-time infrastructure decisions
 - 11 functional requirements extracted (most complex game spec)
-- Crash point generation uses HMAC-SHA256 (different verification path than Coinflip's VRF)
+- Crash point generation uses HMAC-SHA256 (different verification path than FlipYou's VRF)
 - Boost mechanic adds complexity: needs separate validation
 - The CRASH.md Technical Research Notes section documents several open architecture decisions
 - Item #10: spec references HMAC-SHA256 directly - consider abstracting to "deterministic cryptographic function" for purity, but retained for precision since it's specified in source

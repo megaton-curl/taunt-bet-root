@@ -1,6 +1,6 @@
 # Program Audit — All Three Games (2026-03-20)
 
-Comprehensive audit of coinflip, lord-of-rngs, and close-call Anchor programs.
+Comprehensive audit of flipyou, lord-of-rngs, and close-call Anchor programs.
 Each item verified against source code.
 
 **Legend**: CONFIRMED = real issue | FALSE POSITIVE = not an issue | NUANCED = partially true
@@ -9,13 +9,13 @@ Each item verified against source code.
 
 ## Critical / High
 
-- [ ] **CF-1**: ~~Coinflip — Loser can force timeout refund~~ **FALSE POSITIVE**
+- [ ] **CF-1**: ~~FlipYou — Loser can force timeout refund~~ **FALSE POSITIVE**
   Server holds secret, not creator. Timeout is a backup for server downtime, not player-exploitable.
 
-- [ ] **CF-2**: ~~Coinflip — Server key not validated in settle~~ **FALSE POSITIVE**
+- [ ] **CF-2**: ~~FlipYou — Server key not validated in settle~~ **FALSE POSITIVE**
   Permissionless settlement is intentional design. Anyone with secret can settle.
 
-- [ ] **CF-3**: Coinflip — No time window enforcement for secret reveal **CONFIRMED**
+- [ ] **CF-3**: FlipYou — No time window enforcement for secret reveal **CONFIRMED**
   No deadline for when settle must be called. Settlement can happen anytime after join. By design for commit-reveal, but no urgency mechanism.
 
 - [ ] **LORD-1**: ~~Lord — Entropy slot timing mismatch~~ **FALSE POSITIVE**
@@ -43,13 +43,13 @@ Each item verified against source code.
 - [ ] **ALL-4**: ~~Fee split off-chain~~ **RESOLVED**
   Fee is now a single flat 500 bps amount transferred to single treasury from PlatformConfig. No split_fee() needed.
 
-- [ ] **CF-4**: Coinflip — 24h timeout is excessive **CONFIRMED**
-  `COINFLIP_RESOLVE_TIMEOUT_SECONDS = 86_400`. Backend settles in seconds. 24h is unnecessarily long.
+- [ ] **CF-4**: FlipYou — 24h timeout is excessive **CONFIRMED**
+  `FLIPYOU_RESOLVE_TIMEOUT_SECONDS = 86_400`. Backend settles in seconds. 24h is unnecessarily long.
 
-- [ ] **CF-5**: Coinflip — No commitment format validation **CONFIRMED**
+- [ ] **CF-5**: FlipYou — No commitment format validation **CONFIRMED**
   Any 32 bytes accepted in create_match. Validation only at settle time (SHA256 check). Wastes chain space on invalid commitments.
 
-- [ ] **CF-6**: ~~Coinflip — match_id no uniqueness check~~ **FALSE POSITIVE**
+- [ ] **CF-6**: ~~FlipYou — match_id no uniqueness check~~ **FALSE POSITIVE**
   Anchor's `init` + PDA seeds `["match", creator, match_id]` prevent collision. Same creator+match_id = account exists = init fails.
 
 - [ ] **LORD-3**: Lord — Single-player rounds stall indefinitely **CONFIRMED**
@@ -108,7 +108,7 @@ Priority order:
 |---|------|-------|--------|--------|--------|
 | 1 | **ALL-1/CC-6**: Add `set_paused` to all 3 programs | 3 programs | Low (~30 LOC each) | High — operational safety | **DONE** (`60b8069`) |
 | 2 | **ALL-2**: Add `update_config` (treasury at minimum) | 3 programs | Low (~30 LOC each) | High — operational flexibility | **DONE** (`60b8069`) |
-| 3 | **CF-4**: Reduce coinflip timeout from 24h to 15min | coinflip | Trivial (1 constant) | Medium — reduces griefing window | **DONE** |
+| 3 | **CF-4**: Reduce flipyou timeout from 24h to 15min | flipyou | Trivial (1 constant) | Medium — reduces griefing window | **DONE** |
 | 4 | **LORD-5**: Remove deprecated Orao code | lordofrngs | Low (~50 LOC deleted) | Low — cleanliness | **DONE** (`60b8069`) |
 | 5 | **LORD-3**: ~~Single-player round timeout~~ → `cancel_round` | lordofrngs | Low (~60 LOC) | Medium — creator can withdraw while waiting | **DONE** |
 | 6 | **ALL-5**: Add events for all phase transitions | 3 programs | Medium (~20 LOC each) | Medium — observability | **DONE** (`60b8069`) |

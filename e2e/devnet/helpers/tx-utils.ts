@@ -1,7 +1,7 @@
 /* eslint-disable no-console */
 /**
  * Shared devnet test utilities: transaction sending, Orao VRF constants/PDAs,
- * and coinflip instruction discriminators.
+ * and flipyou instruction discriminators.
  *
  * Centralizes constants and helpers used by both on-chain-cleanup.ts and
  * mock-vrf-fallback.ts to avoid duplication.
@@ -13,7 +13,7 @@ import {
   Transaction,
   TransactionInstruction,
 } from "@solana/web3.js";
-import { CoinflipIDL, LordofrngsIDL } from "@rng-utopia/anchor-client";
+import { FlipYouIDL, LordofrngsIDL } from "@rng-utopia/anchor-client";
 
 // ── IDL-driven discriminator lookup ─────────────────────────────────
 
@@ -57,7 +57,7 @@ export function getOraoRandomnessPda(seed: Uint8Array): PublicKey {
 
 // ── Instruction Discriminators (from IDL — no hardcoded byte arrays) ─
 
-export const CANCEL_MATCH_DISC = getInstructionDiscriminator(CoinflipIDL, "cancel_match");
+export const CANCEL_MATCH_DISC = getInstructionDiscriminator(FlipYouIDL, "cancel_match");
 export const CLAIM_PAYOUT_DISC = getInstructionDiscriminator(LordofrngsIDL, "claim_payout");
 
 // ── Transaction Helper ───────────────────────────────────────────────

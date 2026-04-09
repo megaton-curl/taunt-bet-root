@@ -17,7 +17,7 @@ Playwright E2E tests that verify state consistency across multiple pages. After 
 
 ## User Stories
 
-- As a player, I want my profile stats to update after winning a coinflip so that my record is accurate.
+- As a player, I want my profile stats to update after winning a flipyou so that my record is accurate.
 - As a player, I want to verify a completed match on the fairness page so that I can confirm it was fair.
 - As a player, I want my position on the leaderboard to reflect my winnings so that rankings are trustworthy.
 
@@ -34,7 +34,7 @@ Playwright E2E tests that verify state consistency across multiple pages. After 
 - `apps/platform/src/features/player-profile/context/PlayerProfileContext.tsx`
 - `apps/platform/src/features/player-profile/components/ProfilePage.tsx`
 - `apps/platform/src/App.tsx` — fairness page, leaderboard page routes
-- `apps/platform/src/features/coinflip/context/CoinflipContext.tsx`
+- `apps/platform/src/features/flipyou/context/FlipYouContext.tsx`
 
 ## Contract Files
 
@@ -49,11 +49,11 @@ Playwright E2E tests that verify state consistency across multiple pages. After 
 
 ### FR-1: Game Result → Profile Stats
 
-After completing a coinflip match, the player's profile page must reflect the outcome.
+After completing a flipyou match, the player's profile page must reflect the outcome.
 
 **Acceptance Criteria:**
-- [ ] After winning a coinflip: navigate to /profile, totalGames incremented, wins incremented, totalWon shows correct payout
-- [ ] After losing a coinflip: navigate to /profile, totalGames incremented, wins unchanged, totalWon unchanged
+- [ ] After winning a flipyou: navigate to /profile, totalGames incremented, wins incremented, totalWon shows correct payout
+- [ ] After losing a flipyou: navigate to /profile, totalGames incremented, wins unchanged, totalWon unchanged
 - [ ] Profile data reads from on-chain player profile PDA (not mock simulation)
 
 ### FR-2: Game Result → Fairness Verification
@@ -79,7 +79,7 @@ After completing matches, the leaderboard reflects updated rankings.
 Wallet connection persists across all page transitions.
 
 **Acceptance Criteria:**
-- [ ] Connect wallet on /coinflip, navigate to /profile — wallet stays connected
+- [ ] Connect wallet on /flipyou, navigate to /profile — wallet stays connected
 - [ ] Navigate to /fairness, /leaderboard, /quests — wallet stays connected
 - [ ] Balance display is consistent across all pages
 - [ ] Disconnect on any page disconnects everywhere
@@ -89,7 +89,7 @@ Wallet connection persists across all page transitions.
 Game actions followed by navigation must not corrupt state.
 
 **Acceptance Criteria:**
-- [ ] Create a match on /coinflip, navigate to /profile, navigate back to /coinflip — match is still visible
+- [ ] Create a match on /flipyou, navigate to /profile, navigate back to /flipyou — match is still visible
 - [ ] Complete a match, navigate away mid-animation, navigate back — final state is shown (not stuck in animation)
 - [ ] Browser back/forward buttons work correctly through game flows
 

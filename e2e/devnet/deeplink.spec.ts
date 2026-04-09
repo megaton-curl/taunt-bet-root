@@ -19,7 +19,7 @@ test.beforeAll(async () => {
 });
 
 // Skipped: requires frontend app (separate project, not yet available)
-test.skip("coinflip: URL updates to /coinflip/:matchId after creating a match", async ({
+test.skip("flipyou: URL updates to /flipyou/:matchId after creating a match", async ({
   playerAPage,
 }) => {
   test.setTimeout(120_000);
@@ -27,13 +27,13 @@ test.skip("coinflip: URL updates to /coinflip/:matchId after creating a match", 
   // Capture browser console for debugging
   playerAPage.on("console", (msg) => {
     const text = msg.text();
-    if (text.includes("[coinflip]") || text.includes("matchId") || text.includes("replaceState")) {
+    if (text.includes("[flipyou]") || text.includes("matchId") || text.includes("replaceState")) {
       console.log(`[browser] ${text}`);
     }
   });
 
-  // Navigate to coinflip
-  await po.navigateToCoinflip(playerAPage);
+  // Navigate to flipyou
+  await po.navigateToFlipYou(playerAPage);
   console.log("[deeplink] URL before create:", playerAPage.url());
 
   // Create a match
@@ -56,7 +56,7 @@ test.skip("coinflip: URL updates to /coinflip/:matchId after creating a match", 
   // Poll for URL change
   await expect(async () => {
     const url = playerAPage.url();
-    expect(url).toMatch(/\/coinflip\/[0-9a-f]{16}/i);
+    expect(url).toMatch(/\/flipyou\/[0-9a-f]{16}/i);
   }).toPass({ timeout: 15_000, intervals: [1_000] });
 
   console.log("[deeplink] Final URL:", playerAPage.url());

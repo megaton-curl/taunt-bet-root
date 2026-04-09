@@ -17,7 +17,7 @@ Add React component and hook tests using vitest + @testing-library/react. These 
 
 ## User Stories
 
-- As a developer, I want tests for CoinflipContext so that I know state transitions (idle → creating → waiting → locked → settled → claimed) work correctly when chain functions return expected data.
+- As a developer, I want tests for FlipYouContext so that I know state transitions (idle → creating → waiting → locked → settled → claimed) work correctly when chain functions return expected data.
 - As a developer, I want tests for wallet hooks so that connect/disconnect/balance flows are verified.
 - As a developer, I want tests for UI components so that custom-amount input, match cards, and betting panels render correctly for all input combinations.
 
@@ -31,8 +31,8 @@ Add React component and hook tests using vitest + @testing-library/react. These 
 
 ## Required Context Files
 
-- `apps/platform/src/features/coinflip/context/CoinflipContext.tsx`
-- `apps/platform/src/features/coinflip/components/`
+- `apps/platform/src/features/flipyou/context/FlipYouContext.tsx`
+- `apps/platform/src/features/flipyou/components/`
 - `apps/platform/src/features/player-profile/context/PlayerProfileContext.tsx`
 - `packages/wallet/src/useWallet.ts`
 - `packages/wallet/src/useBalance.ts`
@@ -40,7 +40,7 @@ Add React component and hook tests using vitest + @testing-library/react. These 
 
 ## Contract Files
 
-- `apps/platform/src/features/coinflip/types.ts` — UIMatch, CoinSide, CoinflipPhase
+- `apps/platform/src/features/flipyou/types.ts` — UIMatch, CoinSide, FlipYouPhase
 - `packages/wallet/src/types.ts` — WalletContextValue
 
 ---
@@ -49,12 +49,12 @@ Add React component and hook tests using vitest + @testing-library/react. These 
 
 > **Scope note (2026-04-02)**: Frontend UI is handled by a separate team in a separate repo. Acceptance criteria below cover on-chain programs, backend API, settlement, game engine, and tests only. Frontend items are marked out of scope.
 
-### FR-1: CoinflipContext State Transitions
+### FR-1: FlipYouContext State Transitions
 
 Test the context's state machine by mocking the backend-backed create flow plus the direct on-chain follow-up helpers.
 
 **Acceptance Criteria:**
-- [ ] Creating a match: context signs the canonical payload, calls the fairness backend client / `POST /fairness/coinflip/create`, co-signs the returned partial transaction, transitions to waiting phase, and adds the match to openMatches
+- [ ] Creating a match: context signs the canonical payload, calls the fairness backend client / `POST /fairness/flipyou/create`, co-signs the returned partial transaction, transitions to waiting phase, and adds the match to openMatches
 - [ ] Joining a match: context calls buildJoinMatchTx, match transitions to locked phase
 - [ ] Claiming payout: context calls buildClaimPayoutTx, match transitions to claimed, balance updated
 - [ ] Canceling a match: context calls buildCancelMatchTx, match removed from openMatches
@@ -133,7 +133,7 @@ Test profile creation and stat updates.
 
 ### Implementation Checklist
 - [ ] @testing-library/react installed
-- [ ] CoinflipContext test file with state transition tests
+- [ ] FlipYouContext test file with state transition tests
 - [ ] Wallet hook test files
 - [ ] UI component test files (custom amount input, MatchCard, BettingPanel, WalletButton)
 - [ ] PlayerProfileContext test file

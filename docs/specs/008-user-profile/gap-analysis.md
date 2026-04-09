@@ -62,8 +62,8 @@ migrations (008, 009, 013) are gone.
 
 | Game | Actor | When | File | Line |
 |------|-------|------|------|------|
-| Coinflip creator | Participation | `POST /coinflip/create` | routes/create.ts | 209-227 |
-| Coinflip winner + loser | Settlement | `settleMatch()` | worker/settle-tx.ts | 358-386 (upsertGameEntries), 400-407 (insertTransaction) |
+| FlipYou creator | Participation | `POST /flipyou/create` | routes/create.ts | 209-227 |
+| FlipYou winner + loser | Settlement | `settleMatch()` | worker/settle-tx.ts | 358-386 (upsertGameEntries), 400-407 (insertTransaction) |
 | Lord creator | Participation | `POST /lord/create` | routes/lord-create.ts | 253-269 |
 | Lord all entries | Settlement | `settleLordRound()` | worker/settle-tx.ts | 596-618 (upsertGameEntries), 634-642 (insertTransaction) |
 | Close Call bettor | Participation | `POST /closecall/bet` | routes/closecall.ts | 342-358 |
@@ -101,14 +101,14 @@ migrations (008, 009, 013) are gone.
 
 | # | Criterion | Status | Evidence |
 |---|-----------|--------|----------|
-| 1 | Coinflip: creator game_entry written at create time | SATISFIED | routes/create.ts:209-227 — `db.upsertGameEntry()` with userId, wallet, game="coinflip", roundPda, matchId, amountLamports, side |
-| 2 | Coinflip: both entries UPSERT'd at settlement with results | SATISFIED | worker/settle-tx.ts:358-386 — `txDb.upsertGameEntries()` for winner (isWinner=true, payoutLamports) and loser (isWinner=false, payoutLamports=0), uses `getOrCreateProfile()` to resolve user_id |
+| 1 | FlipYou: creator game_entry written at create time | SATISFIED | routes/create.ts:209-227 — `db.upsertGameEntry()` with userId, wallet, game="flipyou", roundPda, matchId, amountLamports, side |
+| 2 | FlipYou: both entries UPSERT'd at settlement with results | SATISFIED | worker/settle-tx.ts:358-386 — `txDb.upsertGameEntries()` for winner (isWinner=true, payoutLamports) and loser (isWinner=false, payoutLamports=0), uses `getOrCreateProfile()` to resolve user_id |
 | 3 | Lord: creator game_entry written at create time | SATISFIED | routes/lord-create.ts:253-269 — `db.upsertGameEntry()` with game="lord" |
 | 4 | Lord: all entries UPSERT'd at settlement | SATISFIED | worker/settle-tx.ts:596-618 — aggregates per player via `playerTotals` Map, resolves profiles via `getOrCreateProfile()`, calls `txDb.upsertGameEntries()` |
 | 5 | Close Call: bettor game_entry written at bet time | SATISFIED | routes/closecall.ts:342-358 — `db.upsertGameEntry()` with game="closecall", side="green"/"red" |
 | 6 | Close Call: entries UPSERT'd at settlement (including refund handling) | SATISFIED | worker/closecall-clock.ts:497-541 — refund: isWinner=undefined, payoutLamports=amount; non-refund: isWinner=true/false with computed payout. Uses `getOrCreateProfile()` |
-| 7 | Transaction rows written for real SOL movements at settlement | SATISFIED | settle-tx.ts:400-407 (coinflip payout), 634-642 (lord payout), closecall-clock.ts:461-491 (insertTransactions for payout/refund) |
-| 8 | match_id links to correct round | SATISFIED | coinflip/lord use `round.match_id`; closecall uses `roundId = String(Number(minuteTs))` |
+| 7 | Transaction rows written for real SOL movements at settlement | SATISFIED | settle-tx.ts:400-407 (flipyou payout), 634-642 (lord payout), closecall-clock.ts:461-491 (insertTransactions for payout/refund) |
+| 8 | match_id links to correct round | SATISFIED | flipyou/lord use `round.match_id`; closecall uses `roundId = String(Number(minuteTs))` |
 | 9 | No duplicate entries (idempotent via UPSERT) | SATISFIED | game_entries: `UNIQUE(wallet, round_pda)` + `ON CONFLICT DO UPDATE` (db.ts:1027-1031); transactions: `ON CONFLICT DO NOTHING` (db.ts:992) |
 
 ### FR-3: API Endpoint — Transaction History

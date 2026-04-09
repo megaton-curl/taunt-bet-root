@@ -84,15 +84,15 @@ When writing code that integrates with any external dependency — SDK, API, on-
 5. **Test with real data early**: Don't defer integration testing. A mock that returns hardcoded values won't catch layout mismatches — hit the real service (devnet, staging, sandbox) as early as feasible.
 6. **When upgrading**: Re-verify every raw byte offset, field name, and response shape. Grep the codebase for all usages of the old layout — they ALL need updating, not just the first one you find.
 
-> **Why this matters**: A single wrong byte offset in an Orao VRF account read cost multiple sessions of debugging. The data looked valid (it was a real pubkey byte), produced a valid coin flip result (heads/tails), but was the *wrong* result. Every downstream symptom (UI mismatch, profile stats wrong, "both players lost") pointed away from the root cause.
+> **Why this matters**: A single wrong byte offset in an Orao VRF account read cost multiple sessions of debugging. The data looked valid (it was a real pubkey byte), produced a valid flip you result (heads/tails), but was the *wrong* result. Every downstream symptom (UI mismatch, profile stats wrong, "both players lost") pointed away from the root cause.
 
 ---
 
 ## 9) Devnet E2E Verification (Default)
 
 - Run `./scripts/verify --devnet` before PRs that touch chain-facing code (`solana/`, `backend/packages/anchor-client/`, `backend/packages/game-engine/` winner/payout logic).
-- NOT required every iteration — IS automated in `spec-loop.sh` for specs that reference coinflip, Lord of the RNGs, or Close Call.
-- Requires `VITE_COINFLIP_PROGRAM_ID` env var to be set; skips gracefully without it.
+- NOT required every iteration — IS automated in `spec-loop.sh` for specs that reference flipyou, Lord of the RNGs, or Close Call.
+- Requires `VITE_FLIPYOU_PROGRAM_ID` env var to be set; skips gracefully without it.
 - Devnet E2E failures are non-blocking (exit 0 with WARN) — they surface regressions without halting the workflow.
 - For large UI-impacting changes, run visual/e2e checks through user-facing interactions (click/type/navigate) so the flow is validated as a human would use it.
 - Do not add fallback assertion paths that bypass blocked UI behavior; if interaction is blocked by infra/tooling/app issues, mark it as a blocker with evidence and resolve it directly.

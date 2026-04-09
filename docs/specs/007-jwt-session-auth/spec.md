@@ -42,7 +42,7 @@ and have no public users yet.
 
 - **`docs/SCOPE.md` references**: Backend Services, Platform UX
 - **Scope status**: V1 In Scope
-- **Phase boundary**: Phase 1 — required for acceptable coinflip UX before public launch
+- **Phase boundary**: Phase 1 — required for acceptable flipyou UX before public launch
 
 ## Required Context Files
 
@@ -202,7 +202,7 @@ Rate limiting works with both JWT-authenticated and pre-auth routes.
 - [x] Frontend: context/SessionContext.tsx (session provider)
 - [x] Frontend: main.tsx (SessionProvider in tree)
 - [x] Frontend: chain.ts (accessToken param)
-- [x] Frontend: CoinflipContext.tsx (useSession integration)
+- [x] Frontend: FlipYouContext.tsx (useSession integration)
 - [x] Tests: auth.test.ts rewritten for JWT
 - [x] Tests: auth-routes.test.ts (new)
 - [x] Tests: endpoints.test.ts updated
@@ -226,7 +226,7 @@ Rate limiting works with both JWT-authenticated and pre-auth routes.
 #### Smoke Test (Human-in-the-Loop)
 
 - [ ] Connect wallet → sign-in prompt with human-readable message → session established
-- [ ] Create coinflip match → no wallet signature popup (only tx approval)
+- [ ] Create flipyou match → no wallet signature popup (only tx approval)
 - [ ] Disconnect → reconnect same wallet → session restored silently
 - [ ] Disconnect → connect different wallet → new sign-in prompt
 - [ ] Page refresh → session persists (access token refreshed from stored refresh token)

@@ -7,7 +7,7 @@
  *
  * Required env vars:
  *   VITE_RPC_URL             — Devnet RPC endpoint (https URL)
- *   VITE_COINFLIP_PROGRAM_ID — Deployed coinflip program address (base58)
+ *   VITE_FLIPYOU_PROGRAM_ID — Deployed flipyou program address (base58)
  *   VITE_PLATFORM_PROGRAM_ID — Deployed platform program address (base58)
  *   VITE_FAIRNESS_BACKEND_URL — Running fairness backend base URL (http(s) URL)
  *
@@ -22,7 +22,7 @@ export interface DevnetConfig {
   rpcUrl: string;
   network: string;
   fairnessBackendUrl: string;
-  coinflipProgramId: PublicKey;
+  flipyouProgramId: PublicKey;
   platformProgramId: PublicKey;
   /** Optional — falls back to IDL address if env var missing. */
   lordofrngsProgramId: PublicKey | null;
@@ -69,10 +69,10 @@ export function validateDevnetEnv(): DevnetConfig {
     errors.push("VITE_RPC_URL is required (devnet RPC endpoint)");
   }
 
-  const coinflipId = process.env.VITE_COINFLIP_PROGRAM_ID;
-  if (!coinflipId) {
+  const flipyouId = process.env.VITE_FLIPYOU_PROGRAM_ID;
+  if (!flipyouId) {
     errors.push(
-      "VITE_COINFLIP_PROGRAM_ID is required (deployed coinflip program address)",
+      "VITE_FLIPYOU_PROGRAM_ID is required (deployed flipyou program address)",
     );
   }
 
@@ -105,9 +105,9 @@ export function validateDevnetEnv(): DevnetConfig {
     fairnessBackendUrl!,
     "VITE_FAIRNESS_BACKEND_URL",
   );
-  const coinflipProgramId = parsePublicKey(
-    coinflipId!,
-    "VITE_COINFLIP_PROGRAM_ID",
+  const flipyouProgramId = parsePublicKey(
+    flipyouId!,
+    "VITE_FLIPYOU_PROGRAM_ID",
   );
   const platformProgramId = parsePublicKey(
     platformId!,
@@ -143,7 +143,7 @@ export function validateDevnetEnv(): DevnetConfig {
     rpcUrl: validatedUrl,
     network,
     fairnessBackendUrl: validatedBackendUrl.replace(/\/$/, ""),
-    coinflipProgramId,
+    flipyouProgramId,
     platformProgramId,
     lordofrngsProgramId,
     closecallProgramId,
@@ -168,13 +168,13 @@ export async function verifyDevnetDeployments(
     );
   }
 
-  // 2. Coinflip program deployed
-  const coinflipAccount = await connection.getAccountInfo(
-    config.coinflipProgramId,
+  // 2. FlipYou program deployed
+  const flipyouAccount = await connection.getAccountInfo(
+    config.flipyouProgramId,
   );
-  if (!coinflipAccount || !coinflipAccount.executable) {
+  if (!flipyouAccount || !flipyouAccount.executable) {
     throw new Error(
-      `Coinflip program not found or not executable at ${config.coinflipProgramId.toBase58()}`,
+      `FlipYou program not found or not executable at ${config.flipyouProgramId.toBase58()}`,
     );
   }
 

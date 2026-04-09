@@ -129,7 +129,7 @@ Frontend is intentionally excluded from grading unless it exposes a backend or s
 - `[x]` Referral code creation, permanent referee linking, stats, referrals list, earnings log, and SOL claim flow.
   - Basis: `docs/specs/300-referral-system/spec.md` is `Done`.
   - Backend: `backend/services/backend/src/routes/referral.ts`, `backend/services/backend/src/db/referrals.ts`, `backend/services/backend/migrations/010_referral.sql`.
-- `[x]` Referrer earnings recorded in settlement for coinflip and lord.
+- `[x]` Referrer earnings recorded in settlement for flipyou and lord.
   - Backend: `backend/services/backend/src/worker/settle-tx.ts`.
 - `[-]` KOL economics.
   - Current implementation supports a default rate plus per-user override, not the latest-doc automatic `10%` to `40%` attributed-volume ladder.
@@ -151,11 +151,11 @@ Frontend is intentionally excluded from grading unless it exposes a backend or s
 
 ### Provable Fairness
 
-- `[x]` Public verification APIs for coinflip, lord, and closecall rounds.
+- `[x]` Public verification APIs for flipyou, lord, and closecall rounds.
   - Backend: `backend/services/backend/src/routes/rounds.ts`.
-  - On-chain: `solana/programs/coinflip`, `solana/programs/lordofrngs`, and `solana/programs/closecall` all expose deterministic settlement inputs.
+  - On-chain: `solana/programs/flipyou`, `solana/programs/lordofrngs`, and `solana/programs/closecall` all expose deterministic settlement inputs.
 - `[-]` Fairness history completeness.
-  - `/rounds/history` only supports `coinflip` and `lord`; closecall lacks the same history surface.
+  - `/rounds/history` only supports `flipyou` and `lord`; closecall lacks the same history surface.
 - `[ ]` Dedicated standalone fairness-page contract beyond raw verification APIs.
 
 ### The Pit and Platform Lobby

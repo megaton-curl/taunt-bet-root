@@ -53,8 +53,8 @@ Recommendation:
 ### 2. Critical: game config PDAs can be re-initialized and authority can be stolen
 
 Files:
-- `solana/programs/coinflip/src/instructions/initialize_config.rs:12`
-- `solana/programs/coinflip/src/instructions/initialize_config.rs:24`
+- `solana/programs/flipyou/src/instructions/initialize_config.rs:12`
+- `solana/programs/flipyou/src/instructions/initialize_config.rs:24`
 - `solana/programs/lordofrngs/src/instructions/initialize_config.rs:9`
 - `solana/programs/lordofrngs/src/instructions/initialize_config.rs:21`
 - `solana/programs/closecall/src/instructions/initialize_config.rs:10`
@@ -106,7 +106,7 @@ Files:
 - `backend/services/backend/src/routes/lord-create.ts:164`
 
 Details:
-- `coinflip/create` and `lord/create` both verify that the request wallet matches the authenticated user profile.
+- `flipyou/create` and `lord/create` both verify that the request wallet matches the authenticated user profile.
 - `closecall/bet` only validates `playerPubkey` syntactically.
 - The route then writes DB-side round/game-entry state using that arbitrary wallet if a profile exists.
 
@@ -116,7 +116,7 @@ Impact:
 - This is an authz inconsistency across otherwise similar endpoints.
 
 Recommendation:
-- Mirror the `coinflip`/`lord` wallet match check before building the partially signed tx or writing DB rows.
+- Mirror the `flipyou`/`lord` wallet match check before building the partially signed tx or writing DB rows.
 - Avoid DB side effects until the wallet/session binding is established.
 
 ### 5. Medium: destructive internal admin route is enabled by token presence, not by hard environment separation
@@ -205,14 +205,14 @@ Recommendation:
 ## Testing Gaps
 
 - `solana/tests/closecall.ts` exercises happy-path settlement but does not appear to test forged close prices or unauthorized settlement callers.
-- `solana/tests/coinflip.ts`, `solana/tests/lordofrngs.ts`, and `solana/tests/closecall.ts` include `initialize_config` coverage, but there is no negative coverage proving re-initialization is rejected.
+- `solana/tests/flipyou.ts`, `solana/tests/lordofrngs.ts`, and `solana/tests/closecall.ts` include `initialize_config` coverage, but there is no negative coverage proving re-initialization is rejected.
 - `solana/tests/lordofrngs.ts` explicitly skips `claim_payout` settlement coverage for the real entropy path.
 - I did not find coverage that asserts `/closecall/bet` rejects mismatched authenticated users and target wallets.
 
 ## Recommended Remediation Order
 
 1. Fix `closecall` settlement authenticity on-chain before any further rollout.
-2. Fix all config re-initialization paths in `coinflip`, `lordofrngs`, and `closecall`.
+2. Fix all config re-initialization paths in `flipyou`, `lordofrngs`, and `closecall`.
 3. Remove JWT-secret fallback to `SERVER_KEYPAIR`.
 4. Add wallet/session binding to `/closecall/bet`.
 5. Hard-disable destructive internal routes outside explicitly non-production environments.

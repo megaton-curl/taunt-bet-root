@@ -12,7 +12,7 @@ test.describe.skip("devnet smoke", () => {
   test("devnet deployments are reachable and valid", async ({
     devnetConfig,
   }) => {
-    // Verifies: RPC health, coinflip/platform/orao programs deployed, VRF initialized
+    // Verifies: RPC health, flipyou/platform/orao programs deployed, VRF initialized
     await verifyDevnetDeployments(devnetConfig);
   });
 

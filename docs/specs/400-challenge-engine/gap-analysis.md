@@ -18,7 +18,7 @@
 ### Event Emission in Settlement
 | Worker | Game | File | Line |
 |--------|------|------|------|
-| settle-tx.ts | coinflip | worker/settle-tx.ts | ~442 |
+| settle-tx.ts | flipyou | worker/settle-tx.ts | ~442 |
 | settle-tx.ts | lord (jackpot) | worker/settle-tx.ts | ~729 |
 | closecall-clock.ts | closecall | worker/closecall-clock.ts | ~611 |
 
