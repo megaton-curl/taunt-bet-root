@@ -10,6 +10,7 @@ Execution defaults for humans and AI agents. Use this file for day-to-day implem
 - Solana programs: `solana/` submodule
 - Backend services + shared TS packages: `backend/` submodule
 - Chat service: `chat/` submodule
+- Telegram bot: `telegram/` submodule
 - Docs, scripts, e2e: root repo
 - Dev-only local diagnostics: `test-tools/`
 - Do not edit generated/build outputs (`dist/`, compiled artifacts, coverage outputs).
@@ -22,8 +23,9 @@ Execution defaults for humans and AI agents. Use this file for day-to-day implem
 - Completion gate: `./scripts/verify` (runs lint + typecheck + test on backend, builds + tests solana programs).
 - Backend: `cd backend && pnpm lint && pnpm typecheck && pnpm test`
 - Chat: `cd chat && pnpm verify`
+- Telegram: `cd telegram && pnpm verify`
 - Solana: `cd solana && anchor build && mocha tests`
-- Root `./scripts/verify` currently excludes `chat/` by design while the chat service contract stabilizes. Run the chat verification command separately when touching `chat/`.
+- Root `./scripts/verify` currently excludes `chat/` and `telegram/` by design while their contracts stabilize. Run their verification commands separately when touching those submodules.
 
 ---
 
@@ -35,7 +37,7 @@ Execution defaults for humans and AI agents. Use this file for day-to-day implem
 - Tests must validate the intended behavior path. Do not keep alternate "success" paths in the same test when the primary assertion flow fails.
 - If a test flow fails, investigate root cause first. You may temporarily split checks into smaller diagnostic tests, but final committed tests must assert the canonical behavior path.
 - Conditional branches in tests are only for explicit preconditions (missing env var, unavailable external service) and must fail/skip with a clear reason.
-- Verification must pass before task completion using the command set relevant to the touched surface: `./scripts/verify` for root/backend/solana work, `cd chat && pnpm verify` for chat work, or both when a task spans those boundaries.
+- Verification must pass before task completion using the command set relevant to the touched surface: `./scripts/verify` for root/backend/solana work, `cd chat && pnpm verify` for chat work, `cd telegram && pnpm verify` for telegram work, or combinations when a task spans boundaries.
 
 ---
 

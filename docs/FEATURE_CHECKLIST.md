@@ -226,13 +226,13 @@ Legend:
 
 ## 14. Telegram Bot (@taunt_bot)
 
-- [ ] /start — welcome + platform link — `todo`
-- [ ] /profile [username] — public profile link — `todo`
-- [ ] /referral [username] — referral link — `todo`
-- [ ] /games — Flip You, Pot Shot, Close Call links — `todo`
-- [ ] /wen — Dogpile countdown — `todo`
-- [ ] /therapy — gambling support resources — `todo`
-- [ ] /ngmi — random one-liners — `todo`
+- [x] /start — welcome + platform link
+- [x] /profile [username] — public profile link
+- [x] /referral [username] — referral link
+- [x] /games — Flip You, Pot Shot, Close Call links
+- [x] /wen — Dogpile countdown
+- [x] /therapy — gambling support resources
+- [x] /ngmi — random one-liners
 - [ ] V2: account linking, /stats, /challenge — `todo`
 
 ---
@@ -271,7 +271,7 @@ Legend:
 | Chat | 4 | 0 | 0 | 2 | 0 |
 | Fairness | 3 | 0 | 1 | 1 | 0 |
 | Waitlist | 1 | 0 | 1 | 0 | 1 |
-| Telegram | 0 | 0 | 8 | 0 | 0 |
+| Telegram | 7 | 0 | 1 | 0 | 0 |
 | Share/Social | 0 | 0 | 1 | 1 | 0 |
 | Dashboards | 2 | 0 | 1 | 2 | 0 |
-| **Total** | **47** | **2** | **40** | **26** | **23** |
+| **Total** | **54** | **2** | **33** | **26** | **23** |
