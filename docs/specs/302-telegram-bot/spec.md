@@ -120,7 +120,7 @@ outside standard Telegram update handling.
 - [ ] Bot-specific failures are logged and observable without becoming a hard
       dependency for `/auth`, game creation, or settlement workers
 - [ ] The `telegram/` service has explicit environment/config entries for the bot
-      token, webhook secret, backend base URL, and canonical public app URL
+      token, webhook secret, `BACKEND_URL`, and canonical public app URL
 
 ### FR-2: V1 Command Contract
 
