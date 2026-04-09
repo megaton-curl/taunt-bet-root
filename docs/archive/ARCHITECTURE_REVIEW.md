@@ -143,7 +143,7 @@ Adding a new game means adding 200+ new classes to this file. Changing a color m
 
 Each game reimplements the same patterns:
 
-**Chain utilities** (flipyou: 664 lines, lord-of-rngs: 763 lines):
+**Chain utilities** (flipyou: 664 lines, pot-shot: 763 lines):
 - Program instance creation
 - PDA derivation
 - Account fetching
@@ -156,7 +156,7 @@ Each game reimplements the same patterns:
 - Loading states
 - Button handlers
 
-The three implemented games (flipyou, lord-of-rngs, close-call) share maybe 70% of their chain.ts logic. There's no generic game adapter, no shared transaction builder, no template.
+The three implemented games (flipyou, pot-shot, close-call) share maybe 70% of their chain.ts logic. There's no generic game adapter, no shared transaction builder, no template.
 
 **What should have been done**: A `createGameAdapter<TMatch, TConfig>()` factory that takes game-specific config (program ID, PDA seeds, account decoders) and returns standard `fetchMatches()`, `buildCreateTx()`, `buildJoinTx()` functions. Each game's chain.ts shrinks to ~100 lines of config.
 

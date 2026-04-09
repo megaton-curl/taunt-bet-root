@@ -69,7 +69,7 @@ check_program() {
 }
 
 check_program "flipyou"
-check_program "lordofrngs"
+check_program "potshot"
 check_program "closecall"
 check_program "platform"
 

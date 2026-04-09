@@ -1,6 +1,6 @@
 # Program Audit — All Three Games (2026-03-20)
 
-Comprehensive audit of flipyou, lord-of-rngs, and close-call Anchor programs.
+Comprehensive audit of flipyou, pot-shot, and close-call Anchor programs.
 Each item verified against source code.
 
 **Legend**: CONFIRMED = real issue | FALSE POSITIVE = not an issue | NUANCED = partially true
@@ -109,8 +109,8 @@ Priority order:
 | 1 | **ALL-1/CC-6**: Add `set_paused` to all 3 programs | 3 programs | Low (~30 LOC each) | High — operational safety | **DONE** (`60b8069`) |
 | 2 | **ALL-2**: Add `update_config` (treasury at minimum) | 3 programs | Low (~30 LOC each) | High — operational flexibility | **DONE** (`60b8069`) |
 | 3 | **CF-4**: Reduce flipyou timeout from 24h to 15min | flipyou | Trivial (1 constant) | Medium — reduces griefing window | **DONE** |
-| 4 | **LORD-5**: Remove deprecated Orao code | lordofrngs | Low (~50 LOC deleted) | Low — cleanliness | **DONE** (`60b8069`) |
-| 5 | **LORD-3**: ~~Single-player round timeout~~ → `cancel_round` | lordofrngs | Low (~60 LOC) | Medium — creator can withdraw while waiting | **DONE** |
+| 4 | **LORD-5**: Remove deprecated Orao code | potshot | Low (~50 LOC deleted) | Low — cleanliness | **DONE** (`60b8069`) |
+| 5 | **LORD-3**: ~~Single-player round timeout~~ → `cancel_round` | potshot | Low (~60 LOC) | Medium — creator can withdraw while waiting | **DONE** |
 | 6 | **ALL-5**: Add events for all phase transitions | 3 programs | Medium (~20 LOC each) | Medium — observability | **DONE** (`60b8069`) |
 | 7 | **IMP-5**: Document trust model | docs | Low | Medium — audit readiness | **DONE** (`docs/solutions/trust-model.md`) |
 

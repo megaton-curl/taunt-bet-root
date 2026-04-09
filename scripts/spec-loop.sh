@@ -481,7 +481,7 @@ while true; do
         # ---------------------------------------------------------------
         # Devnet E2E gate (non-blocking)
         # ---------------------------------------------------------------
-        if grep -qiE 'vrf|flipyou|lord.of.the.rngs|lordofrngs' "$SPEC_FILE" 2>/dev/null; then
+        if grep -qiE 'vrf|flipyou|lord.of.the.rngs|potshot' "$SPEC_FILE" 2>/dev/null; then
             echo ""
             echo -e "${CYAN}──────────────────────────────────────${NC}"
             echo -e "${CYAN}  Running devnet E2E verification...${NC}"

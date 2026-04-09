@@ -14,7 +14,7 @@
 
 ## Overview
 
-Crash is a competitive P2P multiplayer game where players watch a multiplier climb from 1.00x and must cash out before it crashes. Within each amount-scoped pool, the player with the highest valid cashout wins that pool's entire prize. Rounds run in a continuous loop of betting, running, crashed, and winner reveal phases. This game is planned after the first two V1 games (FlipYou and Lord of the RNGs).
+Crash is a competitive P2P multiplayer game where players watch a multiplier climb from 1.00x and must cash out before it crashes. Within each amount-scoped pool, the player with the highest valid cashout wins that pool's entire prize. Rounds run in a continuous loop of betting, running, crashed, and winner reveal phases. This game is planned after the first two V1 games (FlipYou and Pot Shot).
 
 ## User Stories
 
@@ -23,7 +23,7 @@ Crash is a competitive P2P multiplayer game where players watch a multiplier cli
 - As a player, I want to cash out at the right moment so that I can beat other players at my amount and win the pool.
 - As a player, I want to see who won each amount-scoped pool after a crash so that I know the results and my payout.
 - As a player, I want to verify that the crash point was determined fairly before the round began so that I trust the game.
-- As a player, I want to see jackpot carryovers from previous rounds so that I'm attracted to amounts with larger pools.
+- As a player, I want to see pot shot carryovers from previous rounds so that I'm attracted to amounts with larger pools.
 
 ---
 
@@ -136,7 +136,7 @@ If no player in an amount-scoped pool cashes out successfully, the pool carries 
 **Acceptance Criteria:**
 - [ ] Carryover = amount_pool x 0.97 (fee still deducted)
 - [ ] Carryover pools accumulate until someone wins
-- [ ] Carryover amount displayed prominently: "JACKPOT: X SOL"
+- [ ] Carryover amount displayed prominently: "POTSHOT: X SOL"
 - [ ] Pulsing/glowing effect on amount controls for carryover amounts
 
 ### FR-8: Fairness Verification

@@ -19,7 +19,7 @@ client-side (dev-mode) for some flows — this service moves secret generation t
 server, co-signs creation transactions, watches for rounds that have reached their stored
 entropy target, and settles them by revealing the secret on-chain.
 
-FlipYou is the proven MVP path. Lord of the RNGs now follows the same backend-assisted
+FlipYou is the proven MVP path. Pot Shot now follows the same backend-assisted
 pattern, with a game-specific timing contract: countdown starts when two distinct wallets
 have entered, the round closes by wall time without a separate lock tx, and the backend
 submits one settlement tx after the precomputed entropy slot.
@@ -410,7 +410,7 @@ Per-userId and global rate limits to prevent abuse of the create endpoint.
 
 | Item | Rationale |
 |------|-----------|
-| Multi-game support (Crash, Lord of RNGs, Slots) | Prove the model on flipyou first; each game has different entropy capture timing |
+| Multi-game support (Crash, Pot Shot, Slots) | Prove the model on flipyou first; each game has different entropy capture timing |
 | Key rotation / split authorities | Single keypair is fine for MVP; add when operational maturity requires it |
 | WebSocket push for settlement notifications | Frontend already polls on-chain state; adding WS is a UX optimization, not a blocker |
 | Redis-backed rate limiting | In-memory is sufficient until horizontal scaling is needed |
@@ -594,7 +594,7 @@ After the spec loop outputs `<promise>DONE</promise>`, `spec-loop.sh` automatica
 ## Deferred Items
 
 - **Privileged historical entropy submission**: Allow backend to submit historical slot hash and settle matches that missed the ~200s SlotHashes window. Requires on-chain trusted caller + slot hash verification
-- **Multi-game support** (Crash, Lord of RNGs, Slots): Prove the model on flipyou first; each game has different entropy capture timing
+- **Multi-game support** (Crash, Pot Shot, Slots): Prove the model on flipyou first; each game has different entropy capture timing
 - **Key rotation / split authorities**: Single keypair fine for MVP; add when operational maturity requires it
 - **WebSocket push for settlement notifications**: Frontend already polls on-chain state; WS is a UX optimization
 - **Redis-backed rate limiting**: In-memory sufficient until horizontal scaling needed

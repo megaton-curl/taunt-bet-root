@@ -1,8 +1,8 @@
 /* eslint-disable no-console */
 /**
- * Lord of RNGs VRF fallback + claim helpers for devnet lifecycle tests.
+ * Pot Shot VRF fallback + claim helpers for devnet lifecycle tests.
  *
- * Mirrors the flipyou mock-vrf-fallback.ts pattern but adapted for Lord of RNGs:
+ * Mirrors the flipyou mock-vrf-fallback.ts pattern but adapted for Pot Shot:
  *   - claim_payout requires tier + round_number as instruction args
  *   - CPI into platform for player profile updates (game_type = 1)
  *   - Winner determined by: u64_from_le(randomness[0..8]) % total_entries
@@ -17,13 +17,13 @@ import {
   TransactionInstruction,
 } from "@solana/web3.js";
 import { createHash } from "crypto";
-import { LordofrngsIDL } from "@rng-utopia/anchor-client";
+import { PotShotIDL } from "@rng-utopia/anchor-client";
 import {
   getLordConfigPda,
   getLordProgram,
   getLordRoundPda,
-  LORDOFRNGS_PROGRAM_ID,
-  type JackpotRoundAccount,
+  POTSHOT_PROGRAM_ID,
+  type PotShotRoundAccount,
 } from "../../local/helpers/on-chain";
 import {
   ORAO_VRF_PROGRAM_ID,
@@ -35,27 +35,27 @@ import {
 
 // ── Instruction Discriminators ─────────────────────────────────────────
 
-/** Anchor discriminator for Lord of RNGs `create_round` instruction. */
+/** Anchor discriminator for Pot Shot `create_round` instruction. */
 const LORD_CREATE_ROUND_DISC = createHash("sha256")
   .update("global:create_round")
   .digest()
   .subarray(0, 8);
 
-/** Anchor discriminator for Lord of RNGs `join_round` instruction. */
+/** Anchor discriminator for Pot Shot `join_round` instruction. */
 const LORD_JOIN_ROUND_DISC = createHash("sha256")
   .update("global:join_round")
   .digest()
   .subarray(0, 8);
 
-/** Anchor discriminator for Lord of RNGs `start_spin` instruction. */
+/** Anchor discriminator for Pot Shot `start_spin` instruction. */
 const LORD_START_SPIN_DISC = createHash("sha256")
   .update("global:start_spin")
   .digest()
   .subarray(0, 8);
 
-/** Anchor discriminator for Lord of RNGs `claim_payout` instruction. */
+/** Anchor discriminator for Pot Shot `claim_payout` instruction. */
 const LORD_CLAIM_PAYOUT_DISC = Buffer.from(
-  LordofrngsIDL.instructions.find((ix) => ix.name === "claim_payout")!.discriminator,
+  PotShotIDL.instructions.find((ix) => ix.name === "claim_payout")!.discriminator,
 );
 
 /** Anchor discriminator for Orao `request_v2` instruction. */
@@ -67,7 +67,7 @@ const REQUEST_V2_DISC = createHash("sha256")
 // ── Programmatic round lifecycle ─────────────────────────────────────
 
 /**
- * Create a Lord of RNGs round on-chain (programmatic, no UI).
+ * Create a Pot Shot round on-chain (programmatic, no UI).
  * Fetches config to determine the next round number, then sends create_round.
  */
 export async function createLordRoundOnChain(
@@ -93,7 +93,7 @@ export async function createLordRoundOnChain(
   data.writeUInt32LE(numEntries, 17);
 
   const ix = new TransactionInstruction({
-    programId: LORDOFRNGS_PROGRAM_ID,
+    programId: POTSHOT_PROGRAM_ID,
     keys: [
       { pubkey: creator.publicKey, isSigner: true, isWritable: true },
       { pubkey: configPda, isSigner: false, isWritable: true },
@@ -108,7 +108,7 @@ export async function createLordRoundOnChain(
 }
 
 /**
- * Join an existing Lord of RNGs round on-chain (programmatic, no UI).
+ * Join an existing Pot Shot round on-chain (programmatic, no UI).
  */
 export async function joinLordRoundOnChain(
   connection: Connection,
@@ -127,7 +127,7 @@ export async function joinLordRoundOnChain(
   data.writeUInt32LE(numEntries, 17);
 
   const ix = new TransactionInstruction({
-    programId: LORDOFRNGS_PROGRAM_ID,
+    programId: POTSHOT_PROGRAM_ID,
     keys: [
       { pubkey: player.publicKey, isSigner: true, isWritable: true },
       { pubkey: configPda, isSigner: false, isWritable: false },
@@ -160,7 +160,7 @@ export async function startLordSpinOnChain(
   data.writeBigUInt64LE(BigInt(roundNumber), 9);
 
   const ix = new TransactionInstruction({
-    programId: LORDOFRNGS_PROGRAM_ID,
+    programId: POTSHOT_PROGRAM_ID,
     keys: [
       { pubkey: caller.publicKey, isSigner: true, isWritable: true },
       { pubkey: configPda, isSigner: false, isWritable: false },
@@ -180,7 +180,7 @@ export async function startLordSpinOnChain(
 // ── Detection ─────────────────────────────────────────────────────────
 
 /**
- * Detect whether the deployed lordofrngs program has mock-VRF enabled.
+ * Detect whether the deployed potshot program has mock-VRF enabled.
  * After start_spin, a real-VRF program creates an Orao randomness account.
  * Mock-VRF does not.
  */
@@ -280,7 +280,7 @@ export async function waitForLordOraoFulfillment(
 export async function readLordVrfWinner(
   connection: Connection,
   roundPda: PublicKey,
-  round: JackpotRoundAccount,
+  round: PotShotRoundAccount,
 ): Promise<{ winner: PublicKey; winningSlot: number }> {
   const randomnessPda = getOraoRandomnessPda(roundPda.toBytes());
   const vrfAccount = await connection.getAccountInfo(randomnessPda);
@@ -321,7 +321,7 @@ export async function readLordVrfWinner(
 // ── Claim payout on-chain ────────────────────────────────────────────
 
 /**
- * Call Lord of RNGs claim_payout directly on-chain.
+ * Call Pot Shot claim_payout directly on-chain.
  *
  * Accounts (from claim_payout.rs):
  *   0. caller (signer, mut)
@@ -341,7 +341,7 @@ export async function claimLordPayoutOnChain(
   connection: Connection,
   caller: Keypair,
   roundPda: PublicKey,
-  round: JackpotRoundAccount,
+  round: PotShotRoundAccount,
   winnerPubkey: PublicKey,
 ): Promise<string> {
   const [configPda] = getLordConfigPda();
@@ -360,7 +360,7 @@ export async function claimLordPayoutOnChain(
   data.writeBigUInt64LE(BigInt(round.roundNumber.toNumber()), 9);
 
   const ix = new TransactionInstruction({
-    programId: LORDOFRNGS_PROGRAM_ID,
+    programId: POTSHOT_PROGRAM_ID,
     keys: [
       { pubkey: caller.publicKey, isSigner: true, isWritable: true },
       { pubkey: roundPda, isSigner: false, isWritable: true },

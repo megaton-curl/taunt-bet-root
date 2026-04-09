@@ -55,8 +55,8 @@ Recommendation:
 Files:
 - `solana/programs/flipyou/src/instructions/initialize_config.rs:12`
 - `solana/programs/flipyou/src/instructions/initialize_config.rs:24`
-- `solana/programs/lordofrngs/src/instructions/initialize_config.rs:9`
-- `solana/programs/lordofrngs/src/instructions/initialize_config.rs:21`
+- `solana/programs/potshot/src/instructions/initialize_config.rs:9`
+- `solana/programs/potshot/src/instructions/initialize_config.rs:21`
 - `solana/programs/closecall/src/instructions/initialize_config.rs:10`
 - `solana/programs/closecall/src/instructions/initialize_config.rs:22`
 
@@ -205,14 +205,14 @@ Recommendation:
 ## Testing Gaps
 
 - `solana/tests/closecall.ts` exercises happy-path settlement but does not appear to test forged close prices or unauthorized settlement callers.
-- `solana/tests/flipyou.ts`, `solana/tests/lordofrngs.ts`, and `solana/tests/closecall.ts` include `initialize_config` coverage, but there is no negative coverage proving re-initialization is rejected.
-- `solana/tests/lordofrngs.ts` explicitly skips `claim_payout` settlement coverage for the real entropy path.
+- `solana/tests/flipyou.ts`, `solana/tests/potshot.ts`, and `solana/tests/closecall.ts` include `initialize_config` coverage, but there is no negative coverage proving re-initialization is rejected.
+- `solana/tests/potshot.ts` explicitly skips `claim_payout` settlement coverage for the real entropy path.
 - I did not find coverage that asserts `/closecall/bet` rejects mismatched authenticated users and target wallets.
 
 ## Recommended Remediation Order
 
 1. Fix `closecall` settlement authenticity on-chain before any further rollout.
-2. Fix all config re-initialization paths in `flipyou`, `lordofrngs`, and `closecall`.
+2. Fix all config re-initialization paths in `flipyou`, `potshot`, and `closecall`.
 3. Remove JWT-secret fallback to `SERVER_KEYPAIR`.
 4. Add wallet/session binding to `/closecall/bet`.
 5. Hard-disable destructive internal routes outside explicitly non-production environments.

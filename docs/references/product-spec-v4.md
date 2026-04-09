@@ -82,7 +82,7 @@ The page renders differently depending on wallet connection state and whether a 
 ### M1 Launch Scope
 
 - **Non-game features**: Profiles, HEAT Multiplier, Points, Referral System, Quests, Loot Crates, Dogpile, The Pit lobby, Global Chat, Provable Fairness Page, KOL Dashboard.
-- **Games**: Flip You, Jackpot (Pot Shot), Close Call.
+- **Games**: Flip You, Pot Shot (Pot Shot), Close Call.
 - **Deferred to M2**: Taunts system.
 
 ---
@@ -371,7 +371,7 @@ The flipyou mechanic is also presented as a physics arena game (primary marketin
 
 ---
 
-### M1.15 Game: Jackpot / Pot Shot (CHANGED VS V2)
+### M1.15 Game: Pot Shot / Pot Shot (CHANGED VS V2)
 
 **What changed**: Replaces Pull Out (Crash) in M1 lineup. Pull Out moves to M2.
 

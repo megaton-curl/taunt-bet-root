@@ -1,6 +1,6 @@
 /* eslint-disable no-console */
 /**
- * On-chain pre-flight cleanup for Lord of RNGs devnet tests.
+ * On-chain pre-flight cleanup for Pot Shot devnet tests.
  *
  * Lord now settles through the backend-assisted commit-reveal path. Once a round
  * has two distinct players it remains `active` until either:
@@ -18,20 +18,20 @@ import {
   TransactionInstruction,
 } from "@solana/web3.js";
 import bs58 from "bs58";
-import { LordofrngsIDL } from "@rng-utopia/anchor-client";
+import { PotShotIDL } from "@rng-utopia/anchor-client";
 import { readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import {
   getLordProgram,
   getLordConfigPda,
-  LORDOFRNGS_PROGRAM_ID,
-  type JackpotRoundAccount,
+  POTSHOT_PROGRAM_ID,
+  type PotShotRoundAccount,
 } from "../../local/helpers/on-chain";
 import { sendSignedTx } from "./tx-utils";
 
 function getInstructionDiscriminator(instructionName: string): Buffer {
-  const instruction = LordofrngsIDL.instructions.find(
+  const instruction = PotShotIDL.instructions.find(
     (entry) => entry.name === instructionName,
   );
   if (!instruction) {
@@ -45,7 +45,7 @@ const LORD_FORCE_CLOSE_DISC = getInstructionDiscriminator("force_close");
 
 let cachedAuthorityKeypair: Keypair | null | undefined;
 
-function getDistinctPlayersInOrder(round: JackpotRoundAccount): PublicKey[] {
+function getDistinctPlayersInOrder(round: PotShotRoundAccount): PublicKey[] {
   const seen = new Set<string>();
   const players: PublicKey[] = [];
   for (const entry of round.entries) {
@@ -57,20 +57,20 @@ function getDistinctPlayersInOrder(round: JackpotRoundAccount): PublicKey[] {
   return players;
 }
 
-/** Find all active (unclosed) jackpot rounds involving a player. */
+/** Find all active (unclosed) pot shot rounds involving a player. */
 async function findPlayerRounds(
   connection: Connection,
   player: PublicKey,
-): Promise<{ roundPda: PublicKey; round: JackpotRoundAccount }[]> {
+): Promise<{ roundPda: PublicKey; round: PotShotRoundAccount }[]> {
   const program = getLordProgram(connection);
-  const discriminator = LordofrngsIDL.accounts.find(
-    (entry) => entry.name === "JackpotRound",
+  const discriminator = PotShotIDL.accounts.find(
+    (entry) => entry.name === "PotShotRound",
   )?.discriminator;
   if (!discriminator) {
-    throw new Error("jackpotRound discriminator not found in Lord IDL");
+    throw new Error("pot shotRound discriminator not found in Lord IDL");
   }
 
-  const accounts = await connection.getProgramAccounts(LORDOFRNGS_PROGRAM_ID, {
+  const accounts = await connection.getProgramAccounts(POTSHOT_PROGRAM_ID, {
     filters: [
       {
         memcmp: {
@@ -85,15 +85,15 @@ async function findPlayerRounds(
     .map((account) => {
       try {
         const round = program.coder.accounts.decode(
-          "jackpotRound",
+          "pot shotRound",
           account.account.data,
-        ) as JackpotRoundAccount;
+        ) as PotShotRoundAccount;
         return { roundPda: account.pubkey, round };
       } catch {
         return null;
       }
     })
-    .filter((entry): entry is { roundPda: PublicKey; round: JackpotRoundAccount } => entry !== null)
+    .filter((entry): entry is { roundPda: PublicKey; round: PotShotRoundAccount } => entry !== null)
     .filter(({ round }) => {
       return (
         round.creator.equals(player) ||
@@ -106,7 +106,7 @@ async function findPlayerRounds(
 function buildTimeoutRefundIx(
   caller: PublicKey,
   roundPda: PublicKey,
-  round: JackpotRoundAccount,
+  round: PotShotRoundAccount,
 ): TransactionInstruction {
   const [configPda] = getLordConfigPda();
   const data = Buffer.alloc(16);
@@ -126,7 +126,7 @@ function buildTimeoutRefundIx(
   ];
 
   return new TransactionInstruction({
-    programId: LORDOFRNGS_PROGRAM_ID,
+    programId: POTSHOT_PROGRAM_ID,
     keys,
     data,
   });
@@ -152,7 +152,7 @@ function loadAuthorityKeypair(expectedAuthority: PublicKey): Keypair | null {
 function buildForceCloseIx(
   authority: PublicKey,
   roundPda: PublicKey,
-  round: JackpotRoundAccount,
+  round: PotShotRoundAccount,
 ): TransactionInstruction {
   const [configPda] = getLordConfigPda();
   const data = Buffer.alloc(16);
@@ -172,14 +172,14 @@ function buildForceCloseIx(
   ];
 
   return new TransactionInstruction({
-    programId: LORDOFRNGS_PROGRAM_ID,
+    programId: POTSHOT_PROGRAM_ID,
     keys,
     data,
   });
 }
 
 /**
- * Ensure a clean state for Lord of RNGs devnet tests.
+ * Ensure a clean state for Pot Shot devnet tests.
  * Finds and cleans any stale rounds involving the given player.
  */
 export async function ensureLordCleanState(

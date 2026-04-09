@@ -39,7 +39,7 @@ costs ~0.000005 SOL (one settlement tx fee).
 
 ## Scope Alignment
 
-- **`docs/SCOPE.md` references**: Applies to all RNG-based games (FlipYou, Lord of RNGs, Crash, Slots Utopia, Tug of Earn). Does NOT apply to oracle-settled games (Close Call, Game of Trades) or skill-scored games (Chart the Course uses simple commit-reveal for asset selection only).
+- **`docs/SCOPE.md` references**: Applies to all RNG-based games (FlipYou, Pot Shot, Crash, Slots Utopia, Tug of Earn). Does NOT apply to oracle-settled games (Close Call, Game of Trades) or skill-scored games (Chart the Course uses simple commit-reveal for asset selection only).
 - **Scope status**: V1 In Scope
 - **Phase boundary**: Shared infrastructure — prerequisite for all RNG game programs.
 
@@ -139,7 +139,7 @@ Implementation (shared crate `fairness.rs`):
 - Returns `FairnessError::InvalidEntropyAccount` if wrong account
 - Returns `FairnessError::EntropySlotExpired` if target slot rolled off the ~512-slot window
 
-Both `flipyou::settle` and `lordofrngs::claim_payout` use `#[account(address = SLOT_HASHES_ID)]`
+Both `flipyou::settle` and `potshot::claim_payout` use `#[account(address = SLOT_HASHES_ID)]`
 to enforce this at the Anchor account validation level.
 
 ```rust
@@ -356,7 +356,7 @@ The system must support a future upgrade to VRF without changing game logic.
 
 **Derivation**: `result[0] % 2` — 0 = HEADS, 1 = TAILS. Same as current VRF derivation.
 
-### Lord of the RNGs
+### Pot Shot
 
 | Step | Instruction | Who Submits | Entropy |
 |------|-------------|-------------|---------|
@@ -482,7 +482,7 @@ through over the 60s window. Exact curve interpolation TBD in Tug of Earn spec.
 | Game | Randomness Source | Commitment | Slot Hash Entropy | Server Settles | Timeout |
 |------|-------------------|------------|-------------------|----------------|---------|
 | **FlipYou** | Commit-reveal + slot hash | Yes | Yes (at join) | Yes | 120s |
-| **Lord of RNGs** | Commit-reveal + slot hash | Yes | Yes (at spin) | Yes | 120s |
+| **Pot Shot** | Commit-reveal + slot hash | Yes | Yes (at spin) | Yes | 120s |
 | **Crash** | Commit-reveal + slot hash | Yes | Yes (at betting close) | Yes | 180s |
 | **Slots Utopia** | Commit-reveal + slot hash | Yes | Yes (at spin) | Yes | 120s |
 | **Tug of Earn** | Pyth (option A) or commit-reveal (option B) | Maybe | Maybe | Yes | 120–180s |
@@ -615,7 +615,7 @@ and refund is correct).
 - [ ] `read_slot_hash_entropy()` function (with skipped-slot handling)
 - [ ] Feature-gate `vrf_orao.rs` behind `orao-vrf` flag
 - [ ] Update FlipYou program: replace VRF with commit-reveal
-- [ ] Update Lord of RNGs program: replace VRF with commit-reveal
+- [ ] Update Pot Shot program: replace VRF with commit-reveal
 - [ ] Update Crash spec: document commit-reveal + engine timing
 - [ ] Bankrun tests for all settlement and timeout paths
 - [ ] Settlement event with full verification payload

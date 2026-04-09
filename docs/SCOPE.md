@@ -19,11 +19,11 @@ Last updated: 2026-04-04
 
 ### Games (3 live)
 - **FlipYou** (spec 001) — 1v1, commit-reveal + SlotHashes fairness, custom wagers
-- **Lord of the RNGs / Jackpot** (spec 101) — Multiplayer weighted-entry jackpot, commit-reveal fairness
+- **Pot Shot / Pot Shot** (spec 101) — Multiplayer weighted-entry pot shot, commit-reveal fairness
 - **Close Call** (spec 100) — Pari-mutuel BTC price prediction, Pyth oracle settlement, minute-boundary candle cache
 
 ### On-Chain Programs
-- **Per-game programs**: FlipYou, Lord of RNGs, Close Call — each independently deployable
+- **Per-game programs**: FlipYou, Pot Shot, Close Call — each independently deployable
 - **Platform program**: PlatformConfig (fee BPS, treasury, pause state), admin-updatable via `update_platform_config`
 - **Shared Rust crate** (`solana/shared/`): Escrow helpers, lifecycle state machine, timeout logic, pause controls, commit-reveal verifier, fee calculation, constants
 - **Operational controls**: `set_paused` (per-game pause/unpause), `timeout_refund` (permissionless liveness guarantee), `force_close` (stuck round recovery)
@@ -167,7 +167,7 @@ If it changes user funds or determines payouts, it must be validated on-chain.
 | 007 | JWT Session Auth | Shipped |
 | 008 | User Profile | Shipped (redesigned 2026-03-12) |
 | 100 | Close Call | Shipped, Pyth oracle |
-| 101 | Lord of the RNGs | Shipped |
+| 101 | Pot Shot | Shipped |
 | 200 | Visual Regression | Shipped (frontend deferred) |
 | 203 | E2E Integration | Active |
 | 300 | Referral System | Shipped |

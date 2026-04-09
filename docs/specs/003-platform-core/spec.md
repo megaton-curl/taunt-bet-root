@@ -14,7 +14,7 @@
 
 ## Overview
 
-Platform Core covers the shared systems that all V1 games depend on: wallet connection, session authentication, custom-amount betting, platform fee collection, provably fair verification, basic user profile/history, XP system, and operational controls. These are not a standalone feature but rather the cross-cutting foundation that FlipYou and Lord of the RNGs both require.
+Platform Core covers the shared systems that all V1 games depend on: wallet connection, session authentication, custom-amount betting, platform fee collection, provably fair verification, basic user profile/history, XP system, and operational controls. These are not a standalone feature but rather the cross-cutting foundation that FlipYou and Pot Shot both require.
 
 **Authentication model**: JWT Bearer tokens via a challenge-response flow (see Spec 006 FR-5, Spec 007). The wallet signs a one-time nonce to establish a session; subsequent API requests use the JWT access token. This is NOT per-request Ed25519 wallet signatures over payloads.
 
@@ -301,7 +301,7 @@ If ANY check fails:
 - Platform Core is cross-cutting (Phase 0-3), not a single deliverable
 - Some items here (wallet, tiers, fees) are prerequisites for FlipYou (Phase 1)
 - Others (history, profile, ops controls) ship in Phase 3
-- Implementation should be incremental: build what FlipYou needs first, expand for Lord of the RNGs, complete in Phase 3
+- Implementation should be incremental: build what FlipYou needs first, expand for Pot Shot, complete in Phase 3
 - 9 functional requirements extracted covering the full platform surface
 - Deferred items explicitly excluded: custodial balances, rakeback distribution, loyalty gating, token utility, leaderboard rewards
 - Game history CSV export mentioned in PLATFORM.md but may be post-V1 - needs decision
@@ -342,7 +342,7 @@ If ANY check fails:
 - Platform Core is cross-cutting (Phase 0-3), not a single deliverable
 - Some items here (wallet, tiers, fees) are prerequisites for FlipYou (Phase 1)
 - Others (history, profile, ops controls) ship in Phase 3
-- Implementation should be incremental: build what FlipYou needs first, expand for Lord of the RNGs, complete in Phase 3
+- Implementation should be incremental: build what FlipYou needs first, expand for Pot Shot, complete in Phase 3
 - 9 functional requirements extracted covering the full platform surface
 - Deferred items explicitly excluded: custodial balances, rakeback distribution, loyalty gating, token utility, leaderboard rewards
 - Game history CSV export mentioned in PLATFORM.md but may be post-V1 - needs decision

@@ -25,7 +25,7 @@ export interface DevnetConfig {
   flipyouProgramId: PublicKey;
   platformProgramId: PublicKey;
   /** Optional — falls back to IDL address if env var missing. */
-  lordofrngsProgramId: PublicKey | null;
+  potshotProgramId: PublicKey | null;
   /** Optional — Close Call program ID. Tests skip if not configured. */
   closecallProgramId: PublicKey | null;
 }
@@ -117,14 +117,14 @@ export function validateDevnetEnv(): DevnetConfig {
   // --- Optional with default ---
   const network = process.env.VITE_SOLANA_NETWORK ?? "devnet";
 
-  // --- Optional lordofrngs (IDL fallback if env var missing) ---
-  const lordofrngsIdStr = process.env.VITE_LORDOFRNGS_PROGRAM_ID;
-  let lordofrngsProgramId: PublicKey | null = null;
-  if (lordofrngsIdStr) {
+  // --- Optional potshot (IDL fallback if env var missing) ---
+  const potshotIdStr = process.env.VITE_POTSHOT_PROGRAM_ID;
+  let potshotProgramId: PublicKey | null = null;
+  if (potshotIdStr) {
     try {
-      lordofrngsProgramId = parsePublicKey(lordofrngsIdStr, "VITE_LORDOFRNGS_PROGRAM_ID");
+      potshotProgramId = parsePublicKey(potshotIdStr, "VITE_POTSHOT_PROGRAM_ID");
     } catch {
-      console.warn(`VITE_LORDOFRNGS_PROGRAM_ID is invalid: "${lordofrngsIdStr}" — Lord tests will skip`);
+      console.warn(`VITE_POTSHOT_PROGRAM_ID is invalid: "${potshotIdStr}" — Lord tests will skip`);
     }
   }
 
@@ -145,7 +145,7 @@ export function validateDevnetEnv(): DevnetConfig {
     fairnessBackendUrl: validatedBackendUrl.replace(/\/$/, ""),
     flipyouProgramId,
     platformProgramId,
-    lordofrngsProgramId,
+    potshotProgramId,
     closecallProgramId,
   };
 }
@@ -188,14 +188,14 @@ export async function verifyDevnetDeployments(
     );
   }
 
-  // 4. Lord of RNGs program deployed (optional — skip if not configured)
-  if (config.lordofrngsProgramId) {
+  // 4. Pot Shot program deployed (optional — skip if not configured)
+  if (config.potshotProgramId) {
     const lordAccount = await connection.getAccountInfo(
-      config.lordofrngsProgramId,
+      config.potshotProgramId,
     );
     if (!lordAccount || !lordAccount.executable) {
       throw new Error(
-        `Lord of RNGs program not found or not executable at ${config.lordofrngsProgramId.toBase58()}`,
+        `Pot Shot program not found or not executable at ${config.potshotProgramId.toBase58()}`,
       );
     }
   }

@@ -36,7 +36,7 @@ cd chat && pnpm verify && cd ..
 
 | Path | Repo | Purpose |
 |------|------|---------|
-| `solana/` | `taunt-bet/solana.git` | Anchor programs (flipyou, closecall, lordofrngs, platform) + shared Rust crate |
+| `solana/` | `taunt-bet/solana.git` | Anchor programs (flipyou, closecall, potshot, platform) + shared Rust crate |
 | `backend/` | `taunt-bet/backend.git` | Hono REST API, settlement workers, shared TS packages (anchor-client, game-engine, fairness) |
 | `chat/` | `taunt-bet/chat.git` | Dedicated chat service, room/message domain, and separate event-feed transport |
 

@@ -1,14 +1,14 @@
 #!/usr/bin/env npx tsx
 /* eslint-disable no-console */
 /**
- * Standalone script to clean up stale Lord of RNGs rounds on devnet.
+ * Standalone script to clean up stale Pot Shot rounds on devnet.
  *
  * Usage: npx tsx e2e/devnet/helpers/cleanup-stale-rounds.ts
  *
  * Requires .env.devnet or equivalent env vars set.
  */
 import { Connection, Keypair, LAMPORTS_PER_SOL } from "@solana/web3.js";
-import { getLordProgram, type JackpotRoundAccount } from "../../local/helpers/on-chain";
+import { getLordProgram, type PotShotRoundAccount } from "../../local/helpers/on-chain";
 import { getOraoRandomnessPda } from "./tx-utils";
 import {
   joinLordRoundOnChain,
@@ -16,7 +16,7 @@ import {
   waitForLordOraoFulfillment,
   readLordVrfWinner,
   claimLordPayoutOnChain,
-} from "./lord-vrf-fallback";
+} from "./potshot-vrf-fallback";
 // Env vars must be set before running (source .env.devnet or export them).
 
 const RPC_URL = process.env.VITE_RPC_URL;
@@ -56,7 +56,7 @@ async function main() {
   console.log(`Player B balance: ${(balB / LAMPORTS_PER_SOL).toFixed(4)} SOL`);
 
   // Fetch all rounds
-  const allRounds = await program.account.jackpotRound.all();
+  const allRounds = await program.account.pot shotRound.all();
   console.log(`\nTotal rounds on-chain: ${allRounds.length}`);
 
   if (allRounds.length === 0) {
@@ -65,7 +65,7 @@ async function main() {
   }
 
   for (const entry of allRounds) {
-    const round = entry.account as unknown as JackpotRoundAccount;
+    const round = entry.account as unknown as PotShotRoundAccount;
     const pda = entry.publicKey;
     const phase = Object.keys(round.phase)[0];
     const playerKeys = round.players.map((p) => p.player.toBase58().slice(0, 8));
@@ -130,7 +130,7 @@ async function main() {
       }
 
       // Re-fetch round for claim
-      const updatedRound = (await program.account.jackpotRound.fetch(pda)) as unknown as JackpotRoundAccount;
+      const updatedRound = (await program.account.pot shotRound.fetch(pda)) as unknown as PotShotRoundAccount;
       const { winner } = await readLordVrfWinner(connection, pda, updatedRound);
       console.log(`  → Winner: ${winner.toBase58().slice(0, 8)}...`);
 
@@ -164,7 +164,7 @@ async function main() {
       await waitForLordOraoFulfillment(connection, pda, 180_000);
 
       // Re-fetch and claim
-      const updatedRound = (await program.account.jackpotRound.fetch(pda)) as unknown as JackpotRoundAccount;
+      const updatedRound = (await program.account.pot shotRound.fetch(pda)) as unknown as PotShotRoundAccount;
       const { winner } = await readLordVrfWinner(connection, pda, updatedRound);
       const claimCaller = winner.equals(PLAYER_A.publicKey) ? PLAYER_A : PLAYER_B;
       await claimLordPayoutOnChain(connection, claimCaller, pda, updatedRound, winner);

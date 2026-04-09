@@ -13,7 +13,7 @@ import {
   Transaction,
   TransactionInstruction,
 } from "@solana/web3.js";
-import { FlipYouIDL, LordofrngsIDL } from "@rng-utopia/anchor-client";
+import { FlipYouIDL, PotShotIDL } from "@rng-utopia/anchor-client";
 
 // ── IDL-driven discriminator lookup ─────────────────────────────────
 
@@ -58,7 +58,7 @@ export function getOraoRandomnessPda(seed: Uint8Array): PublicKey {
 // ── Instruction Discriminators (from IDL — no hardcoded byte arrays) ─
 
 export const CANCEL_MATCH_DISC = getInstructionDiscriminator(FlipYouIDL, "cancel_match");
-export const CLAIM_PAYOUT_DISC = getInstructionDiscriminator(LordofrngsIDL, "claim_payout");
+export const CLAIM_PAYOUT_DISC = getInstructionDiscriminator(PotShotIDL, "claim_payout");
 
 // ── Transaction Helper ───────────────────────────────────────────────
 

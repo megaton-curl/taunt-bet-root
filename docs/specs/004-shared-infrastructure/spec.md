@@ -167,7 +167,7 @@ WAITING -> ACTIVE -> LOCKED -> RESOLVING -> SETTLED
 ```
 
 **Phase usage by game type:**
-- **VRF-only games** (flipyou, Lord of RNGs, slots): WAITING → LOCKED → SETTLED/REFUNDED. VRF requested at lock, result read at claim. No RESOLVING needed.
+- **VRF-only games** (flipyou, Pot Shot, slots): WAITING → LOCKED → SETTLED/REFUNDED. VRF requested at lock, result read at claim. No RESOLVING needed.
 - **Commit-reveal games** (crash, chart the course, game of trades): WAITING → ACTIVE → LOCKED → RESOLVING → SETTLED/REFUNDED. Server submits reveal during RESOLVING.
 - **Mixed VRF + commit-reveal** (tug of earn): Uses RESOLVING for server reveal phase.
 
@@ -279,7 +279,7 @@ Phases A-C below capture the historical shared-crate and VRF-era delivery that o
 
 - [ ] [docs] Rewrite the active fairness framing in this spec so shared infrastructure is described in terms of backend-assisted hybrid fairness rather than VRF-first claim flows.
 - [ ] [on-chain] Ensure the shared crate API surface explicitly supports commitment verification, slot-hash entropy capture/reading, and deterministic result derivation as first-class helpers.
-- [ ] [docs] Update lifecycle guidance so FlipYou, Lord of the RNGs, Crash, and future RNG games are described against the same backend-assisted settlement contract.
+- [ ] [docs] Update lifecycle guidance so FlipYou, Pot Shot, Crash, and future RNG games are described against the same backend-assisted settlement contract.
 - [ ] [test] Align validation expectations with specs `005-hybrid-fairness` and `006-fairness-backend`, including timeout behavior and public verification payload requirements.
 
 ### Testing Requirements

@@ -400,7 +400,7 @@ Each checklist item is one autonomous iteration (`claude -p` invocation). The ag
   - `GET /health` — operator health (DB, worker, server balance)
 - **DB Table — `rounds`** (migration 001 + 003 + 004 + 007):
   - `pda TEXT PRIMARY KEY` — match PDA address
-  - `game TEXT` — `"flipyou"` (shared table with lord-of-rngs)
+  - `game TEXT` — `"flipyou"` (shared table with pot-shot)
   - `creator TEXT`, `server_key TEXT`
   - `secret BYTEA`, `commitment BYTEA` — server secret material (secret redacted until settled)
   - `amount_lamports BIGINT` — wager amount (replaced tier column in migration 003)

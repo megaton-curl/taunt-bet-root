@@ -153,7 +153,7 @@ Frontend is intentionally excluded from grading unless it exposes a backend or s
 
 - `[x]` Public verification APIs for flipyou, lord, and closecall rounds.
   - Backend: `backend/services/backend/src/routes/rounds.ts`.
-  - On-chain: `solana/programs/flipyou`, `solana/programs/lordofrngs`, and `solana/programs/closecall` all expose deterministic settlement inputs.
+  - On-chain: `solana/programs/flipyou`, `solana/programs/potshot`, and `solana/programs/closecall` all expose deterministic settlement inputs.
 - `[-]` Fairness history completeness.
   - `/rounds/history` only supports `flipyou` and `lord`; closecall lacks the same history surface.
 - `[ ]` Dedicated standalone fairness-page contract beyond raw verification APIs.

@@ -1,4 +1,4 @@
-# Specification: 101 Lord of the RNGs
+# Specification: 101 Pot Shot
 
 ## Meta
 
@@ -13,9 +13,9 @@
 
 ## Overview
 
-Lord of the RNGs is a winner-takes-all jackpot wheel game. A single open round accepts custom-amount entries from any wallet at or above the platform minimum `0.0026 SOL`. Each purchase is an independent entry with its own `amountLamports`, and the win chance of that entry is proportional to `entryAmountLamports / totalRoundAmountLamports`.
+Pot Shot is a winner-takes-all pot shot wheel game. A single open round accepts custom-amount entries from any wallet at or above the platform minimum `0.0026 SOL`. Each purchase is an independent entry with its own `amountLamports`, and the win chance of that entry is proportional to `entryAmountLamports / totalRoundAmountLamports`.
 
-The target V1 architecture is the backend-assisted hybrid fairness model used by FlipYou, adapted for a countdown jackpot:
+The target V1 architecture is the backend-assisted hybrid fairness model used by FlipYou, adapted for a countdown pot shot:
 - Backend commits the secret during round creation and co-signs the first entry tx.
 - Countdown starts when two distinct wallets each have at least one entry.
 - Entry close is enforced by wall time (`countdownEndsAtUnix`) with no separate lock tx.
@@ -24,7 +24,7 @@ The target V1 architecture is the backend-assisted hybrid fairness model used by
 
 ## User Stories
 
-- As a player, I want to buy entries into a jackpot wheel so that I have a chance at winning the entire pot.
+- As a player, I want to buy entries into a pot shot wheel so that I have a chance at winning the entire pot.
 - As a player, I want to buy multiple entries so that I can increase my odds of winning.
 - As a player, I want to watch a wheel spin animation so that I experience the excitement of the draw.
 - As a player, I want to see my odds reflected visually on the wheel so that I understand my chances.
@@ -33,9 +33,9 @@ The target V1 architecture is the backend-assisted hybrid fairness model used by
 
 ## Scope Alignment
 
-- **`docs/SCOPE.md` references**: Section 2 (V1 In Scope: Lord of the RNGs), Section 5 (V1 Game Scope), Section 8 (Delivery Plan - Phase 2)
+- **`docs/SCOPE.md` references**: Section 2 (V1 In Scope: Pot Shot), Section 5 (V1 Game Scope), Section 8 (Delivery Plan - Phase 2)
 - **Scope status**: V1 In Scope
-- **Phase boundary**: Phase 2 - Lord of the RNGs End-to-End
+- **Phase boundary**: Phase 2 - Pot Shot End-to-End
 
 ## Required Context Files
 
@@ -48,7 +48,7 @@ The target V1 architecture is the backend-assisted hybrid fairness model used by
 
 - `solana/programs/flipyou/` — reference program (same architecture pattern)
 - `solana/shared/src/` — shared Rust crate (lifecycle, fees, amount constraints, escrow, fairness, pause, timeout)
-- `apps/platform/src/features/lord-of-rngs/` — existing frontend mock (types, components, context, mock-simulation)
+- `apps/platform/src/features/pot-shot/` — existing frontend mock (types, components, context, mock-simulation)
 - `packages/game-engine/src/types.ts` — amount helpers, fee constants
 - `services/backend/` — fairness backend pattern to mirror for create / settle / verification flows
 
@@ -150,8 +150,8 @@ The wheel visualization and interaction controls.
 - [x] Large wheel divided into slots <!-- satisfied: WheelVisualization.tsx renders horizontal wheel with slots from player entries -->
 - [x] Player's own slots highlighted in distinct color <!-- satisfied: WheelVisualization.tsx highlights current player slots with distinct color -->
 - [x] Entry count per player shown in legend <!-- satisfied: ActiveRoundView shows player list with entry counts -->
-- [x] "Buy Entry" button (disabled during Spin/Reveal/Complete) <!-- satisfied: LordOfRngsPage.tsx:222-230 sidebar "Buy More Entries" button; disabled during non-Waiting/Countdown phases -->
-- [x] "Spin" button appears after countdown expires (disabled once spin animation starts or if phase already Settled) <!-- satisfied: ActiveRoundView.tsx:86-95 + LordOfRngsPage.tsx sidebar; devnet E2E validates -->
+- [x] "Buy Entry" button (disabled during Spin/Reveal/Complete) <!-- satisfied: PotShotPage.tsx:222-230 sidebar "Buy More Entries" button; disabled during non-Waiting/Countdown phases -->
+- [x] "Spin" button appears after countdown expires (disabled once spin animation starts or if phase already Settled) <!-- satisfied: ActiveRoundView.tsx:86-95 + PotShotPage.tsx sidebar; devnet E2E validates -->
 - [x] Current pool size prominently displayed <!-- satisfied: ActiveRoundView + TierRoundView show pool size -->
 - [x] Smooth spin animation with gradual deceleration <!-- satisfied: WheelVisualization.tsx:302-359 — 5s, 3 loops, deceleration curve -->
 - [x] Winner slot highlighted with glow and confetti <!-- satisfied: WheelVisualization.tsx:460-486 winner slot; star burst + coin animations (496-507) -->
@@ -172,7 +172,7 @@ Each round includes a public verification payload for independent verification a
 
 **Acceptance Criteria:**
 - [x] Settled rounds are verifiable via a public rounds/fairness payload including commitment, revealed secret, entropy slot details, winning slot, winner, and payout <!-- satisfied: GET /rounds/:pda returns full verification data; RoundSettled event on-chain; verifyLordRound() in game-engine -->
-- [ ] Fairness page supports Lord of the RNGs verification using backend-served payloads rather than VRF proof assumptions <!-- deferred: frontend being reworked separately; backend endpoint + verification function exist -->
+- [ ] Fairness page supports Pot Shot verification using backend-served payloads rather than VRF proof assumptions <!-- deferred: frontend being reworked separately; backend endpoint + verification function exist -->
 - [ ] Active round / result UI shows pre-settlement commitment info and post-settlement verification data without exposing secrets early <!-- deferred: frontend being reworked separately; backend serves correct data per phase -->
 
 ---
@@ -199,7 +199,7 @@ Each round includes a public verification payload for independent verification a
 - Max 64 entries per round (`MAX_ENTRIES = 64`, `Vec<WeightedEntry>` account size cap)
 - Round only triggers countdown with minimum 2 distinct wallets
 - Rounds are identified by `round_number` (backend-generated), not scoped by amount
-- PDA seeds: `["jackpot_round", round_number.to_le_bytes()]` — no tier or amount in seeds
+- PDA seeds: `["potshot_round", round_number.to_le_bytes()]` — no tier or amount in seeds
 - This is the second V1 game after FlipYou
 - SOL-denominated custom amounts with a shared minimum of `0.0026 SOL`
 - Commit-reveal fairness (same model as flipyou), NOT Orao VRF
@@ -227,11 +227,11 @@ Each round includes a public verification payload for independent verification a
 
 The completed phases below capture the current commit-reveal implementation. The program uses the same backend-assisted hybrid fairness model as FlipYou (commit-reveal + SlotHashes entropy), not Orao VRF.
 
-#### Phase A: On-Chain Program (Lord of the RNGs)
+#### Phase A: On-Chain Program (Pot Shot)
 
-- [x] [on-chain] Scaffold `solana/programs/lordofrngs/` — Cargo.toml, Xargo.toml, `src/lib.rs` with `declare_id!`, `src/state.rs` with `LordConfig` + `JackpotRound` + `WeightedEntry` + `RoundSettled` event, `src/error.rs` with error codes. Register in `solana/Cargo.toml` workspace members and `Anchor.toml` programs. Verify: `anchor build -p lordofrngs` succeeds. (done: iteration 1)
+- [x] [on-chain] Scaffold `solana/programs/potshot/` — Cargo.toml, Xargo.toml, `src/lib.rs` with `declare_id!`, `src/state.rs` with `LordConfig` + `PotShotRound` + `WeightedEntry` + `RoundSettled` event, `src/error.rs` with error codes. Register in `solana/Cargo.toml` workspace members and `Anchor.toml` programs. Verify: `anchor build -p potshot` succeeds. (done: iteration 1)
 - [x] [on-chain] `initialize_config` instruction — admin creates `LordConfig` PDA (`[b"lord_config"]`) with treasury + authority + paused flag. Pattern: copy from flipyou `initialize_config.rs`. Verify: bankrun test creates config, reads back fields. (done: iteration 2)
-- [x] [on-chain] `create_round` instruction — server co-signs, creates a `JackpotRound` PDA (`[b"jackpot_round", round_number.to_le_bytes()]`). Creator pays rent and is first entry. Stores `commitment = SHA256(server_secret)`, sets phase=Waiting, records first `WeightedEntry`, transfers `amount` lamports to round PDA escrow. Requires: config not paused, amount at or above `0.0026 SOL`, `round_number` is backend-generated (no on-chain counter). Verify: bankrun test creates round, checks PDA data + escrow balance. (done: iteration 3)
+- [x] [on-chain] `create_round` instruction — server co-signs, creates a `PotShotRound` PDA (`[b"potshot_round", round_number.to_le_bytes()]`). Creator pays rent and is first entry. Stores `commitment = SHA256(server_secret)`, sets phase=Waiting, records first `WeightedEntry`, transfers `amount` lamports to round PDA escrow. Requires: config not paused, amount at or above `0.0026 SOL`, `round_number` is backend-generated (no on-chain counter). Verify: bankrun test creates round, checks PDA data + escrow balance. (done: iteration 3)
 - [x] [on-chain] `join_round` instruction — any player joins an existing round. Validates: phase is Waiting or Active, entries < `MAX_ENTRIES` (64), countdown not expired (if Active). Appends a new `WeightedEntry {player, amount_lamports}` — multiple entries per player allowed (each independent). Transfers `amount` to escrow. If this is the 2nd distinct wallet, transition Waiting→Active: set `countdown_started_at`, `countdown_ends_at = clock + 60`, `target_entropy_slot = current_slot + 150 + 12`, `resolve_deadline`. Verify: bankrun tests for happy path (join triggers countdown), max entries rejection, wrong phase rejection. (done: iteration 4)
 - [x] [on-chain] `buy_more_entries` instruction — delegates to same logic as `join_round` internally. Any player (new or existing) can call. Validates: phase is Waiting or Active, entries < `MAX_ENTRIES` (64), countdown not expired. Appends new `WeightedEntry`, updates `total_amount_lamports` and `distinct_players`. Also triggers Waiting→Active if this is the 2nd distinct wallet. Verify: bankrun test buys more, checks updated entry count + pool. (done: iteration 5)
 - [x] [on-chain] `start_spin` instruction — **deprecated compatibility shim**. Validates: phase is Active, `clock.unix_timestamp >= countdown_ends_at`. Performs no state transition (no VRF request). Kept for frontend compatibility. Settlement happens via `claim_payout` directly. (done: iteration 6)
@@ -245,24 +245,24 @@ The completed phases below capture the current commit-reveal implementation. The
 
 #### Phase C: Game Engine + Anchor Client
 
-- [x] [engine] Update `lordofrngs.ts` in `packages/game-engine/src/` — exports: `getRoundPda(matchId)`, `getConfigPda()`, `determineWinnerFromRandomness()`, `mapOffsetToPlayer()`, `verifyLordRound()`, `calculateJackpotPayout()`. <!-- satisfied: game-engine/src/lordofrngs.ts — all exports present, uses matchId Buffer -->
-- [x] [engine] Add Lord of the RNGs verification function to `packages/game-engine/src/` or `packages/fairness/src/` — given a tx signature, extract RoundSettled event, re-derive result_hash from secret + entropy + round_pda, verify winning offset and winner match. Pattern: mirror flipyou `verification.ts` (commit-reveal, not VRF). Verify: TypeScript compiles. (done: iteration 12)
-- [x] [engine] Run `anchor build -p lordofrngs` and sync IDL to `packages/anchor-client/src/lordofrngs.json`. Export typed program interface from anchor-client package. Verify: `pnpm build:all` succeeds. (done: iteration 13)
+- [x] [engine] Update `potshot.ts` in `packages/game-engine/src/` — exports: `getRoundPda(matchId)`, `getConfigPda()`, `determineWinnerFromRandomness()`, `mapOffsetToPlayer()`, `verifyLordRound()`, `calculatePot ShotPayout()`. <!-- satisfied: game-engine/src/potshot.ts — all exports present, uses matchId Buffer -->
+- [x] [engine] Add Pot Shot verification function to `packages/game-engine/src/` or `packages/fairness/src/` — given a tx signature, extract RoundSettled event, re-derive result_hash from secret + entropy + round_pda, verify winning offset and winner match. Pattern: mirror flipyou `verification.ts` (commit-reveal, not VRF). Verify: TypeScript compiles. (done: iteration 12)
+- [x] [engine] Run `anchor build -p potshot` and sync IDL to `packages/anchor-client/src/potshot.json`. Export typed program interface from anchor-client package. Verify: `pnpm build:all` succeeds. (done: iteration 13)
 
 #### Phase D: Frontend Wiring (Replace Mocks)
 
-- [ ] [frontend] Update `features/lord-of-rngs/utils/chain.ts` for round-number-keyed rounds: `buildJoinRoundTx`, `buildBuyMoreEntriesTx`, `buildStartSpinTx`, `fetchRound`, `fetchActiveRounds`. Backend handles `create_round` and `claim_payout` (server co-sign required). Pattern: mirror flipyou `chain.ts`. Verify: TypeScript compiles. <!-- out of scope: frontend is a separate project -->
-- [ ] [frontend] Update `LordOfRngsContext.tsx` — replace mock-simulation imports with chain.ts calls. Wire join/buyMore actions around round-number-keyed rounds. Poll/subscribe round account so all clients detect phase transitions (Active → Settled). `start_spin` is a deprecated shim kept for frontend compatibility but performs no state transition. Verify: TypeScript compiles, `pnpm lint` clean. <!-- out of scope: frontend is a separate project -->
+- [ ] [frontend] Update `features/pot-shot/utils/chain.ts` for round-number-keyed rounds: `buildJoinRoundTx`, `buildBuyMoreEntriesTx`, `buildStartSpinTx`, `fetchRound`, `fetchActiveRounds`. Backend handles `create_round` and `claim_payout` (server co-sign required). Pattern: mirror flipyou `chain.ts`. Verify: TypeScript compiles. <!-- out of scope: frontend is a separate project -->
+- [ ] [frontend] Update `PotShotContext.tsx` — replace mock-simulation imports with chain.ts calls. Wire join/buyMore actions around round-number-keyed rounds. Poll/subscribe round account so all clients detect phase transitions (Active → Settled). `start_spin` is a deprecated shim kept for frontend compatibility but performs no state transition. Verify: TypeScript compiles, `pnpm lint` clean. <!-- out of scope: frontend is a separate project -->
 - [ ] [frontend] Replace tier types / selectors with amount input + round state. Ensure `ActiveRoundView` and lobby views display the entered SOL amount and enforce the `0.0026 SOL` minimum. Verify: `pnpm lint` clean. <!-- out of scope: frontend is a separate project -->
-- [x] [frontend] Wire fairness verification — update sidebar fairness section to show commit-reveal data from RoundSettled event (commitment, secret, entropy, result_hash). Add Lord of the RNGs section to `/fairness` page (paste tx signature → verify winning offset). Verify: TypeScript compiles. (done: iteration 17)
+- [x] [frontend] Wire fairness verification — update sidebar fairness section to show commit-reveal data from RoundSettled event (commitment, secret, entropy, result_hash). Add Pot Shot section to `/fairness` page (paste tx signature → verify winning offset). Verify: TypeScript compiles. (done: iteration 17)
 - [x] [frontend] Delete `mock-simulation.ts` once all context actions use chain.ts. Verify: `pnpm build:all` succeeds, no imports of mock-simulation remain. (done: iteration 18)
 
 #### Phase E: Testing
 
 - [ ] [test] Bankrun test suite for lord program — at minimum: initialize_config, create_round (happy + below-minimum amount + server co-sign), join_round (happy + triggers countdown + max entries + wrong phase + countdown expired), buy_more_entries (happy + new player via buy_more + wrong phase), start_spin (happy shim + too early + wrong phase), claim_payout (correct winner via commit-reveal + correct payout + fee to treasury + event fields + account closed), timeout_refund (happy after resolve_deadline + too early rejects), force_close (admin only + refunds all). Target: >=15 tests. Verify: `anchor test` passes.
-- [x] [test] Update visual baselines for Lord of the RNGs pages. Run `pnpm test:visual` to identify failures, then `pnpm test:visual:update` to regenerate. **Before committing**: read old baseline and new screenshot for each changed page (use Read tool on PNG files). Evaluate:
+- [x] [test] Update visual baselines for Pot Shot pages. Run `pnpm test:visual` to identify failures, then `pnpm test:visual:update` to regenerate. **Before committing**: read old baseline and new screenshot for each changed page (use Read tool on PNG files). Evaluate:
   - **PASS** (changes clearly match spec intent, only expected areas changed) → commit updated baselines
-  - **REVIEW** (changes look plausible but unexpected areas also changed, or uncertain) → do NOT commit baselines. Save the diff images from `test-results/` to `docs/specs/101-lord-of-the-rngs/visual-review/`, describe concerns in `history.md`, output `<blocker>Visual review needed: [describe what looks off]</blocker>`
+  - **REVIEW** (changes look plausible but unexpected areas also changed, or uncertain) → do NOT commit baselines. Save the diff images from `test-results/` to `docs/specs/101-pot-shot/visual-review/`, describe concerns in `history.md`, output `<blocker>Visual review needed: [describe what looks off]</blocker>`
   - **FAIL** (layout broken, elements missing, clearly wrong) → fix the code, do NOT update baselines
   (done: iteration 20)
 - [x] [test] Add local deterministic E2E coverage in `e2e/local/` — at minimum: smoke test (app loads with lord page), lifecycle test (Player A creates round → Player B joins → countdown → backend settles via claim_payout(secret) → payout verified on-chain). Verify: `pnpm test:e2e` passes. (done: iteration 21)
@@ -272,7 +272,7 @@ The completed phases below capture the current commit-reveal implementation. The
 
 - [ ] [frontend] Ensure create/start/verification flows use commit-reveal payloads from the backend fairness contract (specs `005` and `006`). No VRF-specific terminology or payloads. <!-- deferred: frontend being reworked separately -->
 - [x] [backend] Define Lord-specific create, settle, and verification flows on top of the fairness backend architecture. `create_round` requires server co-signer + commitment. `claim_payout` requires revealed secret. <!-- satisfied: lord-create.ts (create with commitment), settle-tx.ts:447-680 (claim_payout with secret), rounds.ts (verification endpoints) -->
-- [x] [test] Validate backend-backed create -> countdown -> auto-settle -> verify coverage in local/devnet E2E. <!-- satisfied: e2e/devnet/lord-lifecycle.spec.ts full lifecycle test -->
+- [x] [test] Validate backend-backed create -> countdown -> auto-settle -> verify coverage in local/devnet E2E. <!-- satisfied: e2e/devnet/potshot-lifecycle.spec.ts full lifecycle test -->
 - [ ] [docs] Confirm result/history pages use public verification payloads (commitment, secret, entropy, result_hash) instead of VRF proof terminology. <!-- deferred: frontend being reworked separately; backend payloads correct -->
 
 #### Phase F: Validation
@@ -280,7 +280,7 @@ The completed phases below capture the current commit-reveal implementation. The
 - [ ] [test] All existing tests pass (flipyou bankrun, platform bankrun, visual regression, lint, typecheck)
 - [ ] [test] Lord bankrun tests pass (≥15 tests)
 - [ ] [test] `pnpm lint` clean, `pnpm build:all` succeeds
-- [ ] [test] No JS console errors on Lord of the RNGs pages
+- [ ] [test] No JS console errors on Pot Shot pages
 - [ ] [test] All FR acceptance criteria verified (FR-1 through FR-7, FR-9)
 
 ### Iteration Instructions
@@ -302,10 +302,10 @@ If ANY check fails:
 - **Program ID**: `EtiKV4VdHPLow2N8zqHhb5QhxvqwzTqZxULPNrffZr6z`
 - **PDA Seeds**:
   - `LordConfig`: `["lord_config"]`
-  - `JackpotRound`: `["jackpot_round", match_id]` (match_id is random 8 bytes, backend-generated)
+  - `PotShotRound`: `["potshot_round", match_id]` (match_id is random 8 bytes, backend-generated)
 - **Accounts**:
   - `LordConfig` — authority, paused, bump
-  - `JackpotRound` — match_id, server, phase (RoundPhase from shared crate), commitment, algorithm_ver, entries (Vec\<WeightedEntry\>, max 64), total_amount_lamports, distinct_players, created_at, countdown_started_at, countdown_ends_at, target_entropy_slot, resolve_deadline, result_hash, winning_offset, winning_entry_index, winner, creator, bump
+  - `PotShotRound` — match_id, server, phase (RoundPhase from shared crate), commitment, algorithm_ver, entries (Vec\<WeightedEntry\>, max 64), total_amount_lamports, distinct_players, created_at, countdown_started_at, countdown_ends_at, target_entropy_slot, resolve_deadline, result_hash, winning_offset, winning_entry_index, winner, creator, bump
   - `WeightedEntry` — player (Pubkey), amount_lamports (u64)
 - **Instructions**: `initialize_config`, `create_round`, `join_round`, `buy_more_entries`, `cancel_round`, `start_spin` (deprecated shim), `claim_payout`, `timeout_refund`, `force_close`, `set_paused`
 
@@ -333,7 +333,7 @@ If ANY check fails:
 - `start_spin` instruction is a deprecated compatibility shim — kept for frontend compatibility but performs no state transition (no VRF request).
 - Settlement: backend calls `claim_payout(round_number, secret)` to reveal committed secret and settle. Winner receives payout automatically. Frontend shows progress/verification rather than asking winner to claim in happy path.
 - Fee: 500 bps (5%) flat fee to single treasury via PlatformConfig. Collected at settlement of decisive rounds only.
-- Account design: single round PDA with ordered entry vec. PDA seeds: `["jackpot_round", round_number.to_le_bytes()]` — no tier or amount in seeds.
+- Account design: single round PDA with ordered entry vec. PDA seeds: `["potshot_round", round_number.to_le_bytes()]` — no tier or amount in seeds.
 - `PlayerProfile` removed (2026-03-12) — no platform CPI for stats. Stats moved off-chain.
 - Spin trigger `start_spin` is permissionless and idempotent — any player can press it after countdown expires. On-chain rejects if already Locked.
 - `timeout_refund` is permissionless after `resolve_deadline`. Aggregates per-player refund totals across all entries. Uses remaining_accounts pattern (one per distinct player).
@@ -346,8 +346,8 @@ If ANY check fails:
 
 - **FR-8 Audio (all 5 criteria)**: Wheel spin sound, countdown beeps, drum roll, victory fanfare, coin/cash sound — all deferred to a dedicated audio spec covering all games. No target spec exists yet (untracked deferral).
 - **FR-2.5 Audio ticks in countdown**: Same deferral — dedicated audio spec.
-- **Phase C game-engine update**: `lordofrngs.ts` exports not yet updated for round-number-keyed rounds (e.g., `getRoundPda(roundNumber)` without tier, `determineWinnerFromResultHash`). TypeScript compiles but API shape is from the tier-based era.
-- **Phase D frontend wiring (partial)**: `chain.ts` transaction builders, `LordOfRngsContext.tsx` backend integration, and amount-input replacement for tier selectors are incomplete — pending backend fairness integration (Phase G).
+- **Phase C game-engine update**: `potshot.ts` exports not yet updated for round-number-keyed rounds (e.g., `getRoundPda(roundNumber)` without tier, `determineWinnerFromResultHash`). TypeScript compiles but API shape is from the tier-based era.
+- **Phase D frontend wiring (partial)**: `chain.ts` transaction builders, `PotShotContext.tsx` backend integration, and amount-input replacement for tier selectors are incomplete — pending backend fairness integration (Phase G).
 - **Phase E bankrun tests**: Full bankrun suite (>=15 tests) not re-validated against the commit-reveal pivot. 38 tests exist from the VRF era but some may need updates for the new settlement model.
 - **Phase F validation**: Final validation pass (all tests, lint, build, FR acceptance criteria) not completed.
 - **Phase G backend fairness integration**: Lord-specific create/settle/verify flows on top of the backend fairness architecture not yet implemented. Backend needs `create_round` with server co-signer + commitment, and `claim_payout` with revealed secret.

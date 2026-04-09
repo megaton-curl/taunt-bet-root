@@ -1,6 +1,6 @@
 /* eslint-disable no-console */
 /**
- * Devnet lifecycle E2E test for Lord of the RNGs:
+ * Devnet lifecycle E2E test for Pot Shot:
  * UI create → UI join → countdown → backend settle → verify.
  */
 import { test, expect } from "./fixtures";
@@ -13,14 +13,14 @@ import {
   type DevnetConfig,
 } from "./helpers/env";
 import { withRetry } from "./helpers/retry";
-import { ensureLordCleanState } from "./helpers/lord-on-chain-cleanup";
+import { ensureLordCleanState } from "./helpers/potshot-on-chain-cleanup";
 import {
   fetchLordRound,
   assertLordRoundClosed,
   assertLordTreasuryFee,
   snapshotBalance,
   getTreasuryAddress,
-  LORDOFRNGS_PROGRAM_ID,
+  POTSHOT_PROGRAM_ID,
 } from "../local/helpers/on-chain";
 import { Connection, LAMPORTS_PER_SOL, PublicKey } from "@solana/web3.js";
 
@@ -103,7 +103,7 @@ function captureSettlementEvents(page: Page): string[] {
   page.on("console", (msg) => {
     if (
       msg.text().includes("[settlement-event]") ||
-      msg.text().includes("[lord-of-rngs] settlement-event")
+      msg.text().includes("[pot-shot] settlement-event")
     ) {
       lines.push(msg.text());
     }
@@ -150,8 +150,8 @@ async function waitForSettledRound(
 
 test.beforeAll(async () => {
   const config = validateDevnetEnv();
-  if (!config.lordofrngsProgramId) {
-    console.log("VITE_LORDOFRNGS_PROGRAM_ID not set — skipping Lord lifecycle");
+  if (!config.potshotProgramId) {
+    console.log("VITE_POTSHOT_PROGRAM_ID not set — skipping Lord lifecycle");
     return;
   }
   await verifyFairnessBackend(config);
@@ -170,8 +170,8 @@ test.skip("lord lifecycle: UI create → UI join → countdown → backend settl
   connection,
   devnetConfig,
 }) => {
-  if (!devnetConfig.lordofrngsProgramId) {
-    test.skip(true, "VITE_LORDOFRNGS_PROGRAM_ID not configured");
+  if (!devnetConfig.potshotProgramId) {
+    test.skip(true, "VITE_POTSHOT_PROGRAM_ID not configured");
     return;
   }
 
@@ -209,7 +209,7 @@ test.skip("lord lifecycle: UI create → UI join → countdown → backend settl
         const { execSync } = await import("child_process");
         const dbUrl = process.env.DATABASE_URL ?? "postgresql://vscode@localhost:5432/rng_utopia_dev";
         execSync(
-          `psql "${dbUrl}" -c "UPDATE rounds SET phase = 'expired' WHERE game = 'lord' AND phase IN ('created', 'locked', 'settling')"`,
+          `psql "${dbUrl}" -c "UPDATE rounds SET phase = 'expired' WHERE game = 'potshot' AND phase IN ('created', 'locked', 'settling')"`,
           { timeout: 5_000 },
         );
         // Wait briefly for the backend to pick up the change
@@ -230,7 +230,7 @@ test.skip("lord lifecycle: UI create → UI join → countdown → backend settl
   const settlementEventsA = captureSettlementEvents(playerAPage);
   const settlementEventsB = captureSettlementEvents(playerBPage);
 
-  console.log("[phase-1] Player A navigating to Lord of RNGs...");
+  console.log("[phase-1] Player A navigating to Pot Shot...");
   await po.navigateToLord(playerAPage);
   await po.waitForWalletConnected(playerAPage);
   console.log("[phase-1] Wallet connected ✓");
@@ -256,21 +256,21 @@ test.skip("lord lifecycle: UI create → UI join → countdown → backend settl
 
   // Extract match ID from page URL — more reliable than getProgramAccounts on devnet
   const pageUrl = playerAPage.url();
-  const urlMatch = pageUrl.match(/\/lord-of-rngs\/([0-9a-f]{16})/i);
+  const urlMatch = pageUrl.match(/\/pot-shot\/([0-9a-f]{16})/i);
   if (!urlMatch) {
     // Fallback: wait briefly for URL to update
-    await playerAPage.waitForURL(/\/lord-of-rngs\/[0-9a-f]{16}/i, { timeout: 10_000 });
+    await playerAPage.waitForURL(/\/pot-shot\/[0-9a-f]{16}/i, { timeout: 10_000 });
     const updatedUrl = playerAPage.url();
-    const fallbackMatch = updatedUrl.match(/\/lord-of-rngs\/([0-9a-f]{16})/i);
+    const fallbackMatch = updatedUrl.match(/\/pot-shot\/([0-9a-f]{16})/i);
     if (!fallbackMatch) throw new Error(`Expected URL with match ID, got: ${updatedUrl}`);
   }
-  const matchIdHex = (urlMatch?.[1] ?? playerAPage.url().match(/\/lord-of-rngs\/([0-9a-f]{16})/i)?.[1])!;
+  const matchIdHex = (urlMatch?.[1] ?? playerAPage.url().match(/\/pot-shot\/([0-9a-f]{16})/i)?.[1])!;
   console.log(`[phase-1] Match ID from URL: ${matchIdHex}`);
 
   // Derive PDA from match ID and fetch account directly (avoids getProgramAccounts)
   const [roundPda] = PublicKey.findProgramAddressSync(
-    [Buffer.from("jackpot_round"), Buffer.from(matchIdHex, "hex")],
-    LORDOFRNGS_PROGRAM_ID,
+    [Buffer.from("potshot_round"), Buffer.from(matchIdHex, "hex")],
+    POTSHOT_PROGRAM_ID,
   );
 
   const { round: createdOnChainRound } = await withRetry(
@@ -403,8 +403,8 @@ test.skip("lord lifecycle: UI create → UI join → countdown → backend settl
   console.log("[profile] Checking player A profile transactions...");
   const { assertProfileTransactions } = await import("../helpers/profile-assertions");
   await assertProfileTransactions(playerAPage, {
-    gameName: "Jackpot",
-    gameRoute: "/lord-of-rngs/",
+    gameName: "Pot Shot",
+    gameRoute: "/pot-shot/",
     minRows: 2,
   });
   console.log("[profile] Profile transactions verified ✓");

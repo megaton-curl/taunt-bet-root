@@ -21,7 +21,7 @@ Track temporary hacks, relaxed rules, and shortcuts here.
 - **Proper solution**: (1) Add retry logic with max attempts (like referral-claim handler), (2) Add rate limiting per user, (3) Verify payout amounts against pool balance, (4) Test with real devnet treasury wallet, (5) Add monitoring/alerting for failed payouts.
 - **Why not now**: M1 launch — handler structure is correct, needs ops hardening before real SOL flows through it.
 
-### ~~[Jackpot] Backend game-engine PDA helper uses stale `roundNumber` seed~~
+### ~~[Pot Shot] Backend game-engine PDA helper uses stale `roundNumber` seed~~
 - **Resolved**: 2026-04-02 — `getRoundPda(matchId: Buffer)` already uses correct seed. Confirmed in gap analysis for spec 101.
 
 ---

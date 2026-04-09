@@ -6,10 +6,10 @@ Track key architectural and product decisions as they're made.
 
 ## 2026-02-09 - Initial Setup
 
-### Decision: FlipYou First, Lord of the RNGs Second
+### Decision: FlipYou First, Pot Shot Second
 **Date**: 2026-02-09
-**Decision**: Delivery order starts with FlipYou, then Lord of the RNGs
-**Rationale**: FlipYou and Lord of the RNGs share a backend-assisted, non-real-time settlement shape, letting us validate core fairness and settlement flows before tackling Crash timing complexity.
+**Decision**: Delivery order starts with FlipYou, then Pot Shot
+**Rationale**: FlipYou and Pot Shot share a backend-assisted, non-real-time settlement shape, letting us validate core fairness and settlement flows before tackling Crash timing complexity.
 **Status**: ✅ Locked
 
 ### Decision: Standard Anchor Programs (Not BOLT ECS)
@@ -60,7 +60,7 @@ Track key architectural and product decisions as they're made.
 ### Decision: VRF Provider = Orao (MagicBlock dropped)
 **Date**: 2026-02-25
 **Decision**: Replace MagicBlock Ephemeral VRF with **Orao** as the single VRF provider in the baseline architecture at that time.
-**Rationale**: Orao proved straightforward devnet integration and fast fulfillment in live smoke tests. This gives us one VRF integration path for FlipYou and Lord of RNGs while preserving the pivot architecture.
+**Rationale**: Orao proved straightforward devnet integration and fast fulfillment in live smoke tests. This gives us one VRF integration path for FlipYou and Pot Shot while preserving the pivot architecture.
 **Alternatives considered**: Switchboard (reachable on devnet but required additional callback-consumer wiring for equivalent end-to-end benchmarking), keeping MagicBlock VRF (limited VRF focus, uncertain long-term support).
 **Status**: ❌ Reversed
 
@@ -97,7 +97,7 @@ Track key architectural and product decisions as they're made.
 **Date**: 2026-03-12
 **Decision**: Replace nonce-based PDA derivation (`["match", creator, nonce.to_le_bytes()]`) with backend-generated random 8-byte match IDs (`["match", creator, match_id]`). Remove `PlayerProfile` entirely — stats move off-chain. Allow multiple concurrent matches per user.
 **Rationale**: The `PlayerProfile.match_nonce` pattern required a 3-instruction atomic transaction (create_player_profile + increment_match_nonce + create_match), added UX friction (rent for profile PDA), prevented concurrent matches per user, and required CPI from game programs into the platform program during settlement. Random match IDs eliminate all of these issues while keeping PDA derivation deterministic and collision-free (8 random bytes = 2^64 possible IDs).
-**Impact**: On-chain: flipyou `nonce: u64` → `match_id: [u8; 8]`, settle instruction drops 3 accounts (creatorProfile, opponentProfile, platformProgram). Platform program loses 3 instructions (create_player_profile, increment_match_nonce, update_player_profile) and the PlayerProfile state. Lord of RNGs claim_payout drops profile CPI. Shared crate `cpi.rs` deleted. Backend: `nonce` removed from request body, auth canonical JSON, and DB schema; replaced with server-generated `match_id`. Frontend: nonce fetching and profile checks removed from create flow.
+**Impact**: On-chain: flipyou `nonce: u64` → `match_id: [u8; 8]`, settle instruction drops 3 accounts (creatorProfile, opponentProfile, platformProgram). Platform program loses 3 instructions (create_player_profile, increment_match_nonce, update_player_profile) and the PlayerProfile state. Pot Shot claim_payout drops profile CPI. Shared crate `cpi.rs` deleted. Backend: `nonce` removed from request body, auth canonical JSON, and DB schema; replaced with server-generated `match_id`. Frontend: nonce fetching and profile checks removed from create flow.
 **Status**: ✅ Locked
 
 ---

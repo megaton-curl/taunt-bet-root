@@ -572,7 +572,7 @@ Note: `referral.game_settled` earnings are written synchronously in the settleme
 
 - Fee structure is 500 bps (5%) flat fee to single treasury (PlatformConfig on-chain)
 - Treasury wallet is funded and managed outside this spec
-- Referral system launches alongside or after existing games (flipyou, lord-of-rngs)
+- Referral system launches alongside or after existing games (flipyou, pot-shot)
 - No on-chain enforcement of referral economics needed for v1
 - Postgres `SKIP LOCKED` is available (Postgres 9.5+ — already met)
 
@@ -757,7 +757,7 @@ After the spec loop outputs `<promise>DONE</promise>`, `spec-loop.sh` automatica
   - `backend/services/backend/migrations/011_referral.sql` — creates all 5 tables
   - `backend/services/backend/migrations/012_referral_claim_retry.sql` — adds `retry_count`, `error` status, concurrent claim guard
 - **Integration Points**:
-  - **Settlement**: `recordReferralEarnings()` in `settle-tx.ts` is called after flipyou and lord-of-rngs settlement. For each player, looks up `referral_links` for a referrer, checks `referral_kol_rates` for custom rate, calculates earnings/rebate, inserts into `referral_earnings`. Errors are logged but never bubble (referral must not fail settlement). `UNIQUE(referee_wallet, round_id)` provides idempotency on retries.
+  - **Settlement**: `recordReferralEarnings()` in `settle-tx.ts` is called after flipyou and pot-shot settlement. For each player, looks up `referral_links` for a referrer, checks `referral_kol_rates` for custom rate, calculates earnings/rebate, inserts into `referral_earnings`. Errors are logged but never bubble (referral must not fail settlement). `UNIQUE(referee_wallet, round_id)` provides idempotency on retries.
   - **Event Queue (spec 301)**: `POST /referral/claim` atomically inserts a `referral_claims` row + emits `referral.claim_requested` event in the same DB transaction via `emitEvent()`. The claim handler (`referral-claim.ts`) is registered at startup in `index.ts:187-190` before the event worker starts.
   - **Claim handler flow**: load claim -> verify not already completed/failed -> update to `processing` -> re-verify `getPendingBalance() >= amount` -> `SystemProgram.transfer` from `serverKeypair` -> record `tx_signature` -> `completed`. Transient failures increment `retry_count`; permanent failure after 5 retries.
 

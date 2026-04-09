@@ -61,7 +61,7 @@ Set up Playwright for screenshot testing in the platform app.
 Capture a baseline screenshot of every route in its default state.
 
 **Acceptance Criteria:**
-- [x] Screenshot captured for: `/`, `/flipyou`, `/lord-of-rngs`, `/close-call`, `/crash`, `/game-of-trades`, `/profile`, `/quests`, `/loot`, `/fairness`, `/leaderboard` <!-- satisfied: routes.spec.ts:1-63, 12 baselines in e2e/__snapshots__/visual/routes.spec.ts/ -->
+- [x] Screenshot captured for: `/`, `/flipyou`, `/pot-shot`, `/close-call`, `/crash`, `/game-of-trades`, `/profile`, `/quests`, `/loot`, `/fairness`, `/leaderboard` <!-- satisfied: routes.spec.ts:1-63, 12 baselines in e2e/__snapshots__/visual/routes.spec.ts/ -->
 - [x] Each screenshot is at a fixed viewport (1280x1080 desktop) <!-- satisfied: playwright.config.ts:25,31. Updated from 720 to 1080 to accommodate central container with overflow:hidden. -->
 - [x] Screenshots are deterministic (same input → same pixels) when using MockWalletProvider <!-- satisfied: fixtures.ts:36-66 (seeded PRNG + frozen Date.now), fixtures.ts:3-13 (CSS freeze), fixtures.ts:82-88 (SVG SMIL pause). Iteration 16 confirmed zero-diff. -->
 - [x] 404 page (`/nonexistent`) is captured <!-- satisfied: routes.spec.ts:59-62, e2e/__snapshots__/visual/routes.spec.ts/404.png -->
@@ -148,7 +148,7 @@ The visual tests must be runnable in a headless CI environment.
 - [x] [test] Run `pnpm test:visual` a second time — verify it passes (screenshot matches baseline, zero diff) (done: iteration 9)
 
 #### Iteration 3: All route baselines
-- [x] [test] Add tests for all remaining routes to `routes.spec.ts`: `/flipyou`, `/lord-of-rngs`, `/close-call`, `/crash`, `/game-of-trades`, `/profile`, `/quests`, `/loot`, `/fairness`, `/leaderboard`, `/nonexistent` (404) (done: iteration 10)
+- [x] [test] Add tests for all remaining routes to `routes.spec.ts`: `/flipyou`, `/pot-shot`, `/close-call`, `/crash`, `/game-of-trades`, `/profile`, `/quests`, `/loot`, `/fairness`, `/leaderboard`, `/nonexistent` (404) (done: iteration 10)
 - [x] [test] Run `pnpm test:visual --update-snapshots` to generate all baselines, then run `pnpm test:visual` to verify all pass with zero diff (done: iteration 11)
 - [x] [test] Verify: 13 baseline screenshot files exist (12 routes + 404) (done: iteration 11 — actual count is 12: 11 routes + 404; the "13" was a counting error in the checklist)
 

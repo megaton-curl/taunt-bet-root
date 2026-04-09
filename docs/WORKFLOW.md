@@ -91,7 +91,7 @@ When writing code that integrates with any external dependency — SDK, API, on-
 ## 9) Devnet E2E Verification (Default)
 
 - Run `./scripts/verify --devnet` before PRs that touch chain-facing code (`solana/`, `backend/packages/anchor-client/`, `backend/packages/game-engine/` winner/payout logic).
-- NOT required every iteration — IS automated in `spec-loop.sh` for specs that reference flipyou, Lord of the RNGs, or Close Call.
+- NOT required every iteration — IS automated in `spec-loop.sh` for specs that reference flipyou, Pot Shot, or Close Call.
 - Requires `VITE_FLIPYOU_PROGRAM_ID` env var to be set; skips gracefully without it.
 - Devnet E2E failures are non-blocking (exit 0 with WARN) — they surface regressions without halting the workflow.
 - For large UI-impacting changes, run visual/e2e checks through user-facing interactions (click/type/navigate) so the flow is validated as a human would use it.

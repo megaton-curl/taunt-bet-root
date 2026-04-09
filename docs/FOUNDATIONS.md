@@ -55,7 +55,7 @@ Separate deployable programs per game + a platform program for shared on-chain s
 | Program | Type | Purpose |
 |---------|------|---------|
 | `solana/programs/flipyou` | Deployable | FlipYou game logic, settlement |
-| `solana/programs/lordofrngs` | Deployable | Jackpot (Lord of RNGs) game logic, settlement |
+| `solana/programs/potshot` | Deployable | Pot Shot (Pot Shot) game logic, settlement |
 | `solana/programs/closecall` | Deployable | Close Call game logic, oracle-based settlement |
 | `solana/programs/platform` | Deployable | Platform settings (fee config, treasury, pause) |
 | `solana/shared` | Rust lib crate (not deployed) | Escrow helpers, lifecycle state machine, timeout logic, pause controls, commit-reveal verifier, fee calculation, constants |
@@ -153,7 +153,7 @@ See `docs/DESIGN_REFERENCE.md` for the full 8-game roadmap including planned gam
 | Game | Fairness | Status |
 |------|----------|--------|
 | **FlipYou** | Commit-reveal + SlotHashes | Shipped |
-| **Jackpot (Lord of RNGs)** | Commit-reveal + SlotHashes | Shipped |
+| **Pot Shot (Pot Shot)** | Commit-reveal + SlotHashes | Shipped |
 | **Close Call** | Pyth oracle (BTC/USD) via Hermes REST | Shipped |
 
 ---

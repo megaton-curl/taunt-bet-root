@@ -14,7 +14,7 @@ SOLANA_DIR="$ROOT/solana"
 CLIENT_DIR="$ROOT/backend/packages/anchor-client/src"
 RPC="https://lb.drpc.live/solana-devnet/AvfNVeH0_E7ajvkIaZ0OS6QiksDa5ZMR76q4qi5fk9AX"
 
-PROGRAMS=("flipyou" "lordofrngs" "closecall" "platform")
+PROGRAMS=("flipyou" "potshot" "closecall" "platform")
 
 get_toml_id() {
   sed -n "s/^${1} *= *\"\([^\"]*\)\"/\1/p" "$SOLANA_DIR/Anchor.toml" | tail -1
@@ -177,7 +177,7 @@ if $FRESH; then
     game_name="$prog"
     # Map program names to DB game names
     case "$prog" in
-      lordofrngs) game_name="lord" ;;
+      potshot) game_name="lord" ;;
       closecall)  game_name="closecall" ;;
     esac
     node --input-type=module -e "

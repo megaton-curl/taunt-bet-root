@@ -38,7 +38,7 @@ For preserved-signature txs: no retry (1 attempt), no blockhash overwrite. If `l
 Any frontend flow using backend co-signed transactions:
 - `/closecall/bet` — Close Call betting
 - `/fairness/flipyou/create` — FlipYou match creation
-- `/fairness/lord/create` — Lord of RNGs round creation
+- `/fairness/lord/create` — Pot Shot round creation
 
 Now handled by the shared `useSendAndConfirm` hook in `apps/platform/src/lib/useSendAndConfirm.ts`.
 
