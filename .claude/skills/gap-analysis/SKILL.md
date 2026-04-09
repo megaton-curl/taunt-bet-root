@@ -1,7 +1,7 @@
 ---
 name: gap-analysis
 description: Audit a completed spec's FR acceptance criteria against the codebase — produces a gap report and annotates the spec.
-argument-hint: <spec-id> [--non-interactive] (e.g., 001-coinflip)
+argument-hint: <spec-id> [--non-interactive] (e.g., 001-flip-you)
 ---
 
 # /gap-analysis — Post-Completion Gap Analysis

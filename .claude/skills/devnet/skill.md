@@ -24,7 +24,7 @@ is given, default to `health`.
 
 ### `matches`
 
-List all open coinflip matches on devnet.
+List all open flipyou matches on devnet.
 
 ```bash
 cd solana && node --input-type=module -e "
@@ -32,13 +32,13 @@ import { Connection, PublicKey, Keypair } from '@solana/web3.js';
 import { AnchorProvider, Program, Wallet } from '@coral-xyz/anchor';
 import { readFileSync } from 'fs';
 
-const idl = JSON.parse(readFileSync('target/idl/coinflip.json', 'utf8'));
+const idl = JSON.parse(readFileSync('target/idl/flipyou.json', 'utf8'));
 const conn = new Connection('https://lb.drpc.live/solana-devnet/AvfNVeH0_E7ajvkIaZ0OS6QiksDa5ZMR76q4qi5fk9AX', 'confirmed');
 const kp = Keypair.fromSecretKey(Uint8Array.from(JSON.parse(readFileSync(process.env.HOME + '/.config/solana/id.json', 'utf8'))));
 const provider = new AnchorProvider(conn, new Wallet(kp), { commitment: 'confirmed' });
 const program = new Program(idl, provider);
 
-const all = await program.account.coinflipMatch.all([{ dataSize: program.account.coinflipMatch.size }]);
+const all = await program.account.flipyouMatch.all([{ dataSize: program.account.flipyouMatch.size }]);
 const phases = ['WAITING', 'LOCKED', 'SETTLED', 'REFUNDED'];
 for (const m of all) {
   const d = m.account;
@@ -55,7 +55,7 @@ Display the results as a formatted table.
 
 ### `join [PDA_PREFIX_OR_FULL]`
 
-Join a coinflip match on devnet.
+Join a flipyou match on devnet.
 
 - If a PDA argument is given, first check if it's a prefix (< 32 chars). If so,
   list all open matches and find the one whose base58 address contains the prefix.
@@ -100,7 +100,7 @@ Deploy a program to devnet using the root deploy script.
 ./scripts/deploy-devnet.sh <program>
 ```
 
-Valid program names: `coinflip`, `lordofrngs`, `closecall`, `platform`.
+Valid program names: `flipyou`, `lordofrngs`, `closecall`, `platform`.
 
 Requires `dangerouslyDisableSandbox: true`.
 

@@ -1,14 +1,14 @@
 ---
 name: refine
 description: Refine a spec's Implementation Checklist into granular, iteration-sized work items for the autonomous spec loop.
-argument-hint: <spec-id> (e.g., 001-coinflip)
+argument-hint: <spec-id> (e.g., 001-flip-you)
 ---
 
 # /refine — Spec Refinement Interview
 
 Refine a spec's Implementation Checklist into granular, iteration-sized work items.
 
-**Usage**: `/refine <spec-id>` (e.g., `/refine 001-coinflip`)
+**Usage**: `/refine <spec-id>` (e.g., `/refine 001-flip-you`)
 
 **Spec argument**: $ARGUMENTS
 
@@ -75,7 +75,7 @@ Replace the spec's `### Implementation Checklist` section with granular checkbox
 Example format:
 ```markdown
 ### Implementation Checklist
-- [x] [on-chain] CoinflipConfig PDA + initialize_config instruction (done: iteration 0)
+- [x] [on-chain] FlipYouConfig PDA + initialize_config instruction (done: iteration 0)
 - [ ] [on-chain] join_match instruction — transfer escrow, set opponent, phase WAITING→LOCKED
 - [ ] [on-chain] resolve_match instruction — oracle authority check, randomness→winner, phase LOCKED→SETTLED
 - [ ] [test] All resolve_match bankrun tests pass (HEADS/TAILS/unauthorized/wrong phase)
