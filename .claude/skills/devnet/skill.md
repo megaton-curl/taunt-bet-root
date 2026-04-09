@@ -100,7 +100,7 @@ Deploy a program to devnet using the root deploy script.
 ./scripts/deploy-devnet.sh <program>
 ```
 
-Valid program names: `flipyou`, `lordofrngs`, `closecall`, `platform`.
+Valid program names: `flipyou`, `potshot`, `closecall`, `platform`.
 
 Requires `dangerouslyDisableSandbox: true`.
 

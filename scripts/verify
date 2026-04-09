@@ -91,7 +91,7 @@ run_anchor() {
     anchor build
 
     echo -e "${GREEN}[STEP] Testing (Anchor programs)...${NC}"
-    pnpm exec mocha --require tsx/cjs -t 1000000 --exit tests/closecall.ts tests/flipyou.ts tests/lordofrngs.ts tests/platform.ts
+    pnpm exec mocha --require tsx/cjs -t 1000000 --exit tests/closecall.ts tests/flipyou.ts tests/potshot.ts tests/platform.ts
 
     cd "$ROOT"
 }
