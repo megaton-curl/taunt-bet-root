@@ -13,6 +13,13 @@ Track temporary hacks, relaxed rules, and shortcuts here.
 
 ## Medium Priority (Before Launch)
 
+### [Backend] Public referral code check endpoint — remove at prod
+- **Date**: 2026-04-15
+- **Location**: `backend/services/backend/src/routes/public-referral.ts` — `GET /public-referral/code/:code`
+- **What**: Unauthenticated endpoint that checks whether a referral code exists. Added for the waitlist pre-connect flow. Leaks code-existence info without auth — acceptable for waitlist but unnecessary attack surface once the main app launches.
+- **Current mitigation**: Returns only `{ exists: boolean }` (no user info). Regex-validates input.
+- **Proper solution**: Remove endpoint once waitlist is retired and the main app handles referral flows behind auth.
+
 ### ~~[Telegram] Webhook errors are too opaque and retry-prone~~
 - **Resolved**: 2026-04-09 — `telegram/src/app.ts` now catches outbound reply delivery failures, logs webhook context, and still returns `200` to Telegram; `telegram/src/telegram-api.ts` now includes Telegram error bodies in thrown errors for faster diagnosis.
 
