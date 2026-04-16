@@ -1,0 +1,213 @@
+alerts:
+- rule: DEPLOYMENT_FAILED
+- rule: DOMAIN_FAILED
+databases:
+- cluster_name: dev-taunt-db-pg
+  engine: PG
+  name: dev-taunt-db-pg
+  production: true
+  version: "18"
+domains:
+- domain: dev.taunt.bet
+  type: PRIMARY
+  zone: dev.taunt.bet
+- domain: waitlist.dev.taunt.bet
+  type: ALIAS
+  zone: dev.taunt.bet
+- domain: api.dev.taunt.bet
+  type: ALIAS
+  zone: dev.taunt.bet
+- domain: webapp.dev.taunt.bet
+  type: ALIAS
+  zone: dev.taunt.bet
+- domain: scream.dev.taunt.bet
+  type: ALIAS
+  zone: dev.taunt.bet
+features:
+- buildpack-stack=ubuntu-22
+ingress:
+  rules:
+  - component:
+      name: backend
+      preserve_path_prefix: true
+    match:
+      authority:
+        exact: api.dev.taunt.bet
+      path:
+        prefix: /
+  - component:
+      name: waitlist
+    match:
+      authority:
+        exact: waitlist.dev.taunt.bet
+      path:
+        prefix: /
+  - component:
+      name: webapp
+    match:
+      authority:
+        exact: dev.taunt.bet
+      path:
+        prefix: /
+  - component:
+      name: chat
+      preserve_path_prefix: true
+    match:
+      authority:
+        exact: scream.dev.taunt.bet
+      path:
+        prefix: /chat
+  - component:
+      name: telegram
+    match:
+      authority:
+        exact: api.dev.taunt.bet
+      path:
+        prefix: /wg/tg
+name: dev-taunt-bet
+region: fra
+services:
+- environment_slug: node-js
+  envs:
+  - key: RPC_URL
+    scope: RUN_AND_BUILD_TIME
+    value: https://lb.drpc.live/solana-devnet/AvfNVeH0_E7ajvkIaZ0OS6QiksDa5ZMR76q4qi5fk9AX
+  - key: SERVER_KEYPAIR
+    scope: RUN_AND_BUILD_TIME
+    type: SECRET
+    value: EV[1:edFw5t19QOJJ0r5XvudzQR4yLcFIrkwF:nxVIazxuO0NqgDm6YPATZS+cDnG5D3TXRcPxax859V7EyKnvqdEo+xcIcLAUXuxOLxVrH4TVj1JzvBrG26uNvZ2b3VjmZynJH4mRAYA7jlRVmLHUCWOq6UX53s/OYq8pwOGQGOboawGjDdI1KtazMir+M/jI7izjREOcwFK28fEyeXiH6l5Vn8RhjqiuaXV15DOIB9OSxYCQnH5uno/Dwdt1xSQsN/NPr4jqzS8XIhaUoMxaVbUgv6JTzBOG0ZFYgVlG/yuSOwyqxWyy0ms2BpJ3nrQokEVWVMmmcv7IeNgJuEQpLKwvkDYTYGVr/m8C7uevgGoUlA==]
+  - key: DATABASE_URL
+    scope: RUN_TIME
+    value: ${dev-taunt-db-pg.DATABASE_URL}
+  - key: ADMIN_TOKEN
+    scope: RUN_AND_BUILD_TIME
+    value: imn0admin
+  - key: JWT_SECRET
+    scope: RUN_TIME
+    type: SECRET
+    value: EV[1:UoDn5t6wxoDM5+phh+ODQ1pTZxyx8HjD:1DIq8QMeOBwt7D9EQfSzsppRpQAcefpmLasheeBA3XqrpE9w+Kjf0XbQXDsyMzt3pCMHhStDyovLRPhY]
+  - key: CHAT_FEED_TOKEN
+    scope: RUN_TIME
+    type: SECRET
+    value: EV[1:ngsXOhPTgVM1nMdY/2K6wnPKsDwZJH+7:hM6aaSmWhetkhc+DQzIJ/q5ow9ieRixqd5BTKdrF98nHjYF/scxL0zBmvkCS5h6GRwEhYSDAp6w/XY/k]
+  - key: TELEGRAM_BOT_USERNAME
+    scope: RUN_TIME
+    value: tb_646_dev_bot
+  - key: TELEGRAM_WEBHOOK_SECRET
+    scope: RUN_TIME
+    type: SECRET
+    value: EV[1:tXNyWotMo/ZtZjw7HK2R/2HNV39LuV9M:gkARgK6KOvfCuO1aMtYAOE86y9QK6dBvuFNNPsu+XGlwSakmPbz07vkToNCgOeWz9w2hL7NYrNpzRngk]
+  - key: COMMUNITY_INVITE_URL
+    scope: RUN_TIME
+    value: https://t.me/+nK0wON5pcHA5Zjc0
+  github:
+    branch: dev
+    deploy_on_push: true
+    repo: taunt-bet/backend
+  http_port: 8080
+  instance_count: 1
+  instance_size_slug: apps-s-1vcpu-1gb
+  name: backend
+  run_command: pnpm --filter @taunt-bet/backend start
+  source_dir: /
+- environment_slug: node-js
+  envs:
+  - key: JWT_SECRET
+    scope: RUN_TIME
+    type: SECRET
+    value: EV[1:rq73f5Bedu1QHiGPi+gKsEvKkbtQ/NIl:XK+4qLJYXQlj3FnuWa7RdxMcRUttMhsGX6VP9nsdCSzaVT8n/lvliRX3mEMt2JEfAMi9vwm8LHibvg1n]
+  - key: CHAT_ADMIN_TOKEN
+    scope: RUN_TIME
+    value: imn0admin
+  - key: PLATFORM_API_BASE_URL
+    scope: RUN_TIME
+    value: ' https://api.dev.taunt.bet'
+  - key: CHAT_FEED_TOKEN
+    scope: RUN_AND_BUILD_TIME
+    value: r7+Qi3us32xdVNEKugrfUZaX6QsyeBemZVFvTggM1Zk=
+  github:
+    branch: dev
+    deploy_on_push: true
+    repo: taunt-bet/chat
+  http_port: 8080
+  instance_count: 1
+  instance_size_slug: apps-s-1vcpu-1gb
+  name: chat
+  run_command: pnpm start
+  source_dir: /
+- environment_slug: node-js
+  envs:
+  - key: BACKEND_URL
+    scope: RUN_AND_BUILD_TIME
+    value: https://api.dev.taunt.bet
+  - key: TELEGRAM_BOT_TOKEN
+    scope: RUN_AND_BUILD_TIME
+    value: 8644391409:AAFctXL6vrDPbeOnge_Kacfnr3lgNQjCjXA
+  - key: TELEGRAM_WEBHOOK_SECRET
+    scope: RUN_AND_BUILD_TIME
+    value: BTLrR6zHqm3PM4MDpaFLeelIlkobaPyYk1sQITcmY9E_
+  - key: PUBLIC_APP_URL
+    scope: RUN_AND_BUILD_TIME
+    value: https://waitlist.dev.taunt.bet
+  - key: COMMUNITY_INVITE_URL
+    scope: RUN_AND_BUILD_TIME
+    value: https://t.me/+nK0wON5pcHA5Zjc0
+  - key: REFERRAL_PATH_PREFIX
+    scope: RUN_AND_BUILD_TIME
+    value: /ref
+  github:
+    branch: dev
+    deploy_on_push: true
+    repo: taunt-bet/telegram
+  http_port: 8080
+  instance_count: 1
+  instance_size_slug: apps-s-1vcpu-1gb
+  name: telegram
+  run_command: pnpm start
+  source_dir: /
+static_sites:
+- catchall_document: index.html
+  environment_slug: node-js
+  envs:
+  - key: NODE_ENV
+    scope: BUILD_TIME
+    value: production
+  - key: VITE_SOLANA_NETWORK
+    scope: BUILD_TIME
+    value: devnet
+  - key: VITE_FAIRNESS_BACKEND_URL
+    scope: BUILD_TIME
+    value: https://api.dev.taunt.bet
+  github:
+    branch: dev
+    deploy_on_push: true
+    repo: taunt-bet/waitlist
+  name: waitlist
+  output_dir: dist
+  source_dir: /
+- catchall_document: index.html
+  environment_slug: node-js
+  envs:
+  - key: NODE_ENV
+    scope: BUILD_TIME
+    value: production
+  - key: VITE_SOLANA_NETWORK
+    scope: BUILD_TIME
+    value: devnet
+  - key: VITE_FAIRNESS_BACKEND_URL
+    scope: BUILD_TIME
+    value: https://api.dev.taunt.bet
+  - key: VITE_RPC_URL
+    scope: BUILD_TIME
+    value: https://lb.drpc.live/solana-devnet/AvfNVeH0_E7ajvkIaZ0OS6QiksDa5ZMR76q4qi5fk9AX
+  - key: VITE_WS_RPC_URL
+    scope: BUILD_TIME
+    value: wss://lb.drpc.live/solana-devnet/AvfNVeH0_E7ajvkIaZ0OS6QiksDa5ZMR76q4qi5fk9AX
+  github:
+    branch: dev
+    deploy_on_push: true
+    repo: taunt-bet/webapp
+  index_document: index.html
+  name: webapp
+  output_dir: dist
+  source_dir: /

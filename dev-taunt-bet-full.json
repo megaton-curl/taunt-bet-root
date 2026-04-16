@@ -1,0 +1,1679 @@
+[
+  {
+    "id": "5f853ece-04a1-47a3-b1b4-343cdab167ab",
+    "owner_uuid": "d7090ba9b7fa23a2b04fb84776f2806de0aeff3b",
+    "spec": {
+      "name": "dev-taunt-bet",
+      "services": [
+        {
+          "name": "backend",
+          "github": {
+            "repo": "taunt-bet/backend",
+            "branch": "dev",
+            "deploy_on_push": true
+          },
+          "run_command": "pnpm --filter @taunt-bet/backend start",
+          "source_dir": "/",
+          "environment_slug": "node-js",
+          "envs": [
+            {
+              "key": "RPC_URL",
+              "value": "https://lb.drpc.live/solana-devnet/AvfNVeH0_E7ajvkIaZ0OS6QiksDa5ZMR76q4qi5fk9AX",
+              "scope": "RUN_AND_BUILD_TIME"
+            },
+            {
+              "key": "SERVER_KEYPAIR",
+              "value": "EV[1:edFw5t19QOJJ0r5XvudzQR4yLcFIrkwF:nxVIazxuO0NqgDm6YPATZS+cDnG5D3TXRcPxax859V7EyKnvqdEo+xcIcLAUXuxOLxVrH4TVj1JzvBrG26uNvZ2b3VjmZynJH4mRAYA7jlRVmLHUCWOq6UX53s/OYq8pwOGQGOboawGjDdI1KtazMir+M/jI7izjREOcwFK28fEyeXiH6l5Vn8RhjqiuaXV15DOIB9OSxYCQnH5uno/Dwdt1xSQsN/NPr4jqzS8XIhaUoMxaVbUgv6JTzBOG0ZFYgVlG/yuSOwyqxWyy0ms2BpJ3nrQokEVWVMmmcv7IeNgJuEQpLKwvkDYTYGVr/m8C7uevgGoUlA==]",
+              "scope": "RUN_AND_BUILD_TIME",
+              "type": "SECRET"
+            },
+            {
+              "key": "DATABASE_URL",
+              "value": "${dev-taunt-db-pg.DATABASE_URL}",
+              "scope": "RUN_TIME"
+            },
+            {
+              "key": "ADMIN_TOKEN",
+              "value": "imn0admin",
+              "scope": "RUN_AND_BUILD_TIME"
+            },
+            {
+              "key": "JWT_SECRET",
+              "value": "EV[1:UoDn5t6wxoDM5+phh+ODQ1pTZxyx8HjD:1DIq8QMeOBwt7D9EQfSzsppRpQAcefpmLasheeBA3XqrpE9w+Kjf0XbQXDsyMzt3pCMHhStDyovLRPhY]",
+              "scope": "RUN_TIME",
+              "type": "SECRET"
+            },
+            {
+              "key": "CHAT_FEED_TOKEN",
+              "value": "EV[1:ngsXOhPTgVM1nMdY/2K6wnPKsDwZJH+7:hM6aaSmWhetkhc+DQzIJ/q5ow9ieRixqd5BTKdrF98nHjYF/scxL0zBmvkCS5h6GRwEhYSDAp6w/XY/k]",
+              "scope": "RUN_TIME",
+              "type": "SECRET"
+            },
+            {
+              "key": "TELEGRAM_BOT_USERNAME",
+              "value": "tb_646_dev_bot",
+              "scope": "RUN_TIME"
+            },
+            {
+              "key": "TELEGRAM_WEBHOOK_SECRET",
+              "value": "EV[1:tXNyWotMo/ZtZjw7HK2R/2HNV39LuV9M:gkARgK6KOvfCuO1aMtYAOE86y9QK6dBvuFNNPsu+XGlwSakmPbz07vkToNCgOeWz9w2hL7NYrNpzRngk]",
+              "scope": "RUN_TIME",
+              "type": "SECRET"
+            },
+            {
+              "key": "COMMUNITY_INVITE_URL",
+              "value": "https://t.me/+nK0wON5pcHA5Zjc0",
+              "scope": "RUN_TIME"
+            }
+          ],
+          "instance_size_slug": "apps-s-1vcpu-1gb",
+          "instance_count": 1,
+          "http_port": 8080
+        },
+        {
+          "name": "chat",
+          "github": {
+            "repo": "taunt-bet/chat",
+            "branch": "dev",
+            "deploy_on_push": true
+          },
+          "run_command": "pnpm start",
+          "source_dir": "/",
+          "environment_slug": "node-js",
+          "envs": [
+            {
+              "key": "JWT_SECRET",
+              "value": "EV[1:rq73f5Bedu1QHiGPi+gKsEvKkbtQ/NIl:XK+4qLJYXQlj3FnuWa7RdxMcRUttMhsGX6VP9nsdCSzaVT8n/lvliRX3mEMt2JEfAMi9vwm8LHibvg1n]",
+              "scope": "RUN_TIME",
+              "type": "SECRET"
+            },
+            {
+              "key": "CHAT_ADMIN_TOKEN",
+              "value": "imn0admin",
+              "scope": "RUN_TIME"
+            },
+            {
+              "key": "PLATFORM_API_BASE_URL",
+              "value": " https://api.dev.taunt.bet",
+              "scope": "RUN_TIME"
+            },
+            {
+              "key": "CHAT_FEED_TOKEN",
+              "value": "r7+Qi3us32xdVNEKugrfUZaX6QsyeBemZVFvTggM1Zk=",
+              "scope": "RUN_AND_BUILD_TIME"
+            }
+          ],
+          "instance_size_slug": "apps-s-1vcpu-1gb",
+          "instance_count": 1,
+          "http_port": 8080
+        },
+        {
+          "name": "telegram",
+          "github": {
+            "repo": "taunt-bet/telegram",
+            "branch": "dev",
+            "deploy_on_push": true
+          },
+          "run_command": "pnpm start",
+          "source_dir": "/",
+          "environment_slug": "node-js",
+          "envs": [
+            {
+              "key": "BACKEND_URL",
+              "value": "https://api.dev.taunt.bet",
+              "scope": "RUN_AND_BUILD_TIME"
+            },
+            {
+              "key": "TELEGRAM_BOT_TOKEN",
+              "value": "8644391409:AAFctXL6vrDPbeOnge_Kacfnr3lgNQjCjXA",
+              "scope": "RUN_AND_BUILD_TIME"
+            },
+            {
+              "key": "TELEGRAM_WEBHOOK_SECRET",
+              "value": "BTLrR6zHqm3PM4MDpaFLeelIlkobaPyYk1sQITcmY9E_",
+              "scope": "RUN_AND_BUILD_TIME"
+            },
+            {
+              "key": "PUBLIC_APP_URL",
+              "value": "https://waitlist.dev.taunt.bet",
+              "scope": "RUN_AND_BUILD_TIME"
+            },
+            {
+              "key": "COMMUNITY_INVITE_URL",
+              "value": "https://t.me/+nK0wON5pcHA5Zjc0",
+              "scope": "RUN_AND_BUILD_TIME"
+            },
+            {
+              "key": "REFERRAL_PATH_PREFIX",
+              "value": "/ref",
+              "scope": "RUN_AND_BUILD_TIME"
+            }
+          ],
+          "instance_size_slug": "apps-s-1vcpu-1gb",
+          "instance_count": 1,
+          "http_port": 8080
+        }
+      ],
+      "static_sites": [
+        {
+          "name": "waitlist",
+          "github": {
+            "repo": "taunt-bet/waitlist",
+            "branch": "dev",
+            "deploy_on_push": true
+          },
+          "source_dir": "/",
+          "environment_slug": "node-js",
+          "output_dir": "dist",
+          "envs": [
+            {
+              "key": "NODE_ENV",
+              "value": "production",
+              "scope": "BUILD_TIME"
+            },
+            {
+              "key": "VITE_SOLANA_NETWORK",
+              "value": "devnet",
+              "scope": "BUILD_TIME"
+            },
+            {
+              "key": "VITE_FAIRNESS_BACKEND_URL",
+              "value": "https://api.dev.taunt.bet",
+              "scope": "BUILD_TIME"
+            }
+          ],
+          "catchall_document": "index.html"
+        },
+        {
+          "name": "webapp",
+          "github": {
+            "repo": "taunt-bet/webapp",
+            "branch": "dev",
+            "deploy_on_push": true
+          },
+          "source_dir": "/",
+          "environment_slug": "node-js",
+          "output_dir": "dist",
+          "index_document": "index.html",
+          "envs": [
+            {
+              "key": "NODE_ENV",
+              "value": "production",
+              "scope": "BUILD_TIME"
+            },
+            {
+              "key": "VITE_SOLANA_NETWORK",
+              "value": "devnet",
+              "scope": "BUILD_TIME"
+            },
+            {
+              "key": "VITE_FAIRNESS_BACKEND_URL",
+              "value": "https://api.dev.taunt.bet",
+              "scope": "BUILD_TIME"
+            },
+            {
+              "key": "VITE_RPC_URL",
+              "value": "https://lb.drpc.live/solana-devnet/AvfNVeH0_E7ajvkIaZ0OS6QiksDa5ZMR76q4qi5fk9AX",
+              "scope": "BUILD_TIME"
+            },
+            {
+              "key": "VITE_WS_RPC_URL",
+              "value": "wss://lb.drpc.live/solana-devnet/AvfNVeH0_E7ajvkIaZ0OS6QiksDa5ZMR76q4qi5fk9AX",
+              "scope": "BUILD_TIME"
+            }
+          ],
+          "catchall_document": "index.html"
+        }
+      ],
+      "databases": [
+        {
+          "name": "dev-taunt-db-pg",
+          "engine": "PG",
+          "version": "18",
+          "production": true,
+          "cluster_name": "dev-taunt-db-pg"
+        }
+      ],
+      "domains": [
+        {
+          "domain": "dev.taunt.bet",
+          "type": "PRIMARY",
+          "zone": "dev.taunt.bet"
+        },
+        {
+          "domain": "waitlist.dev.taunt.bet",
+          "type": "ALIAS",
+          "zone": "dev.taunt.bet"
+        },
+        {
+          "domain": "api.dev.taunt.bet",
+          "type": "ALIAS",
+          "zone": "dev.taunt.bet"
+        },
+        {
+          "domain": "webapp.dev.taunt.bet",
+          "type": "ALIAS",
+          "zone": "dev.taunt.bet"
+        },
+        {
+          "domain": "scream.dev.taunt.bet",
+          "type": "ALIAS",
+          "zone": "dev.taunt.bet"
+        }
+      ],
+      "region": "fra",
+      "alerts": [
+        {
+          "rule": "DEPLOYMENT_FAILED"
+        },
+        {
+          "rule": "DOMAIN_FAILED"
+        }
+      ],
+      "ingress": {
+        "rules": [
+          {
+            "match": {
+              "path": {
+                "prefix": "/"
+              },
+              "authority": {
+                "exact": "api.dev.taunt.bet"
+              }
+            },
+            "component": {
+              "name": "backend",
+              "preserve_path_prefix": true
+            }
+          },
+          {
+            "match": {
+              "path": {
+                "prefix": "/"
+              },
+              "authority": {
+                "exact": "waitlist.dev.taunt.bet"
+              }
+            },
+            "component": {
+              "name": "waitlist"
+            }
+          },
+          {
+            "match": {
+              "path": {
+                "prefix": "/"
+              },
+              "authority": {
+                "exact": "dev.taunt.bet"
+              }
+            },
+            "component": {
+              "name": "webapp"
+            }
+          },
+          {
+            "match": {
+              "path": {
+                "prefix": "/chat"
+              },
+              "authority": {
+                "exact": "scream.dev.taunt.bet"
+              }
+            },
+            "component": {
+              "name": "chat",
+              "preserve_path_prefix": true
+            }
+          },
+          {
+            "match": {
+              "path": {
+                "prefix": "/wg/tg"
+              },
+              "authority": {
+                "exact": "api.dev.taunt.bet"
+              }
+            },
+            "component": {
+              "name": "telegram"
+            }
+          }
+        ]
+      },
+      "features": [
+        "buildpack-stack=ubuntu-22"
+      ]
+    },
+    "last_deployment_active_at": "2026-04-16T07:32:21Z",
+    "default_ingress": "https://dev-utopia-e5qps.ondigitalocean.app",
+    "created_at": "2026-02-18T10:28:16Z",
+    "updated_at": "2026-04-16T07:32:32Z",
+    "active_deployment": {
+      "id": "437777fd-1b5e-466f-82f5-ee138262cc0a",
+      "spec": {
+        "name": "dev-taunt-bet",
+        "services": [
+          {
+            "name": "backend",
+            "github": {
+              "repo": "taunt-bet/backend",
+              "branch": "dev",
+              "deploy_on_push": true
+            },
+            "run_command": "pnpm --filter @taunt-bet/backend start",
+            "source_dir": "/",
+            "environment_slug": "node-js",
+            "envs": [
+              {
+                "key": "RPC_URL",
+                "value": "https://lb.drpc.live/solana-devnet/AvfNVeH0_E7ajvkIaZ0OS6QiksDa5ZMR76q4qi5fk9AX",
+                "scope": "RUN_AND_BUILD_TIME"
+              },
+              {
+                "key": "SERVER_KEYPAIR",
+                "value": "EV[1:edFw5t19QOJJ0r5XvudzQR4yLcFIrkwF:nxVIazxuO0NqgDm6YPATZS+cDnG5D3TXRcPxax859V7EyKnvqdEo+xcIcLAUXuxOLxVrH4TVj1JzvBrG26uNvZ2b3VjmZynJH4mRAYA7jlRVmLHUCWOq6UX53s/OYq8pwOGQGOboawGjDdI1KtazMir+M/jI7izjREOcwFK28fEyeXiH6l5Vn8RhjqiuaXV15DOIB9OSxYCQnH5uno/Dwdt1xSQsN/NPr4jqzS8XIhaUoMxaVbUgv6JTzBOG0ZFYgVlG/yuSOwyqxWyy0ms2BpJ3nrQokEVWVMmmcv7IeNgJuEQpLKwvkDYTYGVr/m8C7uevgGoUlA==]",
+                "scope": "RUN_AND_BUILD_TIME",
+                "type": "SECRET"
+              },
+              {
+                "key": "DATABASE_URL",
+                "value": "${dev-taunt-db-pg.DATABASE_URL}",
+                "scope": "RUN_TIME"
+              },
+              {
+                "key": "ADMIN_TOKEN",
+                "value": "imn0admin",
+                "scope": "RUN_AND_BUILD_TIME"
+              },
+              {
+                "key": "JWT_SECRET",
+                "value": "EV[1:UoDn5t6wxoDM5+phh+ODQ1pTZxyx8HjD:1DIq8QMeOBwt7D9EQfSzsppRpQAcefpmLasheeBA3XqrpE9w+Kjf0XbQXDsyMzt3pCMHhStDyovLRPhY]",
+                "scope": "RUN_TIME",
+                "type": "SECRET"
+              },
+              {
+                "key": "CHAT_FEED_TOKEN",
+                "value": "EV[1:ngsXOhPTgVM1nMdY/2K6wnPKsDwZJH+7:hM6aaSmWhetkhc+DQzIJ/q5ow9ieRixqd5BTKdrF98nHjYF/scxL0zBmvkCS5h6GRwEhYSDAp6w/XY/k]",
+                "scope": "RUN_TIME",
+                "type": "SECRET"
+              },
+              {
+                "key": "TELEGRAM_BOT_USERNAME",
+                "value": "tb_646_dev_bot",
+                "scope": "RUN_TIME"
+              },
+              {
+                "key": "TELEGRAM_WEBHOOK_SECRET",
+                "value": "EV[1:tXNyWotMo/ZtZjw7HK2R/2HNV39LuV9M:gkARgK6KOvfCuO1aMtYAOE86y9QK6dBvuFNNPsu+XGlwSakmPbz07vkToNCgOeWz9w2hL7NYrNpzRngk]",
+                "scope": "RUN_TIME",
+                "type": "SECRET"
+              },
+              {
+                "key": "COMMUNITY_INVITE_URL",
+                "value": "https://t.me/+nK0wON5pcHA5Zjc0",
+                "scope": "RUN_TIME"
+              }
+            ],
+            "instance_size_slug": "apps-s-1vcpu-1gb",
+            "instance_count": 1,
+            "http_port": 8080
+          },
+          {
+            "name": "chat",
+            "github": {
+              "repo": "taunt-bet/chat",
+              "branch": "dev",
+              "deploy_on_push": true
+            },
+            "run_command": "pnpm start",
+            "source_dir": "/",
+            "environment_slug": "node-js",
+            "envs": [
+              {
+                "key": "JWT_SECRET",
+                "value": "EV[1:rq73f5Bedu1QHiGPi+gKsEvKkbtQ/NIl:XK+4qLJYXQlj3FnuWa7RdxMcRUttMhsGX6VP9nsdCSzaVT8n/lvliRX3mEMt2JEfAMi9vwm8LHibvg1n]",
+                "scope": "RUN_TIME",
+                "type": "SECRET"
+              },
+              {
+                "key": "CHAT_ADMIN_TOKEN",
+                "value": "imn0admin",
+                "scope": "RUN_TIME"
+              },
+              {
+                "key": "PLATFORM_API_BASE_URL",
+                "value": " https://api.dev.taunt.bet",
+                "scope": "RUN_TIME"
+              },
+              {
+                "key": "CHAT_FEED_TOKEN",
+                "value": "r7+Qi3us32xdVNEKugrfUZaX6QsyeBemZVFvTggM1Zk=",
+                "scope": "RUN_AND_BUILD_TIME"
+              }
+            ],
+            "instance_size_slug": "apps-s-1vcpu-1gb",
+            "instance_count": 1,
+            "http_port": 8080
+          },
+          {
+            "name": "telegram",
+            "github": {
+              "repo": "taunt-bet/telegram",
+              "branch": "dev",
+              "deploy_on_push": true
+            },
+            "run_command": "pnpm start",
+            "source_dir": "/",
+            "environment_slug": "node-js",
+            "envs": [
+              {
+                "key": "BACKEND_URL",
+                "value": "https://api.dev.taunt.bet",
+                "scope": "RUN_AND_BUILD_TIME"
+              },
+              {
+                "key": "TELEGRAM_BOT_TOKEN",
+                "value": "8644391409:AAFctXL6vrDPbeOnge_Kacfnr3lgNQjCjXA",
+                "scope": "RUN_AND_BUILD_TIME"
+              },
+              {
+                "key": "TELEGRAM_WEBHOOK_SECRET",
+                "value": "BTLrR6zHqm3PM4MDpaFLeelIlkobaPyYk1sQITcmY9E_",
+                "scope": "RUN_AND_BUILD_TIME"
+              },
+              {
+                "key": "PUBLIC_APP_URL",
+                "value": "https://waitlist.dev.taunt.bet",
+                "scope": "RUN_AND_BUILD_TIME"
+              },
+              {
+                "key": "COMMUNITY_INVITE_URL",
+                "value": "https://t.me/+nK0wON5pcHA5Zjc0",
+                "scope": "RUN_AND_BUILD_TIME"
+              },
+              {
+                "key": "REFERRAL_PATH_PREFIX",
+                "value": "/ref",
+                "scope": "RUN_AND_BUILD_TIME"
+              }
+            ],
+            "instance_size_slug": "apps-s-1vcpu-1gb",
+            "instance_count": 1,
+            "http_port": 8080
+          }
+        ],
+        "static_sites": [
+          {
+            "name": "waitlist",
+            "github": {
+              "repo": "taunt-bet/waitlist",
+              "branch": "dev",
+              "deploy_on_push": true
+            },
+            "source_dir": "/",
+            "environment_slug": "node-js",
+            "output_dir": "dist",
+            "envs": [
+              {
+                "key": "NODE_ENV",
+                "value": "production",
+                "scope": "BUILD_TIME"
+              },
+              {
+                "key": "VITE_SOLANA_NETWORK",
+                "value": "devnet",
+                "scope": "BUILD_TIME"
+              },
+              {
+                "key": "VITE_FAIRNESS_BACKEND_URL",
+                "value": "https://api.dev.taunt.bet",
+                "scope": "BUILD_TIME"
+              }
+            ],
+            "catchall_document": "index.html"
+          },
+          {
+            "name": "webapp",
+            "github": {
+              "repo": "taunt-bet/webapp",
+              "branch": "dev",
+              "deploy_on_push": true
+            },
+            "source_dir": "/",
+            "environment_slug": "node-js",
+            "output_dir": "dist",
+            "index_document": "index.html",
+            "envs": [
+              {
+                "key": "NODE_ENV",
+                "value": "production",
+                "scope": "BUILD_TIME"
+              },
+              {
+                "key": "VITE_SOLANA_NETWORK",
+                "value": "devnet",
+                "scope": "BUILD_TIME"
+              },
+              {
+                "key": "VITE_FAIRNESS_BACKEND_URL",
+                "value": "https://api.dev.taunt.bet",
+                "scope": "BUILD_TIME"
+              },
+              {
+                "key": "VITE_RPC_URL",
+                "value": "https://lb.drpc.live/solana-devnet/AvfNVeH0_E7ajvkIaZ0OS6QiksDa5ZMR76q4qi5fk9AX",
+                "scope": "BUILD_TIME"
+              },
+              {
+                "key": "VITE_WS_RPC_URL",
+                "value": "wss://lb.drpc.live/solana-devnet/AvfNVeH0_E7ajvkIaZ0OS6QiksDa5ZMR76q4qi5fk9AX",
+                "scope": "BUILD_TIME"
+              }
+            ],
+            "catchall_document": "index.html"
+          }
+        ],
+        "databases": [
+          {
+            "name": "dev-taunt-db-pg",
+            "engine": "PG",
+            "version": "18",
+            "production": true,
+            "cluster_name": "dev-taunt-db-pg"
+          }
+        ],
+        "domains": [
+          {
+            "domain": "dev.taunt.bet",
+            "type": "PRIMARY",
+            "zone": "dev.taunt.bet"
+          },
+          {
+            "domain": "waitlist.dev.taunt.bet",
+            "type": "ALIAS",
+            "zone": "dev.taunt.bet"
+          },
+          {
+            "domain": "api.dev.taunt.bet",
+            "type": "ALIAS",
+            "zone": "dev.taunt.bet"
+          },
+          {
+            "domain": "webapp.dev.taunt.bet",
+            "type": "ALIAS",
+            "zone": "dev.taunt.bet"
+          },
+          {
+            "domain": "scream.dev.taunt.bet",
+            "type": "ALIAS",
+            "zone": "dev.taunt.bet"
+          }
+        ],
+        "region": "fra",
+        "alerts": [
+          {
+            "rule": "DEPLOYMENT_FAILED"
+          },
+          {
+            "rule": "DOMAIN_FAILED"
+          }
+        ],
+        "ingress": {
+          "rules": [
+            {
+              "match": {
+                "path": {
+                  "prefix": "/"
+                },
+                "authority": {
+                  "exact": "api.dev.taunt.bet"
+                }
+              },
+              "component": {
+                "name": "backend",
+                "preserve_path_prefix": true
+              }
+            },
+            {
+              "match": {
+                "path": {
+                  "prefix": "/"
+                },
+                "authority": {
+                  "exact": "waitlist.dev.taunt.bet"
+                }
+              },
+              "component": {
+                "name": "waitlist"
+              }
+            },
+            {
+              "match": {
+                "path": {
+                  "prefix": "/"
+                },
+                "authority": {
+                  "exact": "dev.taunt.bet"
+                }
+              },
+              "component": {
+                "name": "webapp"
+              }
+            },
+            {
+              "match": {
+                "path": {
+                  "prefix": "/chat"
+                },
+                "authority": {
+                  "exact": "scream.dev.taunt.bet"
+                }
+              },
+              "component": {
+                "name": "chat",
+                "preserve_path_prefix": true
+              }
+            },
+            {
+              "match": {
+                "path": {
+                  "prefix": "/wg/tg"
+                },
+                "authority": {
+                  "exact": "api.dev.taunt.bet"
+                }
+              },
+              "component": {
+                "name": "telegram"
+              }
+            }
+          ]
+        },
+        "features": [
+          "buildpack-stack=ubuntu-22"
+        ]
+      },
+      "services": [
+        {
+          "name": "backend",
+          "source_commit_hash": "f71a61c4c6022d4171c364ccaced818fb21b0f35",
+          "buildpacks": [
+            {
+              "id": "heroku/nodejs",
+              "version": "0.338.5",
+              "latest": true,
+              "name": "Node.js",
+              "description": [
+                "Install dependencies using NPM, PNPM or Yarn"
+              ],
+              "docs_link": "https://docs.digitalocean.com/products/app-platform/languages-frameworks/nodejs/"
+            },
+            {
+              "id": "digitalocean/procfile",
+              "version": "0.1.0",
+              "latest": true,
+              "name": "Procfile",
+              "description": [
+                "Configure default run commands from the Procfile if one exists"
+              ]
+            },
+            {
+              "id": "digitalocean/custom",
+              "version": "0.2.0",
+              "latest": true,
+              "name": "Custom Build Command",
+              "description": [
+                "Run the provided custom build command"
+              ],
+              "docs_link": "https://docs.digitalocean.com/products/app-platform/how-to/build-run-commands/"
+            }
+          ]
+        },
+        {
+          "name": "chat",
+          "source_commit_hash": "39760e9e9d1da5b0d4d5dd726476273d7f128c65",
+          "buildpacks": [
+            {
+              "id": "heroku/nodejs",
+              "version": "0.338.5",
+              "latest": true,
+              "name": "Node.js",
+              "description": [
+                "Install dependencies using NPM, PNPM or Yarn"
+              ],
+              "docs_link": "https://docs.digitalocean.com/products/app-platform/languages-frameworks/nodejs/"
+            },
+            {
+              "id": "digitalocean/procfile",
+              "version": "0.1.0",
+              "latest": true,
+              "name": "Procfile",
+              "description": [
+                "Configure default run commands from the Procfile if one exists"
+              ]
+            },
+            {
+              "id": "digitalocean/custom",
+              "version": "0.2.0",
+              "latest": true,
+              "name": "Custom Build Command",
+              "description": [
+                "Run the provided custom build command"
+              ],
+              "docs_link": "https://docs.digitalocean.com/products/app-platform/how-to/build-run-commands/"
+            }
+          ]
+        },
+        {
+          "name": "telegram",
+          "source_commit_hash": "2fad31157c2e41c1df509c3c73cfcb997bfa5756",
+          "buildpacks": [
+            {
+              "id": "heroku/nodejs",
+              "version": "0.338.5",
+              "latest": true,
+              "name": "Node.js",
+              "description": [
+                "Install dependencies using NPM, PNPM or Yarn"
+              ],
+              "docs_link": "https://docs.digitalocean.com/products/app-platform/languages-frameworks/nodejs/"
+            },
+            {
+              "id": "digitalocean/procfile",
+              "version": "0.1.0",
+              "latest": true,
+              "name": "Procfile",
+              "description": [
+                "Configure default run commands from the Procfile if one exists"
+              ]
+            },
+            {
+              "id": "digitalocean/custom",
+              "version": "0.2.0",
+              "latest": true,
+              "name": "Custom Build Command",
+              "description": [
+                "Run the provided custom build command"
+              ],
+              "docs_link": "https://docs.digitalocean.com/products/app-platform/how-to/build-run-commands/"
+            }
+          ]
+        }
+      ],
+      "static_sites": [
+        {
+          "name": "waitlist",
+          "source_commit_hash": "684834ca0dfb0acaf8f9f588ed45163f54c7446a",
+          "buildpacks": [
+            {
+              "id": "heroku/nodejs",
+              "version": "0.338.5",
+              "latest": true,
+              "name": "Node.js",
+              "description": [
+                "Install dependencies using NPM, PNPM or Yarn"
+              ],
+              "docs_link": "https://docs.digitalocean.com/products/app-platform/languages-frameworks/nodejs/"
+            },
+            {
+              "id": "digitalocean/procfile",
+              "version": "0.1.0",
+              "latest": true,
+              "name": "Procfile",
+              "description": [
+                "Configure default run commands from the Procfile if one exists"
+              ]
+            },
+            {
+              "id": "digitalocean/custom",
+              "version": "0.2.0",
+              "latest": true,
+              "name": "Custom Build Command",
+              "description": [
+                "Run the provided custom build command"
+              ],
+              "docs_link": "https://docs.digitalocean.com/products/app-platform/how-to/build-run-commands/"
+            }
+          ]
+        },
+        {
+          "name": "webapp",
+          "source_commit_hash": "a1eadf726dc840e3b4b3308890dd1d76f4be9b51",
+          "buildpacks": [
+            {
+              "id": "heroku/nodejs",
+              "version": "0.338.5",
+              "latest": true,
+              "name": "Node.js",
+              "description": [
+                "Install dependencies using NPM, PNPM or Yarn"
+              ],
+              "docs_link": "https://docs.digitalocean.com/products/app-platform/languages-frameworks/nodejs/"
+            },
+            {
+              "id": "digitalocean/procfile",
+              "version": "0.1.0",
+              "latest": true,
+              "name": "Procfile",
+              "description": [
+                "Configure default run commands from the Procfile if one exists"
+              ]
+            },
+            {
+              "id": "digitalocean/custom",
+              "version": "0.2.0",
+              "latest": true,
+              "name": "Custom Build Command",
+              "description": [
+                "Run the provided custom build command"
+              ],
+              "docs_link": "https://docs.digitalocean.com/products/app-platform/how-to/build-run-commands/"
+            }
+          ]
+        }
+      ],
+      "phase_last_updated_at": "2026-04-16T07:32:21Z",
+      "created_at": "2026-04-16T07:31:02Z",
+      "updated_at": "2026-04-16T07:32:21Z",
+      "cause": "commit 684834c pushed to github.com/taunt-bet/waitlist/tree/dev",
+      "progress": {
+        "success_steps": 15,
+        "total_steps": 15,
+        "steps": [
+          {
+            "name": "build",
+            "status": "SUCCESS",
+            "steps": [
+              {
+                "name": "initialize",
+                "status": "SUCCESS",
+                "started_at": "2026-04-16T07:31:07.878321613Z",
+                "ended_at": "2026-04-16T07:31:08.823545962Z"
+              },
+              {
+                "name": "components",
+                "status": "SUCCESS",
+                "steps": [
+                  {
+                    "name": "backend",
+                    "status": "SUCCESS",
+                    "started_at": "0001-01-01T00:00:00Z",
+                    "ended_at": "0001-01-01T00:00:00Z",
+                    "reason": {
+                      "code": "PreviousBuildReused",
+                      "message": "Your previous build was reused."
+                    },
+                    "component_name": "backend",
+                    "message_base": "Building service"
+                  },
+                  {
+                    "name": "chat",
+                    "status": "SUCCESS",
+                    "started_at": "0001-01-01T00:00:00Z",
+                    "ended_at": "0001-01-01T00:00:00Z",
+                    "reason": {
+                      "code": "PreviousBuildReused",
+                      "message": "Your previous build was reused."
+                    },
+                    "component_name": "chat",
+                    "message_base": "Building service"
+                  },
+                  {
+                    "name": "telegram",
+                    "status": "SUCCESS",
+                    "started_at": "0001-01-01T00:00:00Z",
+                    "ended_at": "0001-01-01T00:00:00Z",
+                    "reason": {
+                      "code": "PreviousBuildReused",
+                      "message": "Your previous build was reused."
+                    },
+                    "component_name": "telegram",
+                    "message_base": "Building service"
+                  },
+                  {
+                    "name": "waitlist",
+                    "status": "SUCCESS",
+                    "started_at": "0001-01-01T00:00:00Z",
+                    "ended_at": "0001-01-01T00:00:00Z",
+                    "component_name": "waitlist",
+                    "message_base": "Building static site"
+                  },
+                  {
+                    "name": "webapp",
+                    "status": "SUCCESS",
+                    "started_at": "0001-01-01T00:00:00Z",
+                    "ended_at": "0001-01-01T00:00:00Z",
+                    "reason": {
+                      "code": "PreviousBuildReused",
+                      "message": "Your previous build was reused."
+                    },
+                    "component_name": "webapp",
+                    "message_base": "Building static site"
+                  },
+                  {
+                    "name": "dev-taunt-db-pg",
+                    "status": "SUCCESS",
+                    "started_at": "0001-01-01T00:00:00Z",
+                    "ended_at": "0001-01-01T00:00:00Z",
+                    "component_name": "dev-taunt-db-pg",
+                    "message_base": "Creating database"
+                  }
+                ],
+                "started_at": "2026-04-16T07:31:08.823568244Z",
+                "ended_at": "2026-04-16T07:32:11.221145653Z"
+              }
+            ],
+            "started_at": "2026-04-16T07:31:07.878268564Z",
+            "ended_at": "2026-04-16T07:32:11.920634508Z"
+          },
+          {
+            "name": "deploy",
+            "status": "SUCCESS",
+            "steps": [
+              {
+                "name": "initialize",
+                "status": "SUCCESS",
+                "started_at": "2026-04-16T07:32:15.402464074Z",
+                "ended_at": "2026-04-16T07:32:16.988367555Z"
+              },
+              {
+                "name": "components",
+                "status": "SUCCESS",
+                "steps": [
+                  {
+                    "name": "backend",
+                    "status": "SUCCESS",
+                    "steps": [
+                      {
+                        "name": "deploy",
+                        "status": "SUCCESS",
+                        "started_at": "0001-01-01T00:00:00Z",
+                        "ended_at": "0001-01-01T00:00:00Z",
+                        "component_name": "backend",
+                        "message_base": "Deploying service"
+                      },
+                      {
+                        "name": "wait",
+                        "status": "SUCCESS",
+                        "started_at": "0001-01-01T00:00:00Z",
+                        "ended_at": "0001-01-01T00:00:00Z",
+                        "component_name": "backend",
+                        "message_base": "Waiting for service"
+                      }
+                    ],
+                    "started_at": "0001-01-01T00:00:00Z",
+                    "ended_at": "0001-01-01T00:00:00Z",
+                    "component_name": "backend"
+                  },
+                  {
+                    "name": "chat",
+                    "status": "SUCCESS",
+                    "steps": [
+                      {
+                        "name": "deploy",
+                        "status": "SUCCESS",
+                        "started_at": "0001-01-01T00:00:00Z",
+                        "ended_at": "0001-01-01T00:00:00Z",
+                        "component_name": "chat",
+                        "message_base": "Deploying service"
+                      },
+                      {
+                        "name": "wait",
+                        "status": "SUCCESS",
+                        "started_at": "0001-01-01T00:00:00Z",
+                        "ended_at": "0001-01-01T00:00:00Z",
+                        "component_name": "chat",
+                        "message_base": "Waiting for service"
+                      }
+                    ],
+                    "started_at": "0001-01-01T00:00:00Z",
+                    "ended_at": "0001-01-01T00:00:00Z",
+                    "component_name": "chat"
+                  },
+                  {
+                    "name": "telegram",
+                    "status": "SUCCESS",
+                    "steps": [
+                      {
+                        "name": "deploy",
+                        "status": "SUCCESS",
+                        "started_at": "0001-01-01T00:00:00Z",
+                        "ended_at": "0001-01-01T00:00:00Z",
+                        "component_name": "telegram",
+                        "message_base": "Deploying service"
+                      },
+                      {
+                        "name": "wait",
+                        "status": "SUCCESS",
+                        "started_at": "0001-01-01T00:00:00Z",
+                        "ended_at": "0001-01-01T00:00:00Z",
+                        "component_name": "telegram",
+                        "message_base": "Waiting for service"
+                      }
+                    ],
+                    "started_at": "0001-01-01T00:00:00Z",
+                    "ended_at": "0001-01-01T00:00:00Z",
+                    "component_name": "telegram"
+                  }
+                ],
+                "started_at": "2026-04-16T07:32:16.988395767Z",
+                "ended_at": "2026-04-16T07:32:19.272223436Z"
+              },
+              {
+                "name": "finalize",
+                "status": "SUCCESS",
+                "started_at": "2026-04-16T07:32:20.083610072Z",
+                "ended_at": "2026-04-16T07:32:21.083095643Z"
+              }
+            ],
+            "started_at": "2026-04-16T07:32:15.402442895Z",
+            "ended_at": "2026-04-16T07:32:21.083192182Z"
+          }
+        ]
+      },
+      "phase": "ACTIVE",
+      "tier_slug": "professional",
+      "previous_deployment_id": "b6dbe51c-2c89-434d-bac6-f76a5cd80f99",
+      "cause_details": {
+        "git_push": {
+          "github": {
+            "repo": "taunt-bet/waitlist",
+            "branch": "dev"
+          },
+          "username": "alexandrricov",
+          "commit_sha": "684834ca0dfb0acaf8f9f588ed45163f54c7446a",
+          "commit_message": "fix: show wallet list on mobile and fix modal positioning\n\nAdd hardcoded wallet standards (Phantom, Solflare, etc.) so the modal\nshows available wallets with deep links instead of the empty onboarding\nscreen. Reset dialog UA styles to fix off-center ..."
+        },
+        "type": "DEPLOY_ON_PUSH"
+      },
+      "timing": {
+        "pending": "5.878321613s",
+        "build_total": "64.042312895s",
+        "build_billable": "28.010800114s",
+        "components": [
+          {
+            "name": "waitlist",
+            "build_billable": "28.010800114s"
+          }
+        ],
+        "database_provision": "0.584056306s"
+      }
+    },
+    "last_deployment_created_at": "2026-04-16T07:31:02Z",
+    "live_url": "https://dev.taunt.bet",
+    "region": {
+      "slug": "fra",
+      "label": "Frankfurt",
+      "flag": "germany",
+      "continent": "Europe",
+      "data_centers": [
+        "fra1"
+      ]
+    },
+    "tier_slug": "professional",
+    "live_url_base": "https://dev.taunt.bet",
+    "live_domain": "dev.taunt.bet",
+    "domains": [
+      {
+        "id": "25db343e-90be-452e-9e27-b957c188f51c",
+        "spec": {
+          "domain": "dev.taunt.bet",
+          "type": "PRIMARY",
+          "zone": "dev.taunt.bet"
+        },
+        "phase": "ACTIVE",
+        "progress": {
+          "steps": [
+            {
+              "name": "default-ingress-ready",
+              "status": "SUCCESS",
+              "started_at": "2026-04-16T03:36:37.521862784Z",
+              "ended_at": "0001-01-01T00:00:00Z"
+            },
+            {
+              "name": "ensure-zone",
+              "status": "SUCCESS",
+              "started_at": "2026-04-16T03:36:37.521901125Z",
+              "ended_at": "0001-01-01T00:00:00Z"
+            },
+            {
+              "name": "ensure-ns-records",
+              "status": "SUCCESS",
+              "started_at": "2026-04-16T03:36:37.654470763Z",
+              "ended_at": "2026-03-26T16:47:39.969993542Z"
+            },
+            {
+              "name": "verify-nameservers",
+              "status": "SUCCESS",
+              "started_at": "2026-04-16T03:36:37.675018217Z",
+              "ended_at": "0001-01-01T00:00:00Z"
+            },
+            {
+              "name": "ensure-record",
+              "status": "SUCCESS",
+              "started_at": "2026-04-16T03:36:38.043635074Z",
+              "ended_at": "2026-03-26T16:47:40.180693646Z"
+            },
+            {
+              "name": "ensure-alias-record",
+              "status": "SUCCESS",
+              "started_at": "2026-04-16T03:36:38.043679126Z",
+              "ended_at": "0001-01-01T00:00:00Z"
+            },
+            {
+              "name": "ensure-wildcard-record",
+              "status": "SUCCESS",
+              "started_at": "2026-04-16T03:36:38.0486757Z",
+              "ended_at": "2026-03-26T16:48:47.21012513Z"
+            },
+            {
+              "name": "verify-cname",
+              "status": "SUCCESS",
+              "started_at": "2026-04-16T03:36:38.048735781Z",
+              "ended_at": "2026-03-26T16:48:47.210181996Z"
+            },
+            {
+              "name": "ensure-ssl-txt-record-saved",
+              "status": "SUCCESS",
+              "started_at": "2026-04-16T03:36:38.048792917Z",
+              "ended_at": "2026-03-26T16:48:47.294619738Z"
+            },
+            {
+              "name": "ensure-ssl-txt-record",
+              "status": "SUCCESS",
+              "started_at": "2026-04-16T03:36:38.048853609Z",
+              "ended_at": "2026-03-26T16:48:47.294707422Z"
+            },
+            {
+              "name": "ensure-renewal-email",
+              "status": "SUCCESS",
+              "started_at": "2026-04-16T03:36:38.048906637Z",
+              "ended_at": "2026-03-26T16:48:47.294749811Z"
+            },
+            {
+              "name": "ensure-CA-authorization",
+              "status": "SUCCESS",
+              "started_at": "2026-04-16T03:36:38.04895645Z",
+              "ended_at": "0001-01-01T00:00:00Z"
+            },
+            {
+              "name": "ensure-certificate",
+              "status": "SUCCESS",
+              "started_at": "2026-04-16T03:36:38.110813558Z",
+              "ended_at": "0001-01-01T00:00:00Z"
+            },
+            {
+              "name": "create-deployment",
+              "status": "SUCCESS",
+              "started_at": "0001-01-01T00:00:00Z",
+              "ended_at": "2026-03-26T16:50:54.563705744Z"
+            },
+            {
+              "name": "configuration-alert",
+              "status": "SUCCESS",
+              "started_at": "2026-04-16T03:36:38.373788326Z",
+              "ended_at": "2026-03-26T16:48:48.323803214Z"
+            }
+          ]
+        },
+        "validation": {},
+        "certificate_expires_at": "2026-06-24T16:50:42Z"
+      },
+      {
+        "id": "4ee1ed70-b23a-4375-b41c-2efe4e43e757",
+        "spec": {
+          "domain": "waitlist.dev.taunt.bet",
+          "type": "ALIAS",
+          "zone": "dev.taunt.bet"
+        },
+        "phase": "ACTIVE",
+        "progress": {
+          "steps": [
+            {
+              "name": "default-ingress-ready",
+              "status": "SUCCESS",
+              "started_at": "2026-04-16T06:55:41.24933453Z",
+              "ended_at": "0001-01-01T00:00:00Z"
+            },
+            {
+              "name": "ensure-zone",
+              "status": "SUCCESS",
+              "started_at": "2026-04-16T06:55:41.249383651Z",
+              "ended_at": "0001-01-01T00:00:00Z"
+            },
+            {
+              "name": "ensure-ns-records",
+              "status": "SUCCESS",
+              "started_at": "2026-04-16T06:55:41.390605973Z",
+              "ended_at": "2026-03-26T16:50:55.055492692Z"
+            },
+            {
+              "name": "verify-nameservers",
+              "status": "SUCCESS",
+              "started_at": "2026-04-16T06:55:41.428663159Z",
+              "ended_at": "0001-01-01T00:00:00Z"
+            },
+            {
+              "name": "ensure-record",
+              "status": "SUCCESS",
+              "started_at": "2026-04-16T06:55:41.725929911Z",
+              "ended_at": "0001-01-01T00:00:00Z"
+            },
+            {
+              "name": "ensure-alias-record",
+              "status": "SUCCESS",
+              "started_at": "2026-04-16T06:55:41.746973671Z",
+              "ended_at": "2026-03-26T16:51:59.760508717Z"
+            },
+            {
+              "name": "ensure-wildcard-record",
+              "status": "SUCCESS",
+              "started_at": "2026-04-16T06:55:41.74701631Z",
+              "ended_at": "2026-03-26T16:51:59.760570773Z"
+            },
+            {
+              "name": "verify-cname",
+              "status": "SUCCESS",
+              "started_at": "2026-04-16T06:55:41.747057376Z",
+              "ended_at": "0001-01-01T00:00:00Z"
+            },
+            {
+              "name": "ensure-ssl-txt-record-saved",
+              "status": "SUCCESS",
+              "started_at": "2026-04-16T06:55:41.811438059Z",
+              "ended_at": "2026-03-26T16:51:59.830357511Z"
+            },
+            {
+              "name": "ensure-ssl-txt-record",
+              "status": "SUCCESS",
+              "started_at": "2026-04-16T06:55:41.811478614Z",
+              "ended_at": "2026-03-26T16:51:59.830423174Z"
+            },
+            {
+              "name": "ensure-renewal-email",
+              "status": "SUCCESS",
+              "started_at": "2026-04-16T06:55:41.811509641Z",
+              "ended_at": "2026-03-26T16:51:59.83046431Z"
+            },
+            {
+              "name": "ensure-CA-authorization",
+              "status": "SUCCESS",
+              "started_at": "2026-04-16T06:55:41.811542282Z",
+              "ended_at": "0001-01-01T00:00:00Z"
+            },
+            {
+              "name": "ensure-certificate",
+              "status": "SUCCESS",
+              "started_at": "2026-04-16T06:55:41.979374461Z",
+              "ended_at": "0001-01-01T00:00:00Z"
+            },
+            {
+              "name": "create-deployment",
+              "status": "SUCCESS",
+              "started_at": "0001-01-01T00:00:00Z",
+              "ended_at": "2026-03-26T16:54:33.555761063Z"
+            },
+            {
+              "name": "configuration-alert",
+              "status": "SUCCESS",
+              "started_at": "2026-04-16T06:55:42.249738503Z",
+              "ended_at": "2026-03-26T16:52:01.681972218Z"
+            }
+          ]
+        },
+        "validation": {},
+        "certificate_expires_at": "2026-06-24T16:52:03Z"
+      },
+      {
+        "id": "1dceb54d-f3fe-4f77-9e51-e3d7bf16f7a6",
+        "spec": {
+          "domain": "api.dev.taunt.bet",
+          "type": "ALIAS",
+          "zone": "dev.taunt.bet"
+        },
+        "phase": "ACTIVE",
+        "progress": {
+          "steps": [
+            {
+              "name": "default-ingress-ready",
+              "status": "SUCCESS",
+              "started_at": "2026-04-16T04:23:26.448411288Z",
+              "ended_at": "0001-01-01T00:00:00Z"
+            },
+            {
+              "name": "ensure-zone",
+              "status": "SUCCESS",
+              "started_at": "2026-04-16T04:23:26.448501815Z",
+              "ended_at": "0001-01-01T00:00:00Z"
+            },
+            {
+              "name": "ensure-ns-records",
+              "status": "SUCCESS",
+              "started_at": "2026-04-16T04:23:26.609860406Z",
+              "ended_at": "2026-03-27T10:11:33.892667519Z"
+            },
+            {
+              "name": "verify-nameservers",
+              "status": "SUCCESS",
+              "started_at": "2026-04-16T04:23:26.630473792Z",
+              "ended_at": "0001-01-01T00:00:00Z"
+            },
+            {
+              "name": "ensure-record",
+              "status": "SUCCESS",
+              "started_at": "2026-04-16T04:23:26.997908521Z",
+              "ended_at": "0001-01-01T00:00:00Z"
+            },
+            {
+              "name": "ensure-alias-record",
+              "status": "SUCCESS",
+              "started_at": "2026-04-16T04:23:27.015213099Z",
+              "ended_at": "2026-03-27T10:12:39.729619732Z"
+            },
+            {
+              "name": "ensure-wildcard-record",
+              "status": "SUCCESS",
+              "started_at": "2026-04-16T04:23:27.015297656Z",
+              "ended_at": "2026-03-27T10:12:39.729688721Z"
+            },
+            {
+              "name": "verify-cname",
+              "status": "SUCCESS",
+              "started_at": "2026-04-16T04:23:27.01538084Z",
+              "ended_at": "0001-01-01T00:00:00Z"
+            },
+            {
+              "name": "ensure-ssl-txt-record-saved",
+              "status": "SUCCESS",
+              "started_at": "2026-04-16T04:23:27.274938127Z",
+              "ended_at": "2026-03-27T10:12:39.830837972Z"
+            },
+            {
+              "name": "ensure-ssl-txt-record",
+              "status": "SUCCESS",
+              "started_at": "2026-04-16T04:23:27.2749832Z",
+              "ended_at": "2026-03-27T10:12:39.831024831Z"
+            },
+            {
+              "name": "ensure-renewal-email",
+              "status": "SUCCESS",
+              "started_at": "2026-04-16T04:23:27.275027833Z",
+              "ended_at": "2026-03-27T10:12:39.831105782Z"
+            },
+            {
+              "name": "ensure-CA-authorization",
+              "status": "SUCCESS",
+              "started_at": "2026-04-16T04:23:27.275076222Z",
+              "ended_at": "0001-01-01T00:00:00Z"
+            },
+            {
+              "name": "ensure-certificate",
+              "status": "SUCCESS",
+              "started_at": "2026-04-16T04:23:27.342549504Z",
+              "ended_at": "0001-01-01T00:00:00Z"
+            },
+            {
+              "name": "create-deployment",
+              "status": "SUCCESS",
+              "started_at": "0001-01-01T00:00:00Z",
+              "ended_at": "2026-03-27T10:14:50.218455156Z"
+            },
+            {
+              "name": "configuration-alert",
+              "status": "SUCCESS",
+              "started_at": "2026-04-16T04:23:27.581070261Z",
+              "ended_at": "2026-03-27T10:12:40.920255485Z"
+            }
+          ]
+        },
+        "validation": {},
+        "certificate_expires_at": "2026-06-25T10:12:42Z"
+      },
+      {
+        "id": "00758d90-9e09-4586-ad31-b4f0490d26da",
+        "spec": {
+          "domain": "webapp.dev.taunt.bet",
+          "type": "ALIAS",
+          "zone": "dev.taunt.bet"
+        },
+        "phase": "ACTIVE",
+        "progress": {
+          "steps": [
+            {
+              "name": "default-ingress-ready",
+              "status": "SUCCESS",
+              "started_at": "2026-04-16T02:02:11.549025138Z",
+              "ended_at": "0001-01-01T00:00:00Z"
+            },
+            {
+              "name": "ensure-zone",
+              "status": "SUCCESS",
+              "started_at": "2026-04-16T02:02:11.549083516Z",
+              "ended_at": "0001-01-01T00:00:00Z"
+            },
+            {
+              "name": "ensure-ns-records",
+              "status": "SUCCESS",
+              "started_at": "2026-04-16T02:02:11.675130886Z",
+              "ended_at": "2026-04-06T07:59:54.53161382Z"
+            },
+            {
+              "name": "verify-nameservers",
+              "status": "SUCCESS",
+              "started_at": "2026-04-16T02:02:11.698481483Z",
+              "ended_at": "0001-01-01T00:00:00Z"
+            },
+            {
+              "name": "ensure-record",
+              "status": "SUCCESS",
+              "started_at": "2026-04-16T02:02:12.148971772Z",
+              "ended_at": "0001-01-01T00:00:00Z"
+            },
+            {
+              "name": "ensure-alias-record",
+              "status": "SUCCESS",
+              "started_at": "2026-04-16T02:02:12.167162623Z",
+              "ended_at": "2026-04-06T08:00:57.085108194Z"
+            },
+            {
+              "name": "ensure-wildcard-record",
+              "status": "SUCCESS",
+              "started_at": "2026-04-16T02:02:12.167215491Z",
+              "ended_at": "2026-04-06T08:00:57.085222347Z"
+            },
+            {
+              "name": "verify-cname",
+              "status": "SUCCESS",
+              "started_at": "2026-04-16T02:02:12.167300859Z",
+              "ended_at": "0001-01-01T00:00:00Z"
+            },
+            {
+              "name": "ensure-ssl-txt-record-saved",
+              "status": "SUCCESS",
+              "started_at": "2026-04-16T02:02:12.240884894Z",
+              "ended_at": "2026-04-06T08:00:57.152344403Z"
+            },
+            {
+              "name": "ensure-ssl-txt-record",
+              "status": "SUCCESS",
+              "started_at": "2026-04-16T02:02:12.240936008Z",
+              "ended_at": "2026-04-06T08:00:57.152444379Z"
+            },
+            {
+              "name": "ensure-renewal-email",
+              "status": "SUCCESS",
+              "started_at": "2026-04-16T02:02:12.240994737Z",
+              "ended_at": "2026-04-06T08:00:57.152486277Z"
+            },
+            {
+              "name": "ensure-CA-authorization",
+              "status": "SUCCESS",
+              "started_at": "2026-04-16T02:02:12.241037656Z",
+              "ended_at": "0001-01-01T00:00:00Z"
+            },
+            {
+              "name": "ensure-certificate",
+              "status": "SUCCESS",
+              "started_at": "2026-04-16T02:02:12.311408088Z",
+              "ended_at": "0001-01-01T00:00:00Z"
+            },
+            {
+              "name": "create-deployment",
+              "status": "SUCCESS",
+              "started_at": "0001-01-01T00:00:00Z",
+              "ended_at": "2026-04-06T08:03:07.128640097Z"
+            },
+            {
+              "name": "configuration-alert",
+              "status": "SUCCESS",
+              "started_at": "2026-04-16T02:02:12.557412821Z",
+              "ended_at": "2026-04-06T08:00:59.325352576Z"
+            }
+          ]
+        },
+        "validation": {},
+        "certificate_expires_at": "2026-07-05T08:01:00Z"
+      },
+      {
+        "id": "4339f02a-19ca-4aa1-9774-19b03595676d",
+        "spec": {
+          "domain": "scream.dev.taunt.bet",
+          "type": "ALIAS",
+          "zone": "dev.taunt.bet"
+        },
+        "phase": "ACTIVE",
+        "progress": {
+          "steps": [
+            {
+              "name": "default-ingress-ready",
+              "status": "SUCCESS",
+              "started_at": "2026-04-15T21:52:15.141476044Z",
+              "ended_at": "0001-01-01T00:00:00Z"
+            },
+            {
+              "name": "ensure-zone",
+              "status": "SUCCESS",
+              "started_at": "2026-04-15T21:52:15.141541105Z",
+              "ended_at": "0001-01-01T00:00:00Z"
+            },
+            {
+              "name": "ensure-ns-records",
+              "status": "SUCCESS",
+              "started_at": "2026-04-15T21:52:15.309884706Z",
+              "ended_at": "2026-04-09T14:54:27.82704653Z"
+            },
+            {
+              "name": "verify-nameservers",
+              "status": "SUCCESS",
+              "started_at": "2026-04-15T21:52:15.333907502Z",
+              "ended_at": "0001-01-01T00:00:00Z"
+            },
+            {
+              "name": "ensure-record",
+              "status": "SUCCESS",
+              "started_at": "2026-04-15T21:52:15.660392783Z",
+              "ended_at": "0001-01-01T00:00:00Z"
+            },
+            {
+              "name": "ensure-alias-record",
+              "status": "SUCCESS",
+              "started_at": "2026-04-15T21:52:15.680779345Z",
+              "ended_at": "2026-04-09T14:55:40.986820186Z"
+            },
+            {
+              "name": "ensure-wildcard-record",
+              "status": "SUCCESS",
+              "started_at": "2026-04-15T21:52:15.680828686Z",
+              "ended_at": "2026-04-09T14:55:40.986954013Z"
+            },
+            {
+              "name": "verify-cname",
+              "status": "SUCCESS",
+              "started_at": "2026-04-15T21:52:15.680872507Z",
+              "ended_at": "0001-01-01T00:00:00Z"
+            },
+            {
+              "name": "ensure-ssl-txt-record-saved",
+              "status": "SUCCESS",
+              "started_at": "2026-04-15T21:52:15.748301443Z",
+              "ended_at": "2026-04-09T14:55:41.316518609Z"
+            },
+            {
+              "name": "ensure-ssl-txt-record",
+              "status": "SUCCESS",
+              "started_at": "2026-04-15T21:52:15.748369899Z",
+              "ended_at": "2026-04-09T14:55:41.316595751Z"
+            },
+            {
+              "name": "ensure-renewal-email",
+              "status": "SUCCESS",
+              "started_at": "2026-04-15T21:52:15.748419321Z",
+              "ended_at": "2026-04-09T14:55:41.316631938Z"
+            },
+            {
+              "name": "ensure-CA-authorization",
+              "status": "SUCCESS",
+              "started_at": "2026-04-15T21:52:15.748443225Z",
+              "ended_at": "0001-01-01T00:00:00Z"
+            },
+            {
+              "name": "ensure-certificate",
+              "status": "SUCCESS",
+              "started_at": "2026-04-15T21:52:15.821661843Z",
+              "ended_at": "0001-01-01T00:00:00Z"
+            },
+            {
+              "name": "create-deployment",
+              "status": "SUCCESS",
+              "started_at": "0001-01-01T00:00:00Z",
+              "ended_at": "2026-04-09T14:57:29.836976022Z"
+            },
+            {
+              "name": "configuration-alert",
+              "status": "SUCCESS",
+              "started_at": "2026-04-15T21:52:16.026509613Z",
+              "ended_at": "2026-04-09T14:55:43.533771868Z"
+            }
+          ]
+        },
+        "validation": {},
+        "certificate_expires_at": "2026-07-08T14:55:59Z"
+      }
+    ],
+    "build_config": {
+      "cnb_versioning": {
+        "buildpacks": [
+          {
+            "id": "digitalocean/custom",
+            "latest": true,
+            "name": "Custom Build Command",
+            "description": [
+              "Run the provided custom build command"
+            ],
+            "docs_link": "https://docs.digitalocean.com/products/app-platform/how-to/build-run-commands/"
+          },
+          {
+            "id": "digitalocean/procfile",
+            "latest": true,
+            "name": "Procfile",
+            "description": [
+              "Configure default run commands from the Procfile if one exists"
+            ]
+          },
+          {
+            "id": "heroku/nodejs",
+            "latest": true,
+            "name": "Node.js",
+            "description": [
+              "Install dependencies using NPM, PNPM or Yarn"
+            ],
+            "docs_link": "https://docs.digitalocean.com/products/app-platform/languages-frameworks/nodejs/"
+          }
+        ],
+        "stack_id": "heroku-22"
+      }
+    },
+    "project_id": "367f0e13-7204-4b94-9087-51188fcfa4e6"
+  }
+]

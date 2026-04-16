@@ -1,0 +1,36 @@
+name: CI
+
+on:
+  pull_request:
+    branches:
+      - dev
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: infra-ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate-specs:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Validate YAML syntax
+        run: |
+          ruby -e "require 'yaml'; YAML.load_file('.do/app-dev.yaml')"
+          ruby -e "require 'yaml'; YAML.load_file('.do/app-prod.yaml')"
+
+      - name: Ensure App Platform deploy_on_push is disabled
+        run: |
+          ! grep -R "deploy_on_push: true" .do/
+
+      - name: Ensure encrypted App Platform secrets are not committed
+        run: |
+          ! grep -R "EV\\[" .do/

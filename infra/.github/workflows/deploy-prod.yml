@@ -1,0 +1,36 @@
+name: Deploy Prod
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: infra-deploy-prod
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Validate YAML syntax
+        run: ruby -e "require 'yaml'; YAML.load_file('.do/app-prod.yaml')"
+
+      - name: Ensure App Platform deploy_on_push is disabled
+        run: |
+          ! grep "deploy_on_push: true" .do/app-prod.yaml
+
+      - name: Explain current prod guardrail
+        run: |
+          {
+            echo "Prod deploy is intentionally not wired yet."
+            echo
+            echo "The combined prod app still points at mutable component repos, so tag-based rollback is not reproducible until a release-pinning strategy exists."
+            echo
+            echo "Use .do/app-prod.yaml as a template only for now."
+          } >> "$GITHUB_STEP_SUMMARY"
