@@ -72,6 +72,7 @@ Execution defaults for humans and AI agents. Use this file for day-to-day implem
 - Update `docs/DECISIONS.md` only for durable decisions (not temporary implementation details).
 - Update `docs/TECH_DEBT.md` for temporary compromises.
 - Update `docs/LESSONS.md` with one compact row when a meaningful mistake is discovered.
+- When changing a public backend endpoint, keep runtime contracts, OpenAPI, and endpoint tests in sync in the same change.
 
 ---
 
