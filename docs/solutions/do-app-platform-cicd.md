@@ -23,7 +23,7 @@ Current scope:
 - `waitlist/`
 - `webapp/`
 
-The `infra/` repo can still exist for shared notes or templates, but it is no longer the deployment owner.
+There is no separate `infra/` repo. Each deployable repo owns its own App Platform spec, workflows, and lifecycle end-to-end.
 
 ## Recommended App Names
 
