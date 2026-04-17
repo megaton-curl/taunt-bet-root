@@ -1,4 +1,0 @@
-.DS_Store
-.do/live/*
-!.do/live/.gitignore
-!.do/live/README.md
