@@ -231,14 +231,14 @@ Sound effects accompany the flipyou experience.
 ### Local
 
 - Backend env must provide: `DATABASE_URL`, `RPC_URL`, `SERVER_KEYPAIR`, and optional tuning values from `backend/src/config.ts`
-- Minimum startup flow: `pnpm --filter @rng-utopia/backend migrate` then `pnpm --filter @rng-utopia/backend dev`
+- Minimum startup flow: `pnpm --filter @taunt-bet/backend migrate` then `pnpm --filter @taunt-bet/backend dev`
 - Local platform/frontend config must point flipyou create + verification requests at the local backend base URL
 - Ready signal: `GET /health` reports DB connected, worker running, and server balance above threshold for the chosen localnet flow
 
 ### Devnet
 
 - Backend env must use funded devnet credentials: devnet `RPC_URL`, funded `SERVER_KEYPAIR`, and the deployed program IDs expected by the platform E2E suite
-- Minimum startup flow: `pnpm --filter @rng-utopia/backend migrate` then `pnpm --filter @rng-utopia/backend dev`
+- Minimum startup flow: `pnpm --filter @taunt-bet/backend migrate` then `pnpm --filter @taunt-bet/backend dev`
 - Devnet E2E must run against the live backend and deployed programs, not a mock secret generator
 - Ready signal: `GET /health` reports the expected server key, devnet SOL balance, DB connectivity, and active worker
 
@@ -321,7 +321,7 @@ Phases 1-2 below capture the historical implementation work that previously mark
 - [x] [backend] Settlement worker — polls every 1s for LOCKED matches where target_slot reached, submits settle tx with secret reveal, uses PermanentSettleError/TransientSettleError for retry classification (done: settlement.ts + settle-tx.ts + retry.ts)
 - [ ] [frontend] Replace any remaining client-side flipyou create secret flow with the backend create contract: JWT Bearer auth, call `POST /fairness/flipyou/create` with `{wallet, amountLamports, side}`, wallet co-signs returned transaction, surface auth / rate-limit / duplicate errors clearly. <!-- out of scope: frontend is a separate project -->
 - [x] [frontend] Align fairness verification UX with `GET /fairness/rounds/:pda` so post-settlement verification uses backend-served secret / result payloads and unsettled rounds never expose secret material. <!-- satisfied: result-screen fairness payload + backend `rounds` endpoint gating -->
-- [ ] [infra] Add a documented local backend run path for flipyou development: env template/profile, Postgres migration step, `pnpm --filter @rng-utopia/backend dev`, frontend backend base URL wiring, and `/health` verification.
+- [ ] [infra] Add a documented local backend run path for flipyou development: env template/profile, Postgres migration step, `pnpm --filter @taunt-bet/backend dev`, frontend backend base URL wiring, and `/health` verification.
 - [x] [infra] Add a documented devnet backend run path for flipyou: funded server keypair, devnet RPC/program config, backend startup, and `/health` verification before tests. <!-- satisfied: Backend Run Modes / Devnet + `run-e2e-devnet.sh` -->
 - [ ] [test] Extend `pnpm test:e2e` local Playwright coverage to run the backend-backed create -> join -> auto-settle -> verify flow against a running local backend.
 - [x] [test] Extend `pnpm test:e2e:devnet` coverage to run the same backend-backed flow against deployed devnet programs and backend infrastructure. <!-- satisfied: devnet smoke + lifecycle suite green against backend-backed flow -->

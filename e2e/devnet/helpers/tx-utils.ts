@@ -13,7 +13,7 @@ import {
   Transaction,
   TransactionInstruction,
 } from "@solana/web3.js";
-import { FlipYouIDL, PotShotIDL } from "@rng-utopia/anchor-client";
+import { FlipYouIDL, PotShotIDL } from "@taunt-bet/anchor-client";
 
 // ── IDL-driven discriminator lookup ─────────────────────────────────
 

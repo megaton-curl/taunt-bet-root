@@ -49,7 +49,7 @@ Replace the MockWalletProvider with a real Solana wallet adapter so players can 
   <UnifiedWalletProvider wallets={[]} config={{
     autoConnect: true,
     env: 'devnet',
-    metadata: { name: 'RNG Utopia', ... },
+    metadata: { name: 'TAUNT.BET', ... },
     theme: 'dark',
   }}>
     <App />
@@ -62,11 +62,11 @@ Replace the MockWalletProvider with a real Solana wallet adapter so players can 
 - `packages/wallet/src/WalletProvider.tsx` — currently wraps `MockWalletProvider`, swap target
 - `packages/wallet/src/types.ts` — `WalletContextValue` interface maps 1:1 to adapter's `useWallet`
 - `packages/wallet/src/useWallet.ts` — consumers import from here, bridge to adapter
-- `FlipYouContext.tsx:22` — imports `useWallet` from `@rng-utopia/wallet/hooks`
+- `FlipYouContext.tsx:22` — imports `useWallet` from `@taunt-bet/wallet/hooks`
 - `FlipYouContext.tsx:25-26` — reads `VITE_RPC_URL`, defaults to localhost
 - `chain.ts` — all tx builders use `@solana/web3.js`, no adapter dependency (clean separation)
 - `.env.example` has `VITE_SOLANA_RPC_URL` but code reads `VITE_RPC_URL` (mismatch to fix)
-- `apps/platform/package.json` already depends on `@rng-utopia/wallet: workspace:*`
+- `apps/platform/package.json` already depends on `@taunt-bet/wallet: workspace:*`
 
 ## Required Context Files
 

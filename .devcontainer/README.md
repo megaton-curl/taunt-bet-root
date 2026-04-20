@@ -1,4 +1,4 @@
-# RNG Utopia DevContainer
+# TAUNT.BET DevContainer
 
 This devcontainer provides a reproducible development environment with persistent CLI authentication across container rebuilds.
 
@@ -23,6 +23,8 @@ All CLI authentications are persisted using Docker named volumes:
 - `rng_utopia_cursor_agent_cli_config` - Cursor Agent CLI credentials
 
 This means you only need to authenticate once, and your credentials will survive container rebuilds.
+
+The volume IDs intentionally keep their legacy `rng_utopia_*` names so existing persisted auth data is not reset on rename.
 
 ## Usage
 

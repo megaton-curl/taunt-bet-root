@@ -15,7 +15,7 @@ Multi-purpose skill for interacting with the devnet deployment.
 - **RPC**: `https://lb.drpc.live/solana-devnet/AvfNVeH0_E7ajvkIaZ0OS6QiksDa5ZMR76q4qi5fk9AX`
 - **Wallet**: `~/.config/solana/id.json`
 - **Backend**: `http://localhost:3100`
-- **DB**: `postgresql://vscode@localhost:5432/rng_utopia_dev`
+- **DB**: `postgresql://vscode@localhost:5432/taunt_bet_dev`
 
 ## Subcommands
 
@@ -74,7 +74,7 @@ Check the settlement status of active matches.
    ```bash
    node --input-type=module -e "
    import postgres from 'postgres';
-   const sql = postgres('postgresql://vscode@localhost:5432/rng_utopia_dev');
+   const sql = postgres('postgresql://vscode@localhost:5432/taunt_bet_dev');
    const rows = await sql\`SELECT pda, phase, amount_lamports, created_at FROM rounds WHERE phase NOT IN ('settled', 'expired') ORDER BY created_at\`;
    for (const r of rows) console.log(r.pda.slice(0,12) + '...', '|', r.phase, '|', (r.amount_lamports/1e9).toFixed(4), 'SOL |', r.created_at);
    if (rows.length === 0) console.log('No unsettled rounds');
@@ -111,7 +111,7 @@ Clear stale rounds from the backend database and list any orphaned on-chain acco
 ```bash
 node --input-type=module -e "
 import postgres from 'postgres';
-const sql = postgres('postgresql://vscode@localhost:5432/rng_utopia_dev');
+const sql = postgres('postgresql://vscode@localhost:5432/taunt_bet_dev');
 const del = await sql\`DELETE FROM rounds WHERE phase NOT IN ('settled', 'expired') RETURNING pda, phase\`;
 for (const r of del) console.log('Deleted:', r.pda.slice(0,12) + '...', r.phase);
 if (del.length === 0) console.log('No stale rounds to clean');

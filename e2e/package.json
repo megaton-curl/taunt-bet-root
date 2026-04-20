@@ -2,12 +2,13 @@
   "name": "@taunt-bet/e2e",
   "version": "0.1.0",
   "private": true,
-  "description": "Devnet E2E tests for Taunt Bet",
+  "description": "Devnet E2E tests for TAUNT.BET",
   "scripts": {
     "test": "playwright test",
     "test:headed": "playwright test --headed"
   },
   "devDependencies": {
+    "@taunt-bet/anchor-client": "link:../backend/packages/anchor-client",
     "@playwright/test": "^1.49.0",
     "@coral-xyz/anchor": "^0.32.1",
     "@solana/web3.js": "^1.98.0",

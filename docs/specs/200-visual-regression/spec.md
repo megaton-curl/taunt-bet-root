@@ -153,7 +153,7 @@ The visual tests must be runnable in a headless CI environment.
 - [x] [test] Verify: 13 baseline screenshot files exist (12 routes + 404) (done: iteration 11 — actual count is 12: 11 routes + 404; the "13" was a counting error in the checklist)
 
 #### Iteration 4: State variant tests
-- [x] [test] Create `apps/platform/e2e/visual/states.spec.ts` with wallet connected vs. disconnected variants for the home page — manipulate `localStorage` key `rng-utopia-mock-wallet` before navigation to seed connected/disconnected state (done: iteration 12)
+- [x] [test] Create `apps/platform/e2e/visual/states.spec.ts` with wallet connected vs. disconnected variants for the home page — manipulate `localStorage` key `taunt-bet-mock-wallet` before navigation to seed connected/disconnected state (done: iteration 12)
 - [x] [test] Add wallet connected vs. disconnected variants for the flipyou page to the same file (done: iteration 13)
 - [x] [test] Add default profile view variant (profile page with wallet connected) (done: iteration 14)
 - [x] [test] Run `pnpm test:visual --update-snapshots` to generate state variant baselines, verify all pass on re-run (done: iteration 15)

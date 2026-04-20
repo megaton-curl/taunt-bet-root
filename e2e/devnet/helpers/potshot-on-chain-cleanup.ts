@@ -18,7 +18,7 @@ import {
   TransactionInstruction,
 } from "@solana/web3.js";
 import bs58 from "bs58";
-import { PotShotIDL } from "@rng-utopia/anchor-client";
+import { PotShotIDL } from "@taunt-bet/anchor-client";
 import { readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";

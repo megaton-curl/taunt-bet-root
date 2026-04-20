@@ -446,8 +446,8 @@ Per-userId and global rate limits to prevent abuse of the create endpoint.
 ### Implementation Checklist
 
 #### Infrastructure
-- [x] [infra] Add PostgreSQL to devcontainer (done: installed via apt in Dockerfile + auto-start in startup.sh + `rng_utopia_dev` database created. `DATABASE_URL=postgresql://vscode@localhost:5432/rng_utopia_dev`)
-- [x] [infra] Scaffold `backend/` package: `package.json` (name `@rng-utopia/backend`), `tsconfig.json`, Hono HTTP server entry point (`src/index.ts`), env config loader (`src/config.ts`) reading `DATABASE_URL`, `RPC_URL`, `SERVER_KEYPAIR`, `PORT`. Verify `pnpm install` and `pnpm build` succeed. Add `dev` script. (done: iteration 1)
+- [x] [infra] Add PostgreSQL to devcontainer (done: installed via apt in Dockerfile + auto-start in startup.sh + `taunt_bet_dev` database created. `DATABASE_URL=postgresql://vscode@localhost:5432/taunt_bet_dev`)
+- [x] [infra] Scaffold `backend/` package: `package.json` (name `@taunt-bet/backend`), `tsconfig.json`, Hono HTTP server entry point (`src/index.ts`), env config loader (`src/config.ts`) reading `DATABASE_URL`, `RPC_URL`, `SERVER_KEYPAIR`, `PORT`. Verify `pnpm install` and `pnpm build` succeed. Add `dev` script. (done: iteration 1)
 
 #### Database
 - [x] [backend] Postgres migrations: create `rounds` and `operator_events` tables matching the Core Design schema (all columns, types, constraints). Add indexes on `rounds(phase)`, `rounds(creator)`, `operator_events(pda, created_at)`, `operator_events(event_type, created_at)`. Use a simple migration runner (e.g. `postgres-migrations` or raw SQL files with version tracking). Migrations must be idempotent. (done: iteration 2)

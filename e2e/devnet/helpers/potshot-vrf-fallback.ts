@@ -17,7 +17,7 @@ import {
   TransactionInstruction,
 } from "@solana/web3.js";
 import { createHash } from "crypto";
-import { PotShotIDL } from "@rng-utopia/anchor-client";
+import { PotShotIDL } from "@taunt-bet/anchor-client";
 import {
   getLordConfigPda,
   getLordProgram,

@@ -1,6 +1,6 @@
 # Autonomy Integration Plan (Taunt Bet)
 
-Plan to merge RNG Utopia governance with autonomous execution while preserving existing project files, paths, and conventions.
+Plan to merge Taunt Bet governance with autonomous execution while preserving existing project files, paths, and conventions.
 
 ---
 
@@ -10,7 +10,7 @@ Enable a reliable autonomous loop from workspace root that can modify both:
 - Root repo files (`docs/`, `scripts/`, agent prompts/commands)
 - Submodule code (the code submodules (`solana/`, `backend/`))
 
-...without replacing RNG Utopia's current governance model.
+...without replacing Taunt Bet's current governance model.
 
 ---
 

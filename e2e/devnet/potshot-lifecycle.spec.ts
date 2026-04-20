@@ -207,7 +207,7 @@ test.skip("lord lifecycle: UI create → UI join → countdown → backend settl
       if (!info) {
         console.log(`[cleanup] Phantom lord round (matchId=${data.round.matchId}, PDA gone) — expiring in DB`);
         const { execSync } = await import("child_process");
-        const dbUrl = process.env.DATABASE_URL ?? "postgresql://vscode@localhost:5432/rng_utopia_dev";
+        const dbUrl = process.env.DATABASE_URL ?? "postgresql://vscode@localhost:5432/taunt_bet_dev";
         execSync(
           `psql "${dbUrl}" -c "UPDATE rounds SET phase = 'expired' WHERE game = 'potshot' AND phase IN ('created', 'locked', 'settling')"`,
           { timeout: 5_000 },

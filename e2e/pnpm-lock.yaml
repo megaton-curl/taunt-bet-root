@@ -17,6 +17,9 @@ importers:
       '@solana/web3.js':
         specifier: ^1.98.0
         version: 1.98.4(bufferutil@4.1.0)(typescript@5.9.3)(utf-8-validate@6.0.6)
+      '@taunt-bet/anchor-client':
+        specifier: link:../backend/packages/anchor-client
+        version: link:../backend/packages/anchor-client
       '@types/node':
         specifier: ^24.0.0
         version: 24.12.0

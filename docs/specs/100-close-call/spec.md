@@ -360,7 +360,7 @@ If ANY check fails:
 - Local E2E tests not feasible — Pyth oracle requires real devnet deployment (no localnet Pyth stack). Devnet E2E covers integration.
 - Removed from original concept: DOJI threshold, carryover mechanics, audio, provably fair section (replaced by oracle transparency).
 - `PriceFeedProvider` placed at app root (not inside `CloseCallProvider`) to avoid WebSocket reconnection on navigation and to support future features needing Pyth data.
-- PDA helpers defined locally in frontend `CloseCallContext.tsx` (not imported from `@rng-utopia/game-engine`) to avoid `Buffer` polyfill issues in Vite browser builds.
+- PDA helpers defined locally in frontend `CloseCallContext.tsx` (not imported from `@taunt-bet/game-engine`) to avoid `Buffer` polyfill issues in Vite browser builds.
 
 ## Deferred Items
 

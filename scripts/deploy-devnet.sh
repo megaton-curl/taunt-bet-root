@@ -173,7 +173,7 @@ done
 # for that game are stranded (old program closed, PDAs can never settle).
 if $FRESH; then
   printf '\n\033[1;36m═══ Cleaning orphaned rounds ═══\033[0m\n'
-  DB_URL="${DATABASE_URL:-postgresql://vscode@localhost:5432/rng_utopia_dev}"
+  DB_URL="${DATABASE_URL:-postgresql://vscode@localhost:5432/taunt_bet_dev}"
   for prog in "${DEPLOY_LIST[@]}"; do
     game_name="$prog"
     # Map program names to DB game names

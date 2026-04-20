@@ -339,7 +339,7 @@ If ANY check fails:
 - `timeout_refund` is permissionless after `resolve_deadline`. Aggregates per-player refund totals across all entries. Uses remaining_accounts pattern (one per distinct player).
 - `force_close` is admin-only. Works on any non-terminal phase (Waiting, Active, or Locked). Refunds all players.
 - Visual pulse: CSS-only animation for final 5 seconds of countdown. No on-chain involvement.
-- PDA helpers defined locally in frontend (not imported from `@rng-utopia/game-engine`) to avoid `Buffer` polyfill issues in Vite browser builds.
+- PDA helpers defined locally in frontend (not imported from `@taunt-bet/game-engine`) to avoid `Buffer` polyfill issues in Vite browser builds.
 - Verification lives in game-engine package (not fairness package) because fairness package is HMAC/crash-specific while VRF verification uses `@solana/web3.js` types.
 
 ## Deferred Items

@@ -2,14 +2,14 @@
 # .devcontainer/startup.sh — post-start toolchain, auth, and environment checks
 
 echo "----------------------------------------------------------------"
-echo "RNG Utopia: Post-Start Checks"
+echo "TAUNT.BET: Post-Start Checks"
 echo "----------------------------------------------------------------"
 
 # Force-disable forwarded SSH agent for all future interactive shells.
 unset SSH_AUTH_SOCK
-if ! grep -q "RNG UTOPIA: disable forwarded SSH agent" "${HOME}/.bashrc" 2>/dev/null; then
+if ! grep -Eq "RNG UTOPIA: disable forwarded SSH agent|TAUNT BET: disable forwarded SSH agent" "${HOME}/.bashrc" 2>/dev/null; then
   cat >> "${HOME}/.bashrc" <<'EOF'
-# RNG UTOPIA: disable forwarded SSH agent
+# TAUNT BET: disable forwarded SSH agent
 unset SSH_AUTH_SOCK
 export SSH_AUTH_SOCK=""
 EOF
@@ -100,10 +100,10 @@ if command -v psql &> /dev/null; then
     if pg_isready -q 2>/dev/null; then
         echo "  ✓ PostgreSQL running"
         # Create dev database if it doesn't exist (vscode superuser was created at build time)
-        if psql -lqt 2>/dev/null | cut -d \| -f 1 | grep -qw rng_utopia_dev; then
-            echo "  ✓ Database rng_utopia_dev exists"
+        if psql -lqt 2>/dev/null | cut -d \| -f 1 | grep -qw taunt_bet_dev; then
+            echo "  ✓ Database taunt_bet_dev exists"
         else
-            createdb rng_utopia_dev 2>/dev/null && echo "  ✓ Database rng_utopia_dev created" || echo "  ⚠ Could not create rng_utopia_dev"
+            createdb taunt_bet_dev 2>/dev/null && echo "  ✓ Database taunt_bet_dev created" || echo "  ⚠ Could not create taunt_bet_dev"
         fi
     else
         echo "  ⚠ PostgreSQL installed but failed to start"
