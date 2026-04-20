@@ -85,7 +85,8 @@ deploy_program() {
         "$CLIENT_DIR/$name.ts" \
         2>/dev/null || true
       # Also update .env files in backend
-      find "$ROOT/backend/services" -name ".env*" -exec sed -i "s/$current_id/$new_id/g" {} + 2>/dev/null || true
+      find "$ROOT/backend" -maxdepth 2 -type f -name ".env*" -not -path "*/node_modules/*" \
+        -exec sed -i "s/$current_id/$new_id/g" {} + 2>/dev/null || true
     fi
   fi
 

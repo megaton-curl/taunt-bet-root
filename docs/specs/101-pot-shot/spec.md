@@ -50,7 +50,7 @@ The target V1 architecture is the backend-assisted hybrid fairness model used by
 - `solana/shared/src/` — shared Rust crate (lifecycle, fees, amount constraints, escrow, fairness, pause, timeout)
 - `apps/platform/src/features/pot-shot/` — existing frontend mock (types, components, context, mock-simulation)
 - `packages/game-engine/src/types.ts` — amount helpers, fee constants
-- `services/backend/` — fairness backend pattern to mirror for create / settle / verification flows
+- `backend/` — fairness backend pattern to mirror for create / settle / verification flows
 
 ---
 

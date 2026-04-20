@@ -62,14 +62,14 @@ FlipYou is the simplest game on the platform and the first end-to-end delivery t
 - `solana/shared/` — Shared Rust lib (fees, wager validation, fairness/commit-reveal, escrow, timeout, pause, constants)
 
 ### Backend (Required for V1 flow)
-- `services/backend/src/routes/auth.ts` — JWT session auth (challenge/verify/refresh/logout)
-- `services/backend/src/middleware/jwt-auth.ts` — JWT Bearer token middleware (POST requests require valid access token)
-- `services/backend/src/routes/create.ts` — create endpoint (JWT-authenticated) returning partially signed transactions; reads wallet from JWT `sub` claim
-- `services/backend/src/routes/rounds.ts` — public verification payload endpoint
-- `services/backend/src/routes/health.ts` — operator health endpoint
-- `services/backend/src/worker/settlement.ts` — automatic settlement worker (polls every 1s for LOCKED matches where target_slot has passed)
-- `services/backend/src/worker/settle-tx.ts` — settle transaction builder + submission (parallel RPC calls for speed)
-- `services/backend/src/config.ts` — required environment contract for local/devnet runs
+- `backend/src/routes/auth.ts` — JWT session auth (challenge/verify/refresh/logout)
+- `backend/src/middleware/jwt-auth.ts` — JWT Bearer token middleware (POST requests require valid access token)
+- `backend/src/routes/create.ts` — create endpoint (JWT-authenticated) returning partially signed transactions; reads wallet from JWT `sub` claim
+- `backend/src/routes/rounds.ts` — public verification payload endpoint
+- `backend/src/routes/health.ts` — operator health endpoint
+- `backend/src/worker/settlement.ts` — automatic settlement worker (polls every 1s for LOCKED matches where target_slot has passed)
+- `backend/src/worker/settle-tx.ts` — settle transaction builder + submission (parallel RPC calls for speed)
+- `backend/src/config.ts` — required environment contract for local/devnet runs
 
 ---
 
@@ -206,7 +206,7 @@ Sound effects accompany the flipyou experience.
 - FlipYou Anchor program (`solana/programs/flipyou`) implementing commit-reveal settlement (create, join, settle, cancel, request_refund, timeout_refund)
 - Platform Anchor program (`solana/programs/platform`) for fee config (PlayerProfile removed)
 - `packages/anchor-client/` (generated from IDL via `scripts/sync-idl`)
-- `services/backend/` fairness service (Hono API + JWT auth + settlement worker)
+- `backend/` fairness service (Hono API + JWT auth + settlement worker)
 - Postgres for backend secret / round / auth session storage
 - Shared UI components (`packages/ui/`) for buttons, modals, cards, toasts, WagerInput
 - Dev environment: Anchor CLI 0.32.1, Solana CLI 3.1.8, Rust toolchain
@@ -230,7 +230,7 @@ Sound effects accompany the flipyou experience.
 
 ### Local
 
-- Backend env must provide: `DATABASE_URL`, `RPC_URL`, `SERVER_KEYPAIR`, and optional tuning values from `services/backend/src/config.ts`
+- Backend env must provide: `DATABASE_URL`, `RPC_URL`, `SERVER_KEYPAIR`, and optional tuning values from `backend/src/config.ts`
 - Minimum startup flow: `pnpm --filter @rng-utopia/backend migrate` then `pnpm --filter @rng-utopia/backend dev`
 - Local platform/frontend config must point flipyou create + verification requests at the local backend base URL
 - Ready signal: `GET /health` reports DB connected, worker running, and server balance above threshold for the chosen localnet flow

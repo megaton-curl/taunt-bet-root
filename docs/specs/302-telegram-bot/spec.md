@@ -61,12 +61,12 @@ gameplay APIs and workers.
 - `docs/specs/008-user-profile/spec.md`
 - `docs/specs/009-chat/spec.md`
 - `docs/specs/300-referral-system/spec.md`
-- `backend/services/backend/src/index.ts`
-- `backend/services/backend/src/routes/public-profile.ts`
-- `backend/services/backend/src/routes/public-referral.ts`
-- `backend/services/backend/src/routes/referral.ts`
-- `backend/services/backend/src/routes/dogpile.ts`
-- `backend/services/backend/src/config.ts`
+- `backend/src/index.ts`
+- `backend/src/routes/public-profile.ts`
+- `backend/src/routes/public-referral.ts`
+- `backend/src/routes/referral.ts`
+- `backend/src/routes/dogpile.ts`
+- `backend/src/config.ts`
 - `telegram/README.md`
 - `telegram/package.json`
 - `telegram/src/index.ts`
@@ -79,13 +79,13 @@ gameplay APIs and workers.
 
 ## Contract Files
 
-- `backend/services/backend/src/routes/public-profile.ts` — public player
+- `backend/src/routes/public-profile.ts` — public player
   identity lookup contract
-- `backend/services/backend/src/routes/public-referral.ts` — public referral
+- `backend/src/routes/public-referral.ts` — public referral
   lookup contract for the Telegram service
-- `backend/services/backend/src/routes/referral.ts` — existing authenticated
+- `backend/src/routes/referral.ts` — existing authenticated
   referral code contract that v1 cannot reuse directly
-- `backend/services/backend/src/routes/dogpile.ts` — Dogpile response shape
+- `backend/src/routes/dogpile.ts` — Dogpile response shape
 - `telegram/src/commands.ts` — bot command registry contract
 - `webapp/src/lib/routes.ts` — canonical frontend route prefixes
 - `webapp/src/App.tsx` — route registration for root game pages and referral
@@ -276,7 +276,7 @@ the current product checklist.
 
 - Telegram Bot API webhook/update contract
 - Existing backend public data contracts plus the new `telegram/` service
-- Public profile lookup contract in `backend/services/backend/src/routes/public-profile.ts`
+- Public profile lookup contract in `backend/src/routes/public-profile.ts`
 - Referral link format from `docs/specs/300-referral-system/spec.md`
 - Canonical web routes in `webapp/src/lib/routes.ts`
 

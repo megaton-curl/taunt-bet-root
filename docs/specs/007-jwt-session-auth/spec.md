@@ -52,8 +52,8 @@ and have no public users yet.
 
 ## Contract Files
 
-- `services/backend/src/middleware/jwt-auth.ts` — JWT verification middleware
-- `services/backend/src/routes/auth.ts` — Auth endpoint handlers
+- `backend/src/middleware/jwt-auth.ts` — JWT verification middleware
+- `backend/src/routes/auth.ts` — Auth endpoint handlers
 - `apps/platform/src/context/SessionContext.tsx` — Frontend session management
 
 ---
@@ -261,12 +261,12 @@ Rate limiting works with both JWT-authenticated and pre-auth routes.
   - JWT middleware on `POST /closecall/bet` -- same as fairness
   - Rate limiting on `/auth/*` -- keyed by IP (pre-auth, no wallet available)
 - **Key Files**:
-  - `services/backend/src/routes/auth.ts` -- challenge/verify/refresh/logout handlers
-  - `services/backend/src/middleware/jwt-auth.ts` -- `createJwtAuthMiddleware()` (HS256 via `jose`)
-  - `services/backend/src/middleware/auth.ts` -- legacy Ed25519 per-request auth (replaced, kept for reference)
-  - `services/backend/src/middleware/rate-limit.ts` -- context-aware rate limiting (JWT userId or IP fallback)
-  - `services/backend/src/auth-db.ts` -- DB operations for challenges + refresh tokens
-  - `services/backend/migrations/002_auth_sessions.sql` -- auth_challenges + refresh_tokens tables
+  - `backend/src/routes/auth.ts` -- challenge/verify/refresh/logout handlers
+  - `backend/src/middleware/jwt-auth.ts` -- `createJwtAuthMiddleware()` (HS256 via `jose`)
+  - `backend/src/middleware/auth.ts` -- legacy Ed25519 per-request auth (replaced, kept for reference)
+  - `backend/src/middleware/rate-limit.ts` -- context-aware rate limiting (JWT userId or IP fallback)
+  - `backend/src/auth-db.ts` -- DB operations for challenges + refresh tokens
+  - `backend/migrations/002_auth_sessions.sql` -- auth_challenges + refresh_tokens tables
 
 ---
 

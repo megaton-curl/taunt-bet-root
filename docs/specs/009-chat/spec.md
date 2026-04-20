@@ -52,9 +52,9 @@ define production frontend UI in the separate frontend repo.
 - `docs/specs/006-fairness-backend/spec.md`
 - `docs/specs/007-jwt-session-auth/spec.md`
 - `docs/specs/300-referral-system/spec.md`
-- `backend/services/backend/src/routes/auth.ts`
-- `backend/services/backend/src/middleware/jwt-auth.ts`
-- `backend/services/backend/src/config.ts`
+- `backend/src/routes/auth.ts`
+- `backend/src/middleware/jwt-auth.ts`
+- `backend/src/config.ts`
 
 ## Contract Files
 
@@ -178,8 +178,8 @@ two-user harness for chat development. This is a developer tool, not production 
 
 ## Dependencies
 
-- Platform JWT session auth (`backend/services/backend/src/routes/auth.ts`)
-- Shared JWT verification contract (`backend/services/backend/src/middleware/jwt-auth.ts`)
+- Platform JWT session auth (`backend/src/routes/auth.ts`)
+- Shared JWT verification contract (`backend/src/middleware/jwt-auth.ts`)
 - Explicit `JWT_SECRET` agreement across backend and chat service
 - Root multi-repo/submodule workflow
 

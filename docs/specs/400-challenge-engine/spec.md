@@ -53,10 +53,10 @@ The challenge engine is event-driven, plugging into the existing async event que
 
 - `docs/specs/301-async-event-queue/spec.md` — event queue we plug into
 - `docs/specs/300-referral-system/spec.md` — pattern for event handlers, DB conventions
-- `backend/services/backend/src/queue/` — event queue implementation
-- `backend/services/backend/src/worker/settle-tx.ts` — settlement hot path (emits new events)
-- `backend/services/backend/src/db.ts` — DB client and query patterns
-- `backend/services/backend/migrations/007_game_entries.sql` — game_entries schema (data source for adapters)
+- `backend/src/queue/` — event queue implementation
+- `backend/src/worker/settle-tx.ts` — settlement hot path (emits new events)
+- `backend/src/db.ts` — DB client and query patterns
+- `backend/migrations/007_game_entries.sql` — game_entries schema (data source for adapters)
 - `docs/DESIGN_REFERENCE.md` — trust model, fee structure (500 bps)
 
 ## Contract Files

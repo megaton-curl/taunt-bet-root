@@ -44,8 +44,8 @@ Platform Core covers the shared systems that all V1 games depend on: wallet conn
 
 - `packages/ui/src/layouts/WagerInput.tsx` — Custom-amount wager input component (SOL formatting + preset buttons)
 - `packages/ui/src/layouts/BettingPanel.tsx` — Betting panel layout using WagerInput
-- `services/backend/src/middleware/jwt-auth.ts` — JWT Bearer token middleware for authenticated API requests
-- `services/backend/src/routes/auth.ts` — Challenge-response auth endpoints (challenge, verify, refresh, logout)
+- `backend/src/middleware/jwt-auth.ts` — JWT Bearer token middleware for authenticated API requests
+- `backend/src/routes/auth.ts` — Challenge-response auth endpoints (challenge, verify, refresh, logout)
 
 ---
 

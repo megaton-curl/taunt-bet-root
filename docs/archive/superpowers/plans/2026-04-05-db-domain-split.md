@@ -18,15 +18,15 @@
 
 | Action | File | Responsibility |
 |--------|------|---------------|
-| Create | `services/backend/src/db/referrals.ts` | Referral types + 12 methods (codes, links, earnings, claims, rates) |
-| Create | `services/backend/src/db/closecall.ts` | CloseCall round types + 5 methods |
-| Create | `services/backend/src/db/closecall-candles.ts` | Candle types + 3 methods |
-| Create | `services/backend/src/db/transactions.ts` | Transaction types + 4 methods |
-| Create | `services/backend/src/db/game-entries.ts` | GameEntry types + 4 methods |
-| Create | `services/backend/src/db/rounds.ts` | Round types + operator event types + phase guard + 10 methods |
-| Create | `services/backend/src/db/profiles.ts` | PlayerProfile type + 7 methods |
-| Create | `services/backend/src/db/stats.ts` | Stats/leaderboard types + 9 methods |
-| Modify | `services/backend/src/db.ts` | Slim to ~80 lines: imports, Db composition, createDb shell, re-exports |
+| Create | `backend/src/db/referrals.ts` | Referral types + 12 methods (codes, links, earnings, claims, rates) |
+| Create | `backend/src/db/closecall.ts` | CloseCall round types + 5 methods |
+| Create | `backend/src/db/closecall-candles.ts` | Candle types + 3 methods |
+| Create | `backend/src/db/transactions.ts` | Transaction types + 4 methods |
+| Create | `backend/src/db/game-entries.ts` | GameEntry types + 4 methods |
+| Create | `backend/src/db/rounds.ts` | Round types + operator event types + phase guard + 10 methods |
+| Create | `backend/src/db/profiles.ts` | PlayerProfile type + 7 methods |
+| Create | `backend/src/db/stats.ts` | Stats/leaderboard types + 9 methods |
+| Modify | `backend/src/db.ts` | Slim to ~80 lines: imports, Db composition, createDb shell, re-exports |
 
 ---
 
@@ -35,8 +35,8 @@
 Largest domain (12 methods, ~270 lines), zero cross-domain dependencies. Proves the pattern.
 
 **Files:**
-- Create: `services/backend/src/db/referrals.ts`
-- Modify: `services/backend/src/db.ts`
+- Create: `backend/src/db/referrals.ts`
+- Modify: `backend/src/db.ts`
 
 - [ ] **Step 1: Create `db/referrals.ts`**
 
@@ -107,7 +107,7 @@ Expected: All packages pass with zero errors.
 - [ ] **Step 4: Commit**
 
 ```
-git add services/backend/src/db/ services/backend/src/db.ts
+git add backend/src/db/ backend/src/db.ts
 git commit -m "refactor(db): extract referrals domain to db/referrals.ts"
 ```
 
@@ -116,8 +116,8 @@ git commit -m "refactor(db): extract referrals domain to db/referrals.ts"
 ### Task 2: Extract closecall domain
 
 **Files:**
-- Create: `services/backend/src/db/closecall.ts`
-- Modify: `services/backend/src/db.ts`
+- Create: `backend/src/db/closecall.ts`
+- Modify: `backend/src/db.ts`
 
 - [ ] **Step 1: Create `db/closecall.ts`**
 
@@ -150,8 +150,8 @@ git commit -m "refactor(db): extract closecall domain to db/closecall.ts"
 ### Task 3: Extract closecall-candles domain
 
 **Files:**
-- Create: `services/backend/src/db/closecall-candles.ts`
-- Modify: `services/backend/src/db.ts`
+- Create: `backend/src/db/closecall-candles.ts`
+- Modify: `backend/src/db.ts`
 
 - [ ] **Step 1: Create `db/closecall-candles.ts`**
 
@@ -181,8 +181,8 @@ git commit -m "refactor(db): extract closecall-candles domain to db/closecall-ca
 ### Task 4: Extract transactions domain
 
 **Files:**
-- Create: `services/backend/src/db/transactions.ts`
-- Modify: `services/backend/src/db.ts`
+- Create: `backend/src/db/transactions.ts`
+- Modify: `backend/src/db.ts`
 
 - [ ] **Step 1: Create `db/transactions.ts`**
 
@@ -211,8 +211,8 @@ git commit -m "refactor(db): extract transactions domain to db/transactions.ts"
 ### Task 5: Extract game-entries domain
 
 **Files:**
-- Create: `services/backend/src/db/game-entries.ts`
-- Modify: `services/backend/src/db.ts`
+- Create: `backend/src/db/game-entries.ts`
+- Modify: `backend/src/db.ts`
 
 - [ ] **Step 1: Create `db/game-entries.ts`**
 
@@ -263,8 +263,8 @@ git commit -m "refactor(db): extract game-entries domain to db/game-entries.ts"
 ### Task 6: Extract rounds domain
 
 **Files:**
-- Create: `services/backend/src/db/rounds.ts`
-- Modify: `services/backend/src/db.ts`
+- Create: `backend/src/db/rounds.ts`
+- Modify: `backend/src/db.ts`
 
 - [ ] **Step 1: Create `db/rounds.ts`**
 
@@ -296,8 +296,8 @@ git commit -m "refactor(db): extract rounds domain to db/rounds.ts"
 ### Task 7: Extract profiles domain
 
 **Files:**
-- Create: `services/backend/src/db/profiles.ts`
-- Modify: `services/backend/src/db.ts`
+- Create: `backend/src/db/profiles.ts`
+- Modify: `backend/src/db.ts`
 
 - [ ] **Step 1: Create `db/profiles.ts`**
 
@@ -344,8 +344,8 @@ git commit -m "refactor(db): extract profiles domain to db/profiles.ts"
 ### Task 8: Extract stats domain
 
 **Files:**
-- Create: `services/backend/src/db/stats.ts`
-- Modify: `services/backend/src/db.ts`
+- Create: `backend/src/db/stats.ts`
+- Modify: `backend/src/db.ts`
 
 - [ ] **Step 1: Create `db/stats.ts`**
 
@@ -396,7 +396,7 @@ git commit -m "refactor(db): extract stats domain to db/stats.ts"
 After all 8 domains are extracted, `db.ts` should be ~80 lines: imports, composed `Db` type, `createDb`, re-exports.
 
 **Files:**
-- Modify: `services/backend/src/db.ts`
+- Modify: `backend/src/db.ts`
 
 - [ ] **Step 1: Clean up db.ts**
 

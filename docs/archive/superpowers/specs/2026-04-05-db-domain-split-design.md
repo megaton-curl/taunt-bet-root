@@ -2,7 +2,7 @@
 
 **Date:** 2026-04-05
 **Status:** Approved
-**Scope:** `backend/services/backend/src/db.ts` (1870 lines) -> domain module split
+**Scope:** `backend/src/db.ts` (1870 lines) -> domain module split
 
 ## Problem
 
@@ -21,7 +21,7 @@ Split into domain modules while keeping one composed `Db` interface at `db.ts`. 
 ## Target Structure
 
 ```
-services/backend/src/
+backend/src/
   db.ts                          -- composition: Db type, createDb, re-exports
   db/
     types.ts                     -- shared types (RoundPhase, TransactionType, etc.)

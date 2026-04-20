@@ -1,10 +1,23 @@
-# DigitalOcean App Platform CI/CD Standard
+# DigitalOcean App Platform Operating Model
 
-Reference pattern for **per-repo** DigitalOcean App Platform ownership using GitHub Actions and checked-in app specs.
+Single source of truth for how we use DigitalOcean App Platform. This is intentionally short: it describes ownership, deploy flow, and the few infra rules that matter. Detailed repo-specific setup stays in each repo's `.do/README.md`.
 
-## Standard Repo Layout
+## Intention
 
-Each deployable repo owns:
+- Each deployable repo owns its own App Platform spec, GitHub workflows, and env contract.
+- Git is the source of truth for deploy config. The DigitalOcean UI is for observing deploys, not hand-maintaining drift.
+- GitHub Actions is the only deploy driver. `deploy_on_push` stays disabled in App Platform.
+- We run one App Platform app per repo per environment. There is no separate infra repo and no dependency on a shared combined app.
+
+Current deployable repos:
+
+- `backend`
+- `chat`
+- `telegram`
+- `waitlist`
+- `webapp`
+
+Each of those repos owns this shape:
 
 ```text
 .github/workflows/ci.yml
@@ -15,120 +28,66 @@ Each deployable repo owns:
 .do/README.md
 ```
 
-Current scope:
+## Deploy Flow
 
-- `backend/`
-- `chat/`
-- `telegram/`
-- `waitlist/`
-- `webapp/`
+1. Pull requests run repo-local CI only.
+2. Pushes to `dev` deploy that repo's dev app.
+3. Production deploys come from release-ready tags.
+4. Deploys apply the checked-in app spec, not manual UI changes.
+5. New apps are verified on the default App Platform URL before any custom-domain cutover.
 
-There is no separate `infra/` repo. Each deployable repo owns its own App Platform spec, workflows, and lifecycle end-to-end.
+Use short environment-first app names such as `dev-api`, `dev-webapp`, `dev-waitlist`, `dev-scream`, and `dev-telegram`. Public hostnames do not need to match the app name.
 
-## Recommended App Names
+## Config Boundaries
 
-Use short environment-first names in App Platform:
-
-- `dev-waitlist`
-- `dev-webapp`
-- `dev-api`
-- `dev-scream`
-- `dev-shout`
-- `prod-waitlist`
-- `prod-webapp`
-- `prod-api`
-- `prod-scream`
-- `prod-shout`
-
-## Deployment Rules
-
-- Pull requests run repo-local CI only.
-- Pushes to `dev` deploy the repo's dev app.
-- Production deploys are reserved for version tags created from release-ready commits.
-- `deploy_on_push` must stay disabled in App Platform so GitHub Actions is the only deploy driver.
-- App specs are authoritative. If an env var is required, it must be represented in the checked-in spec.
-
-## GitHub Storage
-
-Each repo stores:
+Each deployable repo stores:
 
 - repository secret: `DIGITALOCEAN_ACCESS_TOKEN`
 - GitHub Environment `dev`
 - GitHub Environment `prod`
 
-Use environment variables for non-secret deploy inputs like hostnames, backend URLs, and RPC endpoints.
+GitHub vars and secrets hold repo-owned inputs such as custom domains, backend URLs, RPC endpoints, tokens, and other application secrets.
 
-Use environment secrets for sensitive values like database URLs, JWT secrets, bot tokens, and webhook secrets.
+The app spec owns values that DigitalOcean can inject itself, such as `APP_URL`, `APP_DOMAIN`, and attached-database bindables. Do not route those through GitHub first. Use neutral GitHub names like `PRIMARY_DOMAIN`, not `APP_DOMAIN`.
 
-## DigitalOcean Storage
+When an env contract changes, update the app spec, deploy workflows, and `.do/README.md` in the same task.
 
-- one App Platform app per repo per environment
-- app objects and deployment history
-- managed databases
-- encrypted copies of spec-provided secret values after deployment
-- domain attachments and certificates
+Use App Platform scopes deliberately:
 
-## Team Migration Notes
+- `RUN_TIME` for live-process-only values
+- `BUILD_TIME` for static frontend inputs
+- `RUN_AND_BUILD_TIME` only when the same value is genuinely needed in both phases
 
-When moving this setup to a new DigitalOcean team, do not assume resources transfer in place.
+For Vite static sites, keep the build command explicit: `npm ci --include=dev && npm run build`.
 
-- Recreate App Platform apps in the new team from the checked-in specs.
-- Create new team-scoped API tokens and replace `DIGITALOCEAN_ACCESS_TOKEN` in GitHub.
-- Recreate managed databases in the new team and migrate data separately if needed.
-- Recreate DigitalOcean Projects if you use them.
-- Reattach custom domains in the new team and let certificates reissue there.
-- If DigitalOcean hosts the DNS zone, export the zone from the old team and recreate it in the new one.
+## Infra Rules
 
-## Git Storage
+- Each repo owns its own custom domain attachment, but DNS remains a manual gate outside git.
+- Roll traffic one repo and one hostname at a time. Do not assume old combined-app ingress rules are part of the new shape.
+- The top-level app-spec `name:` is the App Platform resource identity. Changing it is a migration, not a cosmetic rename.
 
-- repo-local app specs
-- repo-local workflow definitions
-- non-secret defaults only when safe to commit
-- root-level docs and rollout notes
+Service-specific caveats we actually care about:
 
-## Domain Strategy
+- `backend` owns the database contract.
+- If a database is attached to the same app, bind it from the app spec. If it is external, inject it from GitHub secrets.
+- The backend still runs migrations on startup, so database cutovers are startup behavior changes, not just secret swaps.
+- Attaching an existing managed database during app creation requires a DO token that can update databases.
+- `telegram` may fail first-boot webhook registration until DNS and certificates are ready. Retry on restart or redeploy instead of treating that as a bad app build.
 
-- Each repo owns its own custom domain attachment in its own app spec.
-- Keep DNS records in the DNS provider, not in git.
-- Treat DNS cutover as a manual gate even when app deployment is automated.
-- Do not depend on cross-app path routing from the old combined app. If a service becomes its own app, it should also get its own hostname or an explicitly planned ingress strategy.
+## Cutover And Rollback
 
-## Ingress (`ingress.rules`)
+Cutover is simple:
 
-- Prefer host-scoped rules using `match.authority.exact` (or `prefix` when appropriate) so each app only accepts traffic for its own hostname.
-- **Preserve Full Path** (label in the App Platform UI for each ingress route) is the same as **`preserve_path_prefix: true`** on `ingress.rules[].component` in the app spec. The default UI/spec behavior is effectively **trim the matched path prefix** before the request hits your component; turn **Preserve Full Path** on unless you depend on that stripping.
-- For every rule that forwards to a **service** or **static site** component, set `preserve_path_prefix: true` so behavior matches **Preserve Full Path** in the dashboard. That matters most for subpath mounts (for example `/chat`, `/wg/tg`) and keeps the path the component sees aligned with the browser URL.
-- `preserve_path_prefix` is mutually exclusive with `component.rewrite`; pick one behavior per rule.
+1. Deploy the new app.
+2. Verify it on the default App Platform URL.
+3. Attach the intended custom domain.
+4. Flip DNS.
+5. Confirm health and only then retire the old app or route.
 
-## Frontend Build Notes
+Rollback is also from git and DNS:
 
-For Vite static sites like `waitlist/` and `webapp/`, do not rely on `BUILD_TIME NODE_ENV=production` in App Platform specs.
+- dev: redeploy the last known-good commit from `dev`
+- prod: redeploy the last known-good release tag
+- if the problem is domain or certificate related, roll back DNS or domain mapping before changing code
 
-- `vite build` already produces a production build.
-- App Platform builds still need frontend toolchain packages from `devDependencies`.
-- Prefer an explicit build command such as `npm ci --include=dev && npm run build` so the App Platform build shape matches the repo validation path.
-
-## Database Strategy
-
-- `backend` owns the runtime database contract.
-- Prefer a standalone managed database per environment.
-- Inject the connection string at runtime from GitHub Environment secrets.
-- Do not run migrations in App Platform build commands.
-- The current backend service still auto-runs migrations during startup, so database cutover should be staged carefully until that behavior is intentionally changed.
-
-## Rollback Strategy
-
-- Roll back from git, not by editing live values in the App Platform UI.
-- Dev: redeploy the last known-good commit from `dev`.
-- Prod: redeploy the last known-good release tag.
-- Caveat: source-based App Platform deploys are tag-gated, not fully immutable, because the spec still points at a branch.
-- If the failure is domain-related, roll back DNS or custom-domain mapping before changing app code.
-
-## Cutover Sequence
-
-1. Capture the current live app spec and runtime data with `doctl`.
-2. Stand up the new per-repo apps in dev first.
-3. Configure the GitHub environment variables and secrets for each repo.
-4. Move custom domains one repo at a time.
-5. Confirm backend/database handling before deleting the old combined app.
-6. Remove the old combined app only after all standalone apps are healthy.
+If we move to a new DigitalOcean team, recreate apps, databases, domains/certificates, projects, and the team API token there. Do not assume those resources transfer in place.

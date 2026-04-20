@@ -447,7 +447,7 @@ Per-userId and global rate limits to prevent abuse of the create endpoint.
 
 #### Infrastructure
 - [x] [infra] Add PostgreSQL to devcontainer (done: installed via apt in Dockerfile + auto-start in startup.sh + `rng_utopia_dev` database created. `DATABASE_URL=postgresql://vscode@localhost:5432/rng_utopia_dev`)
-- [x] [infra] Scaffold `services/backend/` package: `package.json` (name `@rng-utopia/backend`), `tsconfig.json`, Hono HTTP server entry point (`src/index.ts`), env config loader (`src/config.ts`) reading `DATABASE_URL`, `RPC_URL`, `SERVER_KEYPAIR`, `PORT`. Verify `pnpm install` and `pnpm build` succeed. Add `dev` script. (done: iteration 1)
+- [x] [infra] Scaffold `backend/` package: `package.json` (name `@rng-utopia/backend`), `tsconfig.json`, Hono HTTP server entry point (`src/index.ts`), env config loader (`src/config.ts`) reading `DATABASE_URL`, `RPC_URL`, `SERVER_KEYPAIR`, `PORT`. Verify `pnpm install` and `pnpm build` succeed. Add `dev` script. (done: iteration 1)
 
 #### Database
 - [x] [backend] Postgres migrations: create `rounds` and `operator_events` tables matching the Core Design schema (all columns, types, constraints). Add indexes on `rounds(phase)`, `rounds(creator)`, `operator_events(pda, created_at)`, `operator_events(event_type, created_at)`. Use a simple migration runner (e.g. `postgres-migrations` or raw SQL files with version tracking). Migrations must be idempotent. (done: iteration 2)
@@ -475,8 +475,8 @@ Per-userId and global rate limits to prevent abuse of the create endpoint.
 - [x] [test] Unit tests (`src/__tests__/`): secret generation produces 32 bytes, commitment matches `packages/fairness` algorithm, PDA derivation matches on-chain seeds, auth middleware rejects invalid/expired signatures and accepts valid ones, rate limiter enforces per-userId and global limits and returns correct `Retry-After` header. (done: iteration 15)
 - [x] [test] Integration tests for full create → join → settle lifecycle against bankrun: create match via POST endpoint → verify DB state → simulate join on-chain (bankrun) → trigger worker poll → verify settlement tx lands → verify DB updated to `settled` → verify GET /rounds/:pda returns secret and verification payload. (done: iteration 16)
 - [x] [test] HTTP endpoint tests: POST /create with valid JWT → 200, missing/expired JWT → 401, wallet mismatch → 403, duplicate match ID → 409, rate limit exceeded → 429. GET /rounds/:pda → 200 for known, 404 for unknown. GET /health → 200 with expected fields. (done: iteration 17)
-- [x] [test] Add local deterministic E2E coverage for primary user flow(s) in `e2e/local/**` (or mark N/A with reason for non-web/non-interactive specs) (done: iteration 18 — N/A: backend-only HTTP service, no browser UI. Full HTTP lifecycle covered by integration tests in `services/backend/src/__tests__/integration.test.ts`)
-- [x] [test] Add visual route/state coverage in `e2e/visual/**`; run `pnpm test:visual` and update baselines only for intentional UI changes (done: iteration 19 — N/A: backend-only HTTP service with zero UI changes. All code lives in `services/backend/`, no `apps/platform/` files modified. Existing visual baselines unaffected.)
+- [x] [test] Add local deterministic E2E coverage for primary user flow(s) in `e2e/local/**` (or mark N/A with reason for non-web/non-interactive specs) (done: iteration 18 — N/A: backend-only HTTP service, no browser UI. Full HTTP lifecycle covered by integration tests in `backend/src/__tests__/integration.test.ts`)
+- [x] [test] Add visual route/state coverage in `e2e/visual/**`; run `pnpm test:visual` and update baselines only for intentional UI changes (done: iteration 19 — N/A: backend-only HTTP service with zero UI changes. All code lives in `backend/`, no `apps/platform/` files modified. Existing visual baselines unaffected.)
 - [x] [test] If external provider/oracle/VRF integration is in scope, add devnet real-provider E2E coverage in `e2e/devnet/**` with env validation + retry/backoff (or mark N/A with reason) (done: iteration 20 — N/A: no external provider/oracle/VRF integration in scope. Spec 006 uses Solana's native SlotHashes sysvar for entropy via commit-reveal model, not an external VRF provider. Settlement worker reads entropy from a system account, not a third-party oracle.)
 
 ### Testing Requirements
@@ -563,20 +563,20 @@ After the spec loop outputs `<promise>DONE</promise>`, `spec-loop.sh` automatica
   - `operator_events` (PK: `id`) -- append-only audit trail. Key columns: `pda`, `event_type`, `payload`
   - `closecall_candles` (PK: `minute_ts`) -- cached Hermes BTC boundary prices
 - **Key Files**:
-  - `services/backend/src/routes/create.ts` -- flipyou create endpoint
-  - `services/backend/src/routes/lord-create.ts` -- lord create + current round endpoints
-  - `services/backend/src/routes/rounds.ts` -- round verification/lookup endpoints
-  - `services/backend/src/routes/closecall.ts` -- Close Call bet + read endpoints
-  - `services/backend/src/worker/settlement.ts` -- poll-based settlement worker (discovers locked rounds)
-  - `services/backend/src/worker/settle-tx.ts` -- settlement tx builder + submission (flipyou `settleMatch`, lord `settleLordRound`, closecall ix builders)
-  - `services/backend/src/worker/pda-watcher.ts` -- WebSocket PDA subscription for instant join/lock detection
-  - `services/backend/src/worker/closecall-clock.ts` -- minute-boundary price capture + Close Call settlement
-  - `services/backend/src/worker/retry.ts` -- retry logic for transient settlement failures
+  - `backend/src/routes/create.ts` -- flipyou create endpoint
+  - `backend/src/routes/lord-create.ts` -- lord create + current round endpoints
+  - `backend/src/routes/rounds.ts` -- round verification/lookup endpoints
+  - `backend/src/routes/closecall.ts` -- Close Call bet + read endpoints
+  - `backend/src/worker/settlement.ts` -- poll-based settlement worker (discovers locked rounds)
+  - `backend/src/worker/settle-tx.ts` -- settlement tx builder + submission (flipyou `settleMatch`, lord `settleLordRound`, closecall ix builders)
+  - `backend/src/worker/pda-watcher.ts` -- WebSocket PDA subscription for instant join/lock detection
+  - `backend/src/worker/closecall-clock.ts` -- minute-boundary price capture + Close Call settlement
+  - `backend/src/worker/retry.ts` -- retry logic for transient settlement failures
   - `packages/fairness/src/commitment.ts` -- `computeCommitment()`, `verifyCommitment()` (SHA-256)
   - `packages/fairness/src/verification.ts` -- `verifyRound()` full fairness verification
-  - `services/backend/migrations/001_init.sql` -- rounds + operator_events tables
-  - `services/backend/migrations/005_closecall_rounds.sql` -- closecall_rounds table
-  - `services/backend/migrations/007_round_entries.sql` -- entries JSONB column on rounds
+  - `backend/migrations/001_init.sql` -- rounds + operator_events tables
+  - `backend/migrations/005_closecall_rounds.sql` -- closecall_rounds table
+  - `backend/migrations/007_round_entries.sql` -- entries JSONB column on rounds
 
 ---
 

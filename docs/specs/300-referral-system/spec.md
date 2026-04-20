@@ -747,15 +747,15 @@ After the spec loop outputs `<promise>DONE</promise>`, `spec-loop.sh` automatica
   - `referral_claims` — `id UUID PK DEFAULT gen_random_uuid()`, `wallet`, `amount_lamports BIGINT`, `status TEXT CHECK(pending|processing|error|completed|failed)`, `tx_signature`, `error`, `retry_count INT DEFAULT 0`, `requested_at`, `processed_at`; partial unique index `idx_referral_claims_wallet_active` prevents concurrent active claims per wallet
   - `referral_kol_rates` — `wallet TEXT PK`, `rate_bps INT`, `set_by TEXT`, `created_at`, `updated_at`
 - **Key Files**:
-  - `backend/services/backend/src/routes/referral.ts` — all route handlers
-  - `backend/services/backend/src/worker/settle-tx.ts` — `recordReferralEarnings()` (lines 123-195) runs after each game settlement
-  - `backend/services/backend/src/queue/handlers/referral-claim.ts` — `createClaimHandler()` handles `referral.claim_requested` events (SOL transfer from server keypair)
-  - `backend/services/backend/src/queue/event-types.ts` — `EventTypes.REFERRAL_CLAIM_REQUESTED` (`"referral.claim_requested"`)
-  - `backend/services/backend/src/db.ts` — all referral DB methods (`insertReferralCode`, `getReferralCodeByUserId`, `getReferralCodeByCode`, `insertReferralLink`, `getReferralLinkByRefereeUserId`, `getReferralLinksByReferrer`, `insertReferralEarning`, `getPendingBalanceByUserId`, `getReferralEarnings`, `getReferralStats`, `getReferralClaim`, `updateClaimStatus`, `getReferrerRate`)
-  - `backend/services/backend/src/config.ts` — `REFERRAL_DEFAULT_RATE_BPS` (default 1000), `REFERRAL_MIN_CLAIM_LAMPORTS` (default 10000000 = 0.01 SOL)
-  - `backend/services/backend/src/__tests__/referral-routes.test.ts` — route-level tests
-  - `backend/services/backend/migrations/011_referral.sql` — creates all 5 tables
-  - `backend/services/backend/migrations/012_referral_claim_retry.sql` — adds `retry_count`, `error` status, concurrent claim guard
+  - `backend/src/routes/referral.ts` — all route handlers
+  - `backend/src/worker/settle-tx.ts` — `recordReferralEarnings()` (lines 123-195) runs after each game settlement
+  - `backend/src/queue/handlers/referral-claim.ts` — `createClaimHandler()` handles `referral.claim_requested` events (SOL transfer from server keypair)
+  - `backend/src/queue/event-types.ts` — `EventTypes.REFERRAL_CLAIM_REQUESTED` (`"referral.claim_requested"`)
+  - `backend/src/db.ts` — all referral DB methods (`insertReferralCode`, `getReferralCodeByUserId`, `getReferralCodeByCode`, `insertReferralLink`, `getReferralLinkByRefereeUserId`, `getReferralLinksByReferrer`, `insertReferralEarning`, `getPendingBalanceByUserId`, `getReferralEarnings`, `getReferralStats`, `getReferralClaim`, `updateClaimStatus`, `getReferrerRate`)
+  - `backend/src/config.ts` — `REFERRAL_DEFAULT_RATE_BPS` (default 1000), `REFERRAL_MIN_CLAIM_LAMPORTS` (default 10000000 = 0.01 SOL)
+  - `backend/src/__tests__/referral-routes.test.ts` — route-level tests
+  - `backend/migrations/011_referral.sql` — creates all 5 tables
+  - `backend/migrations/012_referral_claim_retry.sql` — adds `retry_count`, `error` status, concurrent claim guard
 - **Integration Points**:
   - **Settlement**: `recordReferralEarnings()` in `settle-tx.ts` is called after flipyou and pot-shot settlement. For each player, looks up `referral_links` for a referrer, checks `referral_kol_rates` for custom rate, calculates earnings/rebate, inserts into `referral_earnings`. Errors are logged but never bubble (referral must not fail settlement). `UNIQUE(referee_wallet, round_id)` provides idempotency on retries.
   - **Event Queue (spec 301)**: `POST /referral/claim` atomically inserts a `referral_claims` row + emits `referral.claim_requested` event in the same DB transaction via `emitEvent()`. The claim handler (`referral-claim.ts`) is registered at startup in `index.ts:187-190` before the event worker starts.

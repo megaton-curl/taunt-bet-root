@@ -34,6 +34,7 @@ Execution defaults for humans and AI agents. Use this file for day-to-day implem
 - For behavior changes, add or update tests in the nearest package/app when feasible.
 - For bug fixes, first reproduce with a failing test where practical, then fix.
 - If tests are not feasible in the same task, record the gap in `docs/TECH_DEBT.md` with concrete follow-up criteria.
+- Integration tests either provision their runtime dependencies in CI (database, validator, external service, etc.) or they do not run in the default CI lane.
 - Tests must validate the intended behavior path. Do not keep alternate "success" paths in the same test when the primary assertion flow fails.
 - If a test flow fails, investigate root cause first. You may temporarily split checks into smaller diagnostic tests, but final committed tests must assert the canonical behavior path.
 - Conditional branches in tests are only for explicit preconditions (missing env var, unavailable external service) and must fail/skip with a clear reason.
@@ -47,6 +48,7 @@ Execution defaults for humans and AI agents. Use this file for day-to-day implem
 - Do not create commits unless explicitly requested by the user.
 - Keep commits focused and small; avoid mixing unrelated changes.
 - Do not push or open PRs unless explicitly requested by the user.
+- In submodule work, report root-repo dirt separately before any "commit all" or "push all" move. Do not treat a clean submodule as equivalent to a clean workspace.
 
 ---
 
