@@ -41,7 +41,7 @@ Build tables for each layer:
 - **On-chain instructions**: grep for `pub fn` in `solana/programs/{name}/src/`
 - **Shared crate exports**: check `solana/shared/src/lib.rs` and submodules
 - **Game engine exports**: check `backend/packages/game-engine/src/` and `backend/packages/anchor-client/`
-- **Backend routes**: check `backend/services/backend/src/routes/`
+- **Backend routes**: check `backend/src/routes/`
 - **Tests**: check `solana/tests/`, backend vitest files, `e2e/` playwright files
 
 Record file paths and line numbers for everything found.

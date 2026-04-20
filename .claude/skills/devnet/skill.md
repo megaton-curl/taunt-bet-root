@@ -69,7 +69,7 @@ Check the settlement status of active matches.
 
 1. `curl -s http://localhost:3100/health` — check backend is running + unsettled count
 2. If backend is not running, tell the user to start it:
-   `cd backend/services/backend && pnpm run dev`
+   `cd backend && pnpm run dev`
 3. List any rounds in non-settled phases from the DB:
    ```bash
    node --input-type=module -e "
