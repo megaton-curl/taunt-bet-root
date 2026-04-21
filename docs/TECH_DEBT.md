@@ -13,6 +13,14 @@ Track temporary hacks, relaxed rules, and shortcuts here.
 
 ## Medium Priority (Before Launch)
 
+### [Backend] `rateLimitGlobal` is route-local, not app-global
+- **Date**: 2026-04-21
+- **Location**: `backend/src/middleware/rate-limit.ts`, `backend/src/index.ts`, `backend/src/index-waitlist.ts`
+- **What**: `createRateLimitMiddleware(...)` allocates fresh in-memory state per middleware instance, so `rateLimitGlobal` only applies within each mounted route group (`/auth/*`, `/flip-you/*`, `/pot-shot/*`, `/closecall/bet`, waitlist routes) instead of enforcing one shared global bucket across the app.
+- **Current mitigation**: Cloudflare now provides a coarse host-level backstop in front of the API, and route-local in-app limits still protect individual endpoints.
+- **Proper solution**: Either (1) implement a truly shared in-process/global limiter bucket for all route groups that are meant to share `rateLimitGlobal`, or (2) rename/configure the setting to make the route-local scope explicit and document it accordingly.
+- **Why not now**: Current edge rate limiting reduces immediate flood risk, and changing limiter state sharing touches request-shaping behavior that should be validated separately.
+
 ### [Backend] Public referral code check endpoint — remove at prod
 - **Date**: 2026-04-15
 - **Location**: `backend/src/routes/public-referral.ts` — `GET /public-referral/code/:code`
