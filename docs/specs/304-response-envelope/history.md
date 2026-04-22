@@ -361,3 +361,22 @@ of every iteration to understand prior context.
 ## Iteration 16 — 2026-04-22T10:38:47Z — OK
 - **Log**: iteration-016.log
 
+## Iteration 17 — 2026-04-22 — DONE
+- **Item**: [routes] Convert `backend/src/routes/leaderboard.ts` to envelope responses; confirm `leaderboard.test.ts` coverage.
+- **Changes**:
+  - Rewrote `GET /weekly` in `backend/src/routes/leaderboard.ts`:
+    - Success → `ok(c, { game, weekStart, weekEnd, entries })`. Response schema now uses `envelope(LeaderboardResponseSchema)`.
+    - Defensive `toDbGameId` fallback (unreachable behind the `PublicGameIdSchema` Zod enum) → `422 INVALID_PARAMS` envelope, matching the pattern established for `profile.ts` in iteration 9.
+    - Query failure → `err(c, 500, PRECONDITION_FAILED, "Failed to fetch leaderboard")` with `ErrorEnvelopeSchema`.
+    - Removed legacy `errorMessage` and `ErrorResponseSchema` imports (legacy helpers still live there for the cleanup iteration).
+    - Renamed `catch (err)` binding to `catch (queryError)` to avoid shadowing the imported `err` helper.
+  - `backend/src/__tests__/leaderboard.test.ts` already asserts envelope shape on the `422 VALIDATION_FAILED` route-validation test (added in iteration 3). All other tests exercise `db.getWeeklyLeaderboard` directly (no HTTP body assertions), so no further test changes were needed.
+- **Verification**:
+  - `pnpm -C backend typecheck:self` → exit 0
+  - `pnpm -C backend lint:self` → exit 0
+  - Targeted: `vitest run --config vitest.integration.config.ts src/__tests__/leaderboard.test.ts` → 8/8 passed
+  - Full unit suite (`vitest run --config vitest.unit.config.ts`) → 214/214 passed across 20 files
+
+## Iteration 17 — 2026-04-22T10:42:29Z — OK
+- **Log**: iteration-017.log
+
