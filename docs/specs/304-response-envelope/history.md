@@ -221,3 +221,35 @@ of every iteration to understand prior context.
 ## Iteration 10 — 2026-04-22T10:09:13Z — OK
 - **Log**: iteration-010.log
 
+## Iteration 11 — 2026-04-22 — DONE
+- **Item**: [routes] Convert `backend/src/routes/create.ts` (FlipYou public entry) to envelope responses; update endpoint-level FlipYou tests and the shared OpenAPI contract helper.
+- **Changes**:
+  - Rewrote all four FlipYou routes in `backend/src/routes/create.ts`:
+    - `POST /create`: success → `ok(c, { transaction, matchPda, matchId, commitment, lastValidBlockHeight })`; `400 INVALID_REQUEST` for bad base58 wallet or non-pubkey wallet (preserves current HTTP status for malformed identifiers, per FR-11 "400 or 422" wording); `403 FORBIDDEN` for wallet/profile mismatch; `409 CONFLICT` for duplicate match PDA (both pre-insert and race-fallback paths, now retryable:true); `500 PRECONDITION_FAILED` for transaction-build failure. 422 declared for Zod-validation failures via the default hook.
+    - `GET /history`: success → `ok(c, { rounds })`; no error responses needed (empty list is the documented success).
+    - `GET /by-id/{matchId}`: success → `ok(c, round)`; `400 INVALID_REQUEST` for non-hex matchId; `404 MATCH_NOT_FOUND` for missing or wrong-game match.
+    - `GET /verify/{pda}`: success → `ok(c, round)`; `404 MATCH_NOT_FOUND`.
+  - All 2xx response schemas now use `envelope(SuccessSchema)`; all 4xx/5xx use `ErrorEnvelopeSchema`. Removed imports of `errorMessage` (from `api-errors.ts`) and `ErrorResponseSchema` (from `validators.ts`) — legacy helpers still live there for the cleanup iteration.
+  - Renamed `catch (err)` bindings to `catch (buildError|insertError|entryError)` to avoid shadowing the imported `err` helper.
+  - Updated `backend/src/__tests__/openapi-contract.test.ts`: added the same `unwrapEnvelope` helper used in the waitlist contract test, and rerouted `getJsonResponseSchema` through it so schema-descent checks see the inner `data` payload. Required because the `/flip-you/verify/{pda}` 200 body is now an envelope `oneOf`; the existing `resolveSchema` only unwrapped `allOf` / `anyOf`.
+  - Updated `backend/src/__tests__/endpoints.test.ts` FlipYou suites:
+    - `POST /flipyou/create` 200 test: destructures `body.data`, asserts `body.ok === true`; commitment length check moved onto `data.commitment`.
+    - `POST /flipyou/create` 401 tests (missing / expired JWT): assert `body.ok === false` and `body.error.code === "AUTH_REQUIRED"`.
+    - `POST /flipyou/create` 403 test: asserts `body.error.code === "FORBIDDEN"`.
+    - `POST /flipyou/create` 409 collision test: asserts envelope shape, `error.code === "CONFLICT"`, preserved human-readable message.
+    - Both rate-limit tests: assert `body.error.code === "RATE_LIMITED"`.
+    - `GET /flipyou/verify/:pda` and `/by-id/:matchId` success tests: destructure `body.data`.
+    - `GET /flipyou/by-id/:matchId` 404 test: asserts `error.code === "MATCH_NOT_FOUND"`.
+    - `GET /flipyou/history`: asserts envelope `body.data.rounds === []`.
+    - `POST /pot-shot/create` + verify/by-id for pot-shot left unchanged (pot-shot routes convert in iteration 12).
+- **Verification**:
+  - `pnpm -C backend typecheck:self` → exit 0
+  - `pnpm -C backend lint:self` → exit 0
+  - Targeted: `vitest run --config vitest.unit.config.ts src/__tests__/openapi-contract.test.ts` → 8/8 passed
+  - Targeted: `vitest run --config vitest.integration.config.ts src/__tests__/endpoints.test.ts` → 14/14 passed
+  - Targeted: `vitest run --config vitest.unit.config.ts src/__tests__/waitlist-contract.test.ts` → 41/41 passed
+  - Full unit suite (`vitest run --config vitest.unit.config.ts`) → 214/214 passed across 20 files
+
+## Iteration 11 — 2026-04-22T10:18:22Z — OK
+- **Log**: iteration-011.log
+
