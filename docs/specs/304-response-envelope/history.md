@@ -474,3 +474,26 @@ of every iteration to understand prior context.
 ## Iteration 22 — 2026-04-22T11:02:49Z — OK
 - **Log**: iteration-022.log
 
+## Iteration 23 — 2026-04-22 — DONE
+- **Item**: [test] Update `backend/src/__tests__/waitlist-contract.test.ts` to extract `.data` from success envelopes, assert the expected success status (`200`/`201`/`202`) per endpoint, and assert error envelope shape on representative failure paths.
+- **Changes**:
+  - Added a `successStatus` field to every entry in `WAITLIST_CONTRACT` ("200" for ten endpoints, "204" for `POST /auth/logout`).
+  - Added helpers in `waitlist-contract.test.ts`:
+    - `declaredStatuses(spec, path, method)` — returns the list of OpenAPI response status codes for an operation.
+    - `jsonResponseSchema(spec, path, method, status)` — returns the declared `application/json` schema for a given status, or undefined.
+    - `isErrorEnvelope(spec, schema)` — returns true if a schema is `{ ok: false, error: ApiError }`, either inline or via `$ref` to `#/components/schemas/ErrorEnvelope` (mirrors the helper added to `openapi-contract.test.ts` in iteration 22).
+  - Reworked the per-endpoint `describe` block to add two new tests per contract entry:
+    - `declares <status> as the success status` — asserts the endpoint declares the expected `successStatus` in its OpenAPI responses.
+    - `every declared 4xx/5xx response uses the error envelope shape` — iterates every declared 4xx/5xx response and asserts each uses the error envelope (skips entries with no JSON content, e.g. unmatched-route 404).
+  - The existing "response has exactly the keys" assertion now reads from `contract.successStatus` instead of hard-coded "200" (already routes through `unwrapEnvelope`, so the success-envelope `.data` extraction stays in place).
+  - Renamed that test from "200 response has exactly the keys waitlist consumes" to "<status> response has exactly the keys waitlist consumes" so the test name reflects the asserted status.
+  - Added a new telegram-link test in the existing `POST /telegram/generate-link (waitlist contract)` describe block: "returns a 500 error envelope when token generation fails" — stubs `generateLinkToken` to throw, asserts status 500, `body.ok === false`, `body.error.code === "PRECONDITION_FAILED"`, and `typeof body.error.message === "string"`. Covers the representative failure path for the only waitlist-contract endpoint that lacks an OpenAPI schema (plain Hono).
+- **Verification**:
+  - `pnpm -C backend typecheck:self` → exit 0
+  - `pnpm -C backend lint:self` → exit 0
+  - Targeted: `vitest run --config vitest.unit.config.ts src/__tests__/waitlist-contract.test.ts` → 64/64 passed (was 41 in iteration 22; +22 new "success status" + "4xx/5xx envelope shape" tests across the 11 contract endpoints, +1 new telegram error envelope test).
+  - Full unit suite (`pnpm vitest run --config vitest.unit.config.ts`) → 240/240 passed across 20 files (+23 vs iteration 22 baseline 217).
+
+## Iteration 23 — 2026-04-22T11:07:06Z — OK
+- **Log**: iteration-023.log
+
