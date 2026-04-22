@@ -583,3 +583,29 @@ of every iteration to understand prior context.
 ## Iteration 28 — 2026-04-22T11:28:11Z — OK
 - **Log**: iteration-028.log
 
+## Iteration 29 — 2026-04-22 — DONE
+- **Item**: [test] Final mandatory-coverage marker (devnet real-provider E2E) — mark N/A with reason; spec reshapes existing response bodies only, no new provider/oracle/VRF integration.
+- **Changes**:
+  - Flipped the third mandatory-coverage checklist marker in `docs/specs/304-response-envelope/spec.md` from `[ ]` → `[x]` and appended `(done: iteration 29)`. The N/A justification remains in place: existing Pyth-backed `/price/sol-usd` keeps its current integration, only its error body changes shape.
+  - Updated spec Meta Status `Ready` → `Done` and `NR_OF_TRIES` `28` → `29`.
+  - Fixed pre-existing envelope regression in `backend/src/__tests__/integration-settlement.test.ts` caught by the final `./scripts/verify` gate: 6 tests were reading `createRes.json()` / `roundsRes.json()` as flat payloads (`.transaction`, `.matchPda`, `.commitment`, `.matchId`, `.pda`, `.phase`), but iterations 11 (FlipYou `/create`) and an earlier route conversion both already return `{ ok: true, data: {...} }`. Wrapped each `(await res.json()) as {...}` in an envelope-typed parse and extracted `.data` into the existing `createJson`/`roundsJson`/`json`/`roundJson`/`json1`/`json2` locals, leaving all downstream field references (`createJson.matchPda`, etc.) unchanged. 7 `.json()` call sites updated in total across 5 `it()` blocks.
+- **Verification**:
+  - `cd backend && pnpm exec vitest run src/__tests__/integration-settlement.test.ts` → 8/8 passed (previously 2/8 passed, 6 failing on envelope unwrap).
+  - `./scripts/verify` (full) → **PASSED**. Solana anchor tests 80 passing, 1 pending. Backend lint, typecheck, full test suite all green. Exit 0.
+- **Compound**: None — this was a mechanical envelope-unwrap fix against a test file that slipped through earlier iteration route conversions; the envelope contract itself is correctly enforced by the OpenAPI contract test shipped in iteration 22. Noting the category in memory ("integration-settlement tests unwrap envelope data from /flipyou/create and /flipyou/verify responses") would be noise — the diff is self-documenting.
+
+## Iteration 29 — 2026-04-22 — DONE
+- **Log**: iteration-029.log
+
+## Iteration 29 — 2026-04-22T11:36:17Z — COMPLETE
+- **Result**: All checklist items done, verification passed
+- **Log**: iteration-029.log
+
+## Devnet E2E — 2026-04-22T11:36:18Z
+- **Result**: PASS
+
+## Gap Analysis — 2026-04-22T11:45:02Z
+- **Result**: Gap analysis report generated
+- **Report**: gap-analysis.md
+- **Log**: gap-analysis.log
+

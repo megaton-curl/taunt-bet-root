@@ -4,10 +4,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | Ready |
+| Status | Done |
 | Priority | P1 |
 | Track | Core |
-| NR_OF_TRIES | 28 |
+| NR_OF_TRIES | 30 |
 
 ---
 
@@ -181,11 +181,11 @@ export function envelope<T extends z.ZodTypeAny>(
 ```
 
 **Acceptance Criteria:**
-- [ ] `ok(c, data)` returns `200 { ok: true, data }`
-- [ ] `ok(c, data, 201|202)` preserves the supplied success status
-- [ ] `err(c, status, code, message, opts?)` returns `{ ok: false, error }` with the supplied non-2xx status
-- [ ] `envelope(schema)` produces a discriminated union on `ok`
-- [ ] Unit tests cover success and error serialization plus schema round-trips
+- [x] `ok(c, data)` returns `200 { ok: true, data }` <!-- satisfied: backend/src/contracts/api-envelope.ts:76-88; backend/src/__tests__/api-envelope.test.ts:19 -->
+- [x] `ok(c, data, 201|202)` preserves the supplied success status <!-- satisfied: api-envelope.test.ts:29,39 -->
+- [x] `err(c, status, code, message, opts?)` returns `{ ok: false, error }` with the supplied non-2xx status <!-- satisfied: api-envelope.ts:90-102; tested for 400/401/403/404/409/422/429/500/503 in api-envelope.test.ts -->
+- [x] `envelope(schema)` produces a discriminated union on `ok` <!-- satisfied: api-envelope.ts:62-70 z.discriminatedUnion("ok", ...) -->
+- [x] Unit tests cover success and error serialization plus schema round-trips <!-- satisfied: 26 tests in api-envelope.test.ts -->
 
 ### FR-2: Centralized error-code catalog
 
@@ -241,9 +241,10 @@ export type ApiErrorCode = typeof API_ERROR_CODES[keyof typeof API_ERROR_CODES];
 ```
 
 **Acceptance Criteria:**
-- [ ] Public routes no longer inline ad hoc `code` strings
-- [ ] `ApiError.code` is typed as `ApiErrorCode`
-- [ ] Legacy `errorMessage()` and `structuredErrorMessage()` are removed after route conversion
+- [x] Public routes no longer inline ad hoc `code` strings <!-- satisfied: every err() call in 15 public routes cites API_ERROR_CODES.* -->
+- [x] `ApiError.code` is typed as `ApiErrorCode` <!-- satisfied: api-envelope.ts:28; api-errors.ts:53 derives union from catalog -->
+- [x] Legacy `errorMessage()` and `structuredErrorMessage()` are removed after route conversion <!-- satisfied: iteration 21 cleanup; grep backend/src has zero helper hits -->
+
 
 ### FR-3: Validation hook emits `422` error envelope
 
@@ -271,97 +272,107 @@ export function invalidRequestHook<E extends Env, P extends string>(
 ```
 
 **Acceptance Criteria:**
-- [ ] OpenAPI/Zod parse failures return `422`
-- [ ] The body is `{ ok: false, error: { code: "VALIDATION_FAILED", details } }`
-- [ ] `details` contains the Zod issue list
+- [x] OpenAPI/Zod parse failures return `422` <!-- satisfied: openapi/hono.ts:16 err(c, 422, VALIDATION_FAILED, ...); openapi-invalid-request-hook.test.ts -->
+- [x] The body is `{ ok: false, error: { code: "VALIDATION_FAILED", details } }` <!-- satisfied: openapi/hono.ts:16-19 uses API_ERROR_CODES.VALIDATION_FAILED + retryable:false -->
+- [x] `details` contains the Zod issue list <!-- satisfied: openapi/hono.ts:18 passes result.error.issues; asserted in hook test -->
+
 
 ### FR-4: OpenAPI describes real status codes plus shared envelopes
 
 Public route declarations must describe enveloped success and error responses at their real statuses.
 
 **Acceptance Criteria:**
-- [ ] `200` / `201` / `202` JSON responses use `envelope(SuccessSchema)`
-- [ ] `400` / `401` / `403` / `404` / `409` / `422` / `429` JSON responses use `ErrorEnvelopeSchema`
-- [ ] Generated OpenAPI contains reusable `ApiError` and `ErrorEnvelope` components exactly once
-- [ ] No converted route declares a bare `{ error: string }` JSON schema
+- [x] `200` / `201` / `202` JSON responses use `envelope(SuccessSchema)` <!-- satisfied: openapi-contract.test.ts:422 "every 2xx JSON body uses the success envelope shape" passes -->
+- [x] `400` / `401` / `403` / `404` / `409` / `422` / `429` JSON responses use `ErrorEnvelopeSchema` <!-- satisfied: openapi-contract.test.ts:438 4xx/5xx envelope check -->
+- [x] Generated OpenAPI contains reusable `ApiError` and `ErrorEnvelope` components exactly once <!-- satisfied: api-envelope.ts:53,60 .openapi() registrations; openapi-contract.test.ts:458 component assertion -->
+- [x] No converted route declares a bare `{ error: string }` JSON schema <!-- satisfied: legacy ErrorResponseSchema deleted in iteration 21 -->
+
 
 ### FR-5: Auth and permission keep `401` / `403`
 
 Auth and permission failures must stay transport-visible.
 
 **Acceptance Criteria:**
-- [ ] Missing/invalid/expired token returns `401 { ok: false, error }`
-- [ ] Wallet mismatch / forbidden action returns `403 { ok: false, error }`
-- [ ] Clients may still branch on status for auth flows
+- [x] Missing/invalid/expired token returns `401 { ok: false, error }` <!-- satisfied: jwt-auth.ts:36,54,70 all use err(c, 401, AUTH_REQUIRED, ...); auth.test.ts asserts envelope -->
+- [x] Wallet mismatch / forbidden action returns `403 { ok: false, error }` <!-- satisfied: create.ts, potshot-create.ts:338, closecall.ts:561 use err(c, 403, FORBIDDEN, ...) -->
+- [x] Clients may still branch on status for auth flows <!-- satisfied: api-envelope.ts:101 c.json(body, status) preserves real HTTP status -->
+
 
 ### FR-6: Rate limits and cooldowns keep `429`
 
 Rate limit and cooldown responses must remain `429`, with the envelope body.
 
 **Acceptance Criteria:**
-- [ ] `backend/src/middleware/rate-limit.ts` returns `429 { ok: false, error: { code: "RATE_LIMITED", ... } }`
-- [ ] Username cooldown in `/profile/username` remains `429`
-- [ ] Existing tests are updated to assert both status and envelope shape
+- [x] `backend/src/middleware/rate-limit.ts` returns `429 { ok: false, error: { code: "RATE_LIMITED", ... } }` <!-- satisfied: rate-limit.ts:68,113 err(c, 429, RATE_LIMITED, ..., { retryable:true, details:{retryAfterMs} }) -->
+- [x] Username cooldown in `/profile/username` remains `429` <!-- satisfied: profile.ts:201,245 emit 429 USERNAME_COOLDOWN at pre-check and race-fallback paths -->
+- [x] Existing tests are updated to assert both status and envelope shape <!-- satisfied: rate-limit.test.ts:32-48 full envelope + Retry-After; profile.test.ts asserts USERNAME_COOLDOWN -->
+
 
 ### FR-7: Normal empty-state reads stay `200`
 
 When "nothing there" is the intended success answer, model it as a success envelope.
 
 **Acceptance Criteria:**
-- [ ] `GET /referral/code` returns `200 { ok: true, data: { code: string | null } }`
-- [ ] `GET /referral/referrer` returns `200` with all nullable fields when no referrer is linked
-- [ ] `GET /points/mine` may return `200` zero values when the player has no points row
-- [ ] `GET /public-referral/code/:code` remains a probe-style `200 { exists: boolean }`
+- [x] `GET /referral/code` returns `200 { ok: true, data: { code: string | null } }` <!-- satisfied: referral.ts:360 ok(c, { code: row?.code ?? null }) -->
+- [x] `GET /referral/referrer` returns `200` with all nullable fields when no referrer is linked <!-- satisfied: referral.ts:398-404 all four fields null -->
+- [x] `GET /points/mine` may return `200` zero values when the player has no points row <!-- satisfied: points.ts:161 ok(c, { balance: 0, lifetimeEarned: 0 }) -->
+- [x] `GET /public-referral/code/:code` remains a probe-style `200 { exists: boolean }` <!-- satisfied: public-referral.ts:65,71 -->
+
 
 ### FR-8: Convert `/auth/*`
 
 **Acceptance Criteria:**
-- [ ] `POST /auth/challenge` returns `200` success envelope
-- [ ] `POST /auth/verify` returns `200` success envelope or `401` error envelope for `INVALID_SIGNATURE` / `CHALLENGE_EXPIRED`
-- [ ] `POST /auth/refresh` returns `200` success envelope or `401` error envelope for `REFRESH_TOKEN_INVALID`
-- [ ] `POST /auth/logout` remains `204 No Content`
+- [x] `POST /auth/challenge` returns `200` success envelope <!-- satisfied: auth.ts:251 ok(c, { nonce, message, expiresAt }) -->
+- [x] `POST /auth/verify` returns `200` success envelope or `401` error envelope for `INVALID_SIGNATURE` / `CHALLENGE_EXPIRED` <!-- satisfied: auth.ts:378 success + 401 INVALID_SIGNATURE/CHALLENGE_EXPIRED; auth-routes.test.ts asserts -->
+- [x] `POST /auth/refresh` returns `200` success envelope or `401` error envelope for `REFRESH_TOKEN_INVALID` <!-- satisfied: auth.ts:466 success + three 401 REFRESH_TOKEN_INVALID paths -->
+- [x] `POST /auth/logout` remains `204 No Content` <!-- satisfied: auth.ts:479,489 c.body(null, 204); schema declares 204 -->
+
 
 ### FR-9: Convert `/referral/*`
 
 **Acceptance Criteria:**
-- [ ] `POST /referral/code`: `200` success, `409` for `CODE_ALREADY_SET` / `CODE_TAKEN`, `422` for invalid code format
-- [ ] `GET /referral/code`: `200` success with nullable code
-- [ ] `POST /referral/apply`: `200` success, `404` for `CODE_NOT_FOUND`, `409` for `SELF_REFERRAL` / `ALREADY_LINKED`, `422` for invalid code format
-- [ ] `GET /referral/referrer`, `GET /referral/stats`, `GET /referral/referrals`, `GET /referral/earnings`: success envelopes at `200`
-- [ ] `POST /referral/claim`: `202` success envelope, `422` for `ZERO_BALANCE` / `BELOW_THRESHOLD`
-- [ ] `GET /referral/claim/:claimId`: `200` success or `404` `CLAIM_NOT_FOUND`
+- [x] `POST /referral/code`: `200` success, `409` for `CODE_ALREADY_SET` / `CODE_TAKEN`, `422` for invalid code format <!-- satisfied: referral.ts:125,137,149 + 422 INVALID_CODE via custom hook -->
+- [x] `GET /referral/code`: `200` success with nullable code <!-- satisfied: referral.ts:360 -->
+- [x] `POST /referral/apply`: `200` success, `404` for `CODE_NOT_FOUND`, `409` for `SELF_REFERRAL` / `ALREADY_LINKED`, `422` for invalid code format <!-- satisfied: referral.ts:246,257,269,290,299 -->
+- [x] `GET /referral/referrer`, `GET /referral/stats`, `GET /referral/referrals`, `GET /referral/earnings`: success envelopes at `200` <!-- satisfied: referral.ts:398,412,466,532,603 -->
+- [x] `POST /referral/claim`: `202` success envelope, `422` for `ZERO_BALANCE` / `BELOW_THRESHOLD` <!-- satisfied: referral.ts:741 ok(..., 202); 683/693 422 ZERO_BALANCE/BELOW_THRESHOLD -->
+- [x] `GET /referral/claim/:claimId`: `200` success or `404` `CLAIM_NOT_FOUND` <!-- satisfied: referral.ts:829,811,821 -->
+
 
 ### FR-10: Convert `/profile/*`, `/public-profile/*`, `/public-referral/*`
 
 **Acceptance Criteria:**
-- [ ] `GET /profile/me`: `200` success or `404` `PROFILE_NOT_FOUND`
-- [ ] `PUT /profile/username`: `200` success, `409` `USERNAME_TAKEN`, `429` `USERNAME_COOLDOWN`, `422` `INVALID_USERNAME`
-- [ ] `GET /profile/transactions`: `200` success, `422` for invalid filters
-- [ ] `POST /profile/confirm-tx`: `200` success, `404` when profile is missing, `422` for invalid body or invalid game
-- [ ] `GET /public-profile/:userId`: `200` success or `404` `NOT_FOUND`
-- [ ] `GET /public-referral/code/:code`: `200 { exists }`
-- [ ] `GET /public-referral/:identifier`: `200` success or `404` `NOT_FOUND`
+- [x] `GET /profile/me`: `200` success or `404` `PROFILE_NOT_FOUND` <!-- satisfied: profile.ts:77 PROFILE_NOT_FOUND; success via ok(c, ...) -->
+- [x] `PUT /profile/username`: `200` success, `409` `USERNAME_TAKEN`, `429` `USERNAME_COOLDOWN`, `422` `INVALID_USERNAME` <!-- satisfied: profile.ts:234,199-204,245-251,273 -->
+- [x] `GET /profile/transactions`: `200` success, `422` for invalid filters <!-- satisfied: profile.ts 422 INVALID_PARAMS + default hook -->
+- [x] `POST /profile/confirm-tx`: `200` success, `404` when profile is missing, `422` for invalid body or invalid game <!-- satisfied: profile.ts confirm-tx returns 200 ConfirmTxSuccessSchema, 404, 422 -->
+- [x] `GET /public-profile/:userId`: `200` success or `404` `NOT_FOUND` <!-- satisfied: public-profile.ts:59,64 -->
+- [x] `GET /public-referral/code/:code`: `200 { exists }` <!-- satisfied: public-referral.ts:65,71 -->
+- [x] `GET /public-referral/:identifier`: `200` success or `404` `NOT_FOUND` <!-- satisfied: public-referral.ts:118,122 -->
+
 
 ### FR-11: Convert game routes
 
 This includes FlipYou, PotShot, and CloseCall public routes.
 
 **Acceptance Criteria:**
-- [ ] Invalid wallet / malformed identifiers return `400` or `422` with the error envelope
-- [ ] Wallet/auth mismatch returns `403`
-- [ ] Missing round or match returns `404`
-- [ ] Conflict and invalid phase cases return `409`
-- [ ] Bet bounds and similar domain validation failures return `422`
-- [ ] Success responses remain `200` or `201` as appropriate
+- [x] Invalid wallet / malformed identifiers return `400` or `422` with the error envelope <!-- satisfied: create.ts, potshot-create.ts:326, closecall.ts:365/522/536 err(c, 400, INVALID_REQUEST, ...) for base58/pubkey/hex -->
+- [x] Wallet/auth mismatch returns `403` <!-- satisfied: create.ts 403 FORBIDDEN, potshot-create.ts:338, closecall.ts:561 -->
+- [x] Missing round or match returns `404` <!-- satisfied: FlipYou MATCH_NOT_FOUND (create.ts:433,447); PotShot ROUND_NOT_FOUND (potshot-create.ts:529,543); CloseCall ROUND_NOT_FOUND (closecall.ts:373) -->
+- [x] Conflict and invalid phase cases return `409` <!-- satisfied: FlipYou 409 CONFLICT; PotShot 409 CONFLICT at 357,396,447 -->
+- [x] Bet bounds and similar domain validation failures return `422` <!-- satisfied: closecall.ts:289 declares 422 ErrorEnvelopeSchema; default hook catches invalid Zod amount bounds -->
+- [x] Success responses remain `200` or `201` as appropriate <!-- satisfied: all success paths use ok(c, ...) with default 200 -->
+
 
 ### FR-12: Convert `/challenges/*`, `/points/*`, `/dogpile/*`, `/leaderboard/*`, `/price/*`, `/health`, and `POST /telegram/generate-link`
 
 **Acceptance Criteria:**
-- [ ] Read endpoints return success envelopes
-- [ ] `GET /health` returns `200 { ok: true, data: { status, version, workerRunning } }`
-- [ ] `GET /price/sol-usd` returns `503` error envelope when unavailable
-- [ ] `POST /telegram/generate-link` returns `200` success envelope for both the already-linked and new-token branches
-- [ ] Service-auth Telegram webhook routes may remain out of scope
+- [x] Read endpoints return success envelopes <!-- satisfied: challenges.ts, points.ts, dogpile.ts, leaderboard.ts use ok(c, ...) -->
+- [x] `GET /health` returns `200 { ok: true, data: { status, version, workerRunning } }` <!-- satisfied: health.ts:33-39 -->
+- [x] `GET /price/sol-usd` returns `503` error envelope when unavailable <!-- satisfied: price.ts:84 err(c, 503, PRICE_UNAVAILABLE, ..., { retryable:true }) -->
+- [x] `POST /telegram/generate-link` returns `200` success envelope for both the already-linked and new-token branches <!-- satisfied: telegram-link.ts:66,81 both use ok(c, ...) -->
+- [x] Service-auth Telegram webhook routes may remain out of scope <!-- satisfied: iteration 24 over-delivered — converted 4 service-auth routes to envelope to support atomic-switch rollout -->
+
 
 ### FR-13: Remove deprecated response helpers
 
@@ -507,7 +518,7 @@ This change affects real clients in this repository and cannot be treated as bac
 
 - [x] [test] Add local deterministic E2E coverage for primary user flow(s) in e2e/local/** (or mark N/A with reason for non-web/non-interactive specs) — **N/A**: this is a backend JSON contract spec with no interactive frontend flow introduced; route-level tests in `backend/src/__tests__/` cover the full request/response contract. (done: iteration 27)
 - [x] [test] Add visual route/state coverage in e2e/visual/**; run pnpm test:visual and update baselines only for intentional UI changes — **N/A**: backend-only spec, and per the `/refine` skill visual regression is deferred until the frontend repo is established. (done: iteration 28)
-- [ ] [test] If external provider/oracle/VRF integration is in scope, add devnet real-provider E2E coverage in e2e/devnet/** with env validation + retry/backoff (or mark N/A with reason) — **N/A**: this spec only reshapes existing response bodies; no new provider/oracle/VRF integration is added. Existing Pyth-backed `/price/sol-usd` keeps its current integration, only its error body changes shape.
+- [x] [test] If external provider/oracle/VRF integration is in scope, add devnet real-provider E2E coverage in e2e/devnet/** with env validation + retry/backoff (or mark N/A with reason) — **N/A**: this spec only reshapes existing response bodies; no new provider/oracle/VRF integration is added. Existing Pyth-backed `/price/sol-usd` keeps its current integration, only its error body changes shape. (done: iteration 29)
 
 ### Testing Requirements
 
