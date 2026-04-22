@@ -455,3 +455,22 @@ of every iteration to understand prior context.
 ## Iteration 21 — 2026-04-22T10:53:37Z — OK
 - **Log**: iteration-021.log
 
+## Iteration 22 — 2026-04-22 — DONE
+- **Item**: [test] Extend `backend/src/__tests__/openapi-contract.test.ts` to scan every declared public JSON response in the generated OpenAPI doc and assert envelope shape for 2xx and error-envelope shape for 4xx/5xx, plus exactly-once registration of `ApiError` and `ErrorEnvelope` components.
+- **Changes**:
+  - Registered `ApiErrorSchema` as the `ApiError` OpenAPI component and `ErrorEnvelopeSchema` as the `ErrorEnvelope` OpenAPI component in `backend/src/contracts/api-envelope.ts` by switching the `zod` import to `@hono/zod-openapi`'s augmented `z` and adding `.openapi("ApiError")` / `.openapi("ErrorEnvelope")` chain calls. Every 4xx/5xx inline `ErrorEnvelopeSchema` reference now serializes as `{ $ref: "#/components/schemas/ErrorEnvelope" }` with `ApiError` referenced in turn, so the error envelope is defined once and reused across the spec.
+  - Extended `backend/src/__tests__/openapi-contract.test.ts` `buildSpecApp()` to mount every OpenAPI-backed public route factory (auth, referral, public-profile, public-referral, challenges, points, crates, dogpile) in addition to the existing health/price/leaderboard/profile/flip-you/pot-shot/closecall set, so the spec scan covers the full declared public surface. Admin and internal routes remain excluded (plain Hono with no OpenAPI schemas).
+  - Added three new tests:
+    - "every 2xx JSON body uses the success envelope shape" — iterates every `application/json` response with a 2xx status and asserts the schema is a `oneOf` containing a success variant (`{ok: {enum:[true]}, data}`) and an error variant (`{ok: {enum:[false]}, error}` or a `$ref` to `#/components/schemas/ErrorEnvelope`).
+    - "every 4xx/5xx JSON body uses the error envelope shape" — accepts either a direct `$ref` to `#/components/schemas/ErrorEnvelope` or an inline error envelope shape.
+    - "ApiError and ErrorEnvelope appear exactly once in components.schemas" — asserts both components are registered and checks the expected structural fields (`code`, `message`, `ok`, `error`).
+  - Added helpers `isErrorEnvelope`, `isSuccessEnvelopeVariant`, `isEnvelopeSchema`, and `iterPublicJsonResponses` inside the existing `describe` block.
+- **Verification**:
+  - `pnpm -C backend typecheck:self` → exit 0
+  - `pnpm -C backend lint:self` → exit 0
+  - Targeted: `vitest run --config vitest.unit.config.ts src/__tests__/openapi-contract.test.ts` → 11/11 passed (8 prior + 3 new)
+  - Full unit suite (`vitest run --config vitest.unit.config.ts`) → 217/217 passed across 20 files (+3 vs baseline 214)
+
+## Iteration 22 — 2026-04-22T11:02:49Z — OK
+- **Log**: iteration-022.log
+

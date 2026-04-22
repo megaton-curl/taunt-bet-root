@@ -7,7 +7,7 @@
 | Status | Ready |
 | Priority | P1 |
 | Track | Core |
-| NR_OF_TRIES | 21 |
+| NR_OF_TRIES | 22 |
 
 ---
 
@@ -491,7 +491,7 @@ This change affects real clients in this repository and cannot be treated as bac
 
 #### Tests + OpenAPI contract
 
-- [ ] [test] Extend `backend/src/__tests__/openapi-contract.test.ts` to scan every declared public JSON response in the generated OpenAPI document and assert: (a) 2xx JSON bodies use `envelope(SuccessSchema)`; (b) 4xx/5xx JSON bodies use `ErrorEnvelopeSchema`; (c) `ApiError` and `ErrorEnvelope` components appear exactly once. Admin/internal/service-auth routes explicitly excluded.
+- [x] [test] Extend `backend/src/__tests__/openapi-contract.test.ts` to scan every declared public JSON response in the generated OpenAPI document and assert: (a) 2xx JSON bodies use `envelope(SuccessSchema)`; (b) 4xx/5xx JSON bodies use `ErrorEnvelopeSchema`; (c) `ApiError` and `ErrorEnvelope` components appear exactly once. Admin/internal/service-auth routes explicitly excluded. (done: iteration 22)
 - [ ] [test] Update `backend/src/__tests__/waitlist-contract.test.ts` to extract `.data` from success envelopes, assert the expected success status (`200`/`201`/`202`) per endpoint, and assert error envelope shape on representative failure paths.
 
 #### Telegram client
