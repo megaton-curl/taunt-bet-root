@@ -7,7 +7,7 @@
 | Status | Ready |
 | Priority | P1 |
 | Track | Core |
-| NR_OF_TRIES | 11 |
+| NR_OF_TRIES | 12 |
 
 ---
 
@@ -475,7 +475,7 @@ This change affects real clients in this repository and cannot be treated as bac
 - [x] [routes] Convert `backend/src/routes/profile.ts` — `GET /me` (`200` or `404 PROFILE_NOT_FOUND`), `PUT /username` (`200` or `409 USERNAME_TAKEN` / `429 USERNAME_COOLDOWN` / `422 INVALID_USERNAME`), `GET /transactions` (`200` or `422`), `POST /confirm-tx` (`200` / `404` / `422`). Update `profile.test.ts` and `profile-me-zeroed.test.ts`. (done: iteration 9)
 - [x] [routes] Convert `backend/src/routes/public-profile.ts` — `GET /:userId` returns `200` or `404 NOT_FOUND`. Update/extend existing test coverage as needed. (done: iteration 10)
 - [x] [routes] Convert `backend/src/routes/create.ts` (FlipYou public entry) — success envelopes; domain failures mapped to `400` / `403` / `404` / `409` / `422` per FR-11. Update any FlipYou route-level tests. (done: iteration 11)
-- [ ] [routes] Convert `backend/src/routes/potshot-create.ts` — same envelope + status mapping as FR-11.
+- [x] [routes] Convert `backend/src/routes/potshot-create.ts` — same envelope + status mapping as FR-11. (done: iteration 12)
 - [ ] [routes] Convert `backend/src/routes/closecall.ts` — `/current-round`, `/history`, `/by-id/:roundId`, `/bet` follow FR-11 conventions. Update `closecall-routes.test.ts`.
 - [ ] [routes] Convert `backend/src/routes/challenges.ts` — read endpoints return success envelopes. Update `challenge-routes.test.ts`.
 - [ ] [routes] Convert `backend/src/routes/points.ts` — `GET /mine` may return `200` with zero-value envelope data when no row exists. Update `points-and-crates-routes.test.ts`.

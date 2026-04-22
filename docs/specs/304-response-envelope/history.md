@@ -253,3 +253,27 @@ of every iteration to understand prior context.
 ## Iteration 11 — 2026-04-22T10:18:22Z — OK
 - **Log**: iteration-011.log
 
+## Iteration 12 — 2026-04-22 — DONE
+- **Item**: [routes] Convert `backend/src/routes/potshot-create.ts` (Pot Shot public entry) to envelope responses; update endpoint-level Pot Shot tests.
+- **Changes**:
+  - Rewrote all five Pot Shot routes in `backend/src/routes/potshot-create.ts`:
+    - `GET /current`: success → `ok(c, { round })` with `round: T | null`. All four branches (no active DB round, on-chain-enriched, DB-only fallback, exception) now emit the envelope. 200 schema uses `envelope(roundEnvelopeResponseSchema("round", PotShotRoundSchema, { nullable: true }))`. Per FR-7, the exception-fallback path keeps `200 { round: null }` as documented success.
+    - `POST /create`: success → `ok(c, { transaction, roundPda, matchId, commitment, lastValidBlockHeight })`; `400 INVALID_REQUEST` for bad base58 wallet and non-pubkey wallet; `403 FORBIDDEN` for wallet/profile mismatch; **`409 CONFLICT` for already-active round** (preserved `activeRound: { matchId, pda }` under `details.activeRound`, `retryable: false`); `409 CONFLICT` for PDA collision and duplicate-insert race (both `retryable: true`); `500 PRECONDITION_FAILED` for transaction build failure. `422` declared for default-hook validation failures.
+    - `GET /history`: success → `ok(c, { rounds })`; no error responses (empty list is the documented success).
+    - `GET /by-id/{matchId}`: success → `ok(c, round)`; `400 INVALID_REQUEST` for non-hex matchId; **`404 ROUND_NOT_FOUND`** (using the round-specific catalog code, unlike FlipYou which uses `MATCH_NOT_FOUND`) for missing or wrong-game round.
+    - `GET /verify/{pda}`: success → `ok(c, round)`; `404 ROUND_NOT_FOUND`.
+  - All 2xx response schemas now use `envelope(SuccessSchema)`; all 4xx/5xx use `ErrorEnvelopeSchema`. Removed the legacy `PotShotCreateConflictResponseSchema` union (the `activeRound` payload now lives inside `error.details`) and dropped imports of `errorMessage` (from `api-errors.ts`) and `ErrorResponseSchema` (from `validators.ts`) — legacy helpers still live there for the cleanup iteration.
+  - Renamed `catch (err)` bindings to `catch (fetchError|queryError|buildError|insertError|entryError)` to avoid shadowing the imported `err` helper.
+  - Updated `backend/src/__tests__/endpoints.test.ts`:
+    - `POST /pot-shot/create` 200 test: destructures `body.data`, asserts `body.ok === true`; all field checks now probe `data.*`.
+    - The `GET /flipyou/verify/:pda` "returns 404 for a PotShot PDA" test: destructures `body.data` from the pot-shot create envelope before reading `data.roundPda`.
+- **Verification**:
+  - `pnpm -C backend typecheck:self` → exit 0
+  - `pnpm -C backend lint:self` → exit 0
+  - Targeted: `vitest run --config vitest.unit.config.ts src/__tests__/openapi-contract.test.ts src/__tests__/waitlist-contract.test.ts` → 49/49 passed
+  - Targeted: `vitest run --config vitest.integration.config.ts src/__tests__/endpoints.test.ts` → 14/14 passed
+  - Full unit suite (`vitest run --config vitest.unit.config.ts`) → 214/214 passed across 20 files
+
+## Iteration 12 — 2026-04-22T10:23:53Z — OK
+- **Log**: iteration-012.log
+
