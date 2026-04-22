@@ -7,7 +7,7 @@
 | Status | Ready |
 | Priority | P1 |
 | Track | Core |
-| NR_OF_TRIES | 14 |
+| NR_OF_TRIES | 15 |
 
 ---
 
@@ -478,7 +478,7 @@ This change affects real clients in this repository and cannot be treated as bac
 - [x] [routes] Convert `backend/src/routes/potshot-create.ts` — same envelope + status mapping as FR-11. (done: iteration 12)
 - [x] [routes] Convert `backend/src/routes/closecall.ts` — `/current-round`, `/history`, `/by-id/:roundId`, `/bet` follow FR-11 conventions. Update `closecall-routes.test.ts`. (done: iteration 13)
 - [x] [routes] Convert `backend/src/routes/challenges.ts` — read endpoints return success envelopes. Update `challenge-routes.test.ts`. (done: iteration 14)
-- [ ] [routes] Convert `backend/src/routes/points.ts` — `GET /mine` may return `200` with zero-value envelope data when no row exists. Update `points-and-crates-routes.test.ts`.
+- [x] [routes] Convert `backend/src/routes/points.ts` — `GET /mine` may return `200` with zero-value envelope data when no row exists. Update `points-and-crates-routes.test.ts`. (done: iteration 15)
 - [ ] [routes] Convert `backend/src/routes/dogpile.ts` — `/current`, `/schedule` return success envelopes, null/empty as documented success. Update `dogpile-public-routes.test.ts`.
 - [ ] [routes] Convert `backend/src/routes/leaderboard.ts` — `GET /` returns success envelope. Update `leaderboard.test.ts`.
 - [ ] [routes] Convert `backend/src/routes/price.ts` — `GET /sol-usd` returns `200` success envelope or `503 { ok: false, error: { code: "PRICE_UNAVAILABLE", retryable: true } }`.

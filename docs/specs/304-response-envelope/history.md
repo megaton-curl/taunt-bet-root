@@ -322,3 +322,23 @@ of every iteration to understand prior context.
 ## Iteration 14 — 2026-04-22T10:31:41Z — OK
 - **Log**: iteration-014.log
 
+## Iteration 15 — 2026-04-22 — DONE
+- **Item**: [routes] Convert `backend/src/routes/points.ts` to envelope responses; update `points-and-crates-routes.test.ts`.
+- **Changes**:
+  - Rewrote all three routes in `backend/src/routes/points.ts`:
+    - `GET /points/mine`: success → `ok(c, { balance, lifetimeEarned })`. Empty ledger row → `200 { ok: true, data: { balance: 0, lifetimeEarned: 0 } }` (FR-7 documented empty-state success). `401 AUTH_REQUIRED`; `500 PRECONDITION_FAILED`.
+    - `GET /points/mine/history`: success → `ok(c, { items, nextCursor })`. Empty results → `200 { ok: true, data: { items: [], nextCursor: null } }`. `401 AUTH_REQUIRED`; `500 PRECONDITION_FAILED`.
+    - `GET /crates/mine`: success → `ok(c, { items, nextCursor })`. Empty results → `200` envelope. `401 AUTH_REQUIRED`; `500 PRECONDITION_FAILED`.
+  - All 2xx schemas now use `envelope(SuccessSchema)`; all 4xx/5xx use `ErrorEnvelopeSchema`. Dropped `ErrorResponseSchema` import from `validators.ts` (legacy schema still lives there for the cleanup iteration).
+  - Renamed `catch (err)` bindings to `catch (fetchError|queryError)` to avoid shadowing the imported `err` helper.
+  - Updated `backend/src/__tests__/points-and-crates-routes.test.ts`: all six success assertions now assert `body.ok === true` and destructure `body.data`. Cursor chaining (points history + crates history) updated to read `body1.data.nextCursor` instead of `body1.nextCursor`.
+- **Verification**:
+  - `pnpm -C backend typecheck:self` → exit 0
+  - `pnpm -C backend lint:self` → exit 0
+  - Targeted: `vitest run --config vitest.integration.config.ts src/__tests__/points-and-crates-routes.test.ts` → 6/6 passed
+  - Targeted: `vitest run --config vitest.unit.config.ts src/__tests__/openapi-contract.test.ts src/__tests__/waitlist-contract.test.ts` → 49/49 passed
+  - Full unit suite (`vitest run --config vitest.unit.config.ts`) → 214/214 passed across 20 files
+
+## Iteration 15 — 2026-04-22T10:35:17Z — OK
+- **Log**: iteration-015.log
+
