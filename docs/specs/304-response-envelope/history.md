@@ -168,3 +168,31 @@ of every iteration to understand prior context.
 ## Iteration 8 — 2026-04-22T09:59:36Z — OK
 - **Log**: iteration-008.log
 
+## Iteration 9 — 2026-04-22 — DONE
+- **Item**: [routes] Convert `backend/src/routes/profile.ts` to envelope responses; update `profile.test.ts` and `profile-me-zeroed.test.ts`.
+- **Changes**:
+  - Rewrote all four profile routes in `backend/src/routes/profile.ts`:
+    - `GET /me`: success → `ok(c, { userId, username, ..., telegramLinked })`; `401 AUTH_REQUIRED`; `404 PROFILE_NOT_FOUND`; `500 PRECONDITION_FAILED`.
+    - `PUT /username`: success → `ok(c, { username, nextEditAvailableAt })`; `401 AUTH_REQUIRED`; `404 PROFILE_NOT_FOUND`; `409 USERNAME_TAKEN` (retryable:false); **`429 USERNAME_COOLDOWN`** (retryable:true, `details.nextEditAvailableAt`) replaces the legacy `COOLDOWN_ACTIVE` payload; `422 INVALID_USERNAME` from the custom hook (with Zod issues in `details`); `500 PRECONDITION_FAILED`. Both pre-check and race-fallback cooldown paths now emit the same envelope shape.
+    - `GET /transactions`: success → `ok(c, { transactions, nextCursor })`; `401 AUTH_REQUIRED`; **`422 INVALID_PARAMS`** (was 400) for the defensive `toDbGameId` fallback; `500 PRECONDITION_FAILED`.
+    - `POST /confirm-tx`: success → `ok(c, { recorded: true })` (new inner schema `ConfirmTxSuccessSchema` replaces `OkResponseSchema`, which was returning the confusing nested `{ ok: true, data: { ok: true } }`); `401`; `404 PROFILE_NOT_FOUND`; **`422 INVALID_PARAMS`** (was 400) for the defensive `toDbGameId` fallback; **`422 VALIDATION_FAILED`** (was 400 "Missing or invalid fields") from the custom hook (with Zod issues in `details`); `500 PRECONDITION_FAILED`.
+  - All 2xx response schemas now use `envelope(SuccessSchema)`; all 4xx/5xx use `ErrorEnvelopeSchema`. Removed imports of `errorMessage` (from `api-errors.ts`) and `ErrorResponseSchema` / `OkResponseSchema` / `UsernameCooldownResponseSchema` (from `validators.ts`) — legacy helpers still live there for the cleanup iteration.
+  - Renamed `catch (err)` bindings to `catch (fetchError|updateError|queryError|insertError)` to avoid shadowing the imported `err` helper.
+  - Updated `backend/src/__tests__/profile.test.ts`:
+    - Success assertions now destructure `.data` from envelopes (challenge/verify, `/profile/me`, `PUT /username`, `/public-profile/:userId` still unwrapped since that route converts in a later iteration).
+    - 409 USERNAME_TAKEN: asserts `body.ok === false` + `body.error.code === "USERNAME_TAKEN"`.
+    - 429 cooldown: asserts envelope shape, `body.error.code === "USERNAME_COOLDOWN"`, `retryable: true`, and `details.nextEditAvailableAt` present.
+    - Invalid-format username tests: status 400 → 422 (both "too short" and "missing body"); `body.error.code === "INVALID_USERNAME"`; `details` is the Zod issue array.
+    - `POST /confirm-tx` missing body: status 400 → 422; `body.error.code === "VALIDATION_FAILED"`.
+    - Renamed the two "returns 400 for ..." tests to "returns 422 for ..." to match the new behavior.
+  - Updated `backend/src/__tests__/profile-me-zeroed.test.ts`: `toMatchObject` now wraps the expected shape in `{ ok: true, data: {...} }`.
+- **Verification**:
+  - `pnpm typecheck:self` → exit 0
+  - `pnpm lint:self` → exit 0
+  - Targeted: `vitest run --config vitest.unit.config.ts src/__tests__/profile-me-zeroed.test.ts` → 1/1 passed
+  - Targeted: `vitest run --config vitest.integration.config.ts src/__tests__/profile.test.ts` → 13/13 passed
+  - Full unit suite (`pnpm vitest run --config vitest.unit.config.ts`) → 214/214 passed across 20 files
+
+## Iteration 9 — 2026-04-22T10:05:51Z — OK
+- **Log**: iteration-009.log
+
