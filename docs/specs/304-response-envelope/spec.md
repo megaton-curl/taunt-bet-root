@@ -7,7 +7,7 @@
 | Status | Ready |
 | Priority | P1 |
 | Track | Core |
-| NR_OF_TRIES | 9 |
+| NR_OF_TRIES | 10 |
 
 ---
 
@@ -473,7 +473,7 @@ This change affects real clients in this repository and cannot be treated as bac
 - [x] [routes] Convert `backend/src/routes/referral.ts` — all nine endpoints. Preserve `409 CODE_ALREADY_SET` / `CODE_TAKEN` / `SELF_REFERRAL` / `ALREADY_LINKED`, `404 CODE_NOT_FOUND` / `CLAIM_NOT_FOUND`, `422 BELOW_THRESHOLD` / `ZERO_BALANCE`, `202` for `POST /claim`. Empty-state GETs return `200 { ok: true, data: { ... nullable fields ... } }`. Update `referral-routes.test.ts`. (done: iteration 7)
 - [x] [routes] Convert `backend/src/routes/public-referral.ts` — `GET /code/:code` returns `200 { ok: true, data: { exists: boolean } }`; `GET /:identifier` returns `200` or `404 NOT_FOUND`. Update `public-referral-routes.test.ts`. (done: iteration 8)
 - [x] [routes] Convert `backend/src/routes/profile.ts` — `GET /me` (`200` or `404 PROFILE_NOT_FOUND`), `PUT /username` (`200` or `409 USERNAME_TAKEN` / `429 USERNAME_COOLDOWN` / `422 INVALID_USERNAME`), `GET /transactions` (`200` or `422`), `POST /confirm-tx` (`200` / `404` / `422`). Update `profile.test.ts` and `profile-me-zeroed.test.ts`. (done: iteration 9)
-- [ ] [routes] Convert `backend/src/routes/public-profile.ts` — `GET /:userId` returns `200` or `404 NOT_FOUND`. Update/extend existing test coverage as needed.
+- [x] [routes] Convert `backend/src/routes/public-profile.ts` — `GET /:userId` returns `200` or `404 NOT_FOUND`. Update/extend existing test coverage as needed. (done: iteration 10)
 - [ ] [routes] Convert `backend/src/routes/create.ts` (FlipYou public entry) — success envelopes; domain failures mapped to `400` / `403` / `404` / `409` / `422` per FR-11. Update any FlipYou route-level tests.
 - [ ] [routes] Convert `backend/src/routes/potshot-create.ts` — same envelope + status mapping as FR-11.
 - [ ] [routes] Convert `backend/src/routes/closecall.ts` — `/current-round`, `/history`, `/by-id/:roundId`, `/bet` follow FR-11 conventions. Update `closecall-routes.test.ts`.

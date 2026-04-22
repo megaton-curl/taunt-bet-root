@@ -196,3 +196,28 @@ of every iteration to understand prior context.
 ## Iteration 9 — 2026-04-22T10:05:51Z — OK
 - **Log**: iteration-009.log
 
+## Iteration 10 — 2026-04-22 — DONE
+- **Item**: [routes] Convert `backend/src/routes/public-profile.ts` to envelope responses; update profile test coverage.
+- **Changes**:
+  - Rewrote `GET /{identifier}` in `backend/src/routes/public-profile.ts`:
+    - Success → `ok(c, { userId, username, avatarUrl, heatMultiplier, stats, createdAt })`.
+    - Missing profile → `err(c, 404, API_ERROR_CODES.NOT_FOUND, "Profile not found")`.
+    - Lookup failure → `err(c, 500, API_ERROR_CODES.PRECONDITION_FAILED, "Failed to fetch profile")`.
+    - Response schemas use `envelope(PublicPlayerProfileSchema)` for 200 and `ErrorEnvelopeSchema` for 404/500.
+    - Removed imports of `errorMessage` (from `api-errors.ts`) and `ErrorResponseSchema` (from `validators.ts`) — legacy helpers still live there for the cleanup iteration.
+    - Renamed `catch (err)` binding to `catch (lookupError)` to avoid shadowing the imported `err` helper.
+  - Updated `backend/src/__tests__/profile.test.ts`:
+    - `GET /public-profile/:username` success test: destructures `body.data` from envelope (`body.ok === true`).
+    - `GET /public-profile/:user_id` success test: asserts envelope shape, accesses fields via `body.data.userId` / `body.data.username`.
+    - `GET /public-profile/:identifier` 404 test: now asserts `body.ok === false` and `body.error.code === "NOT_FOUND"` (was `body.error === "NOT_FOUND"`).
+    - The "no wallet field" test is text-based and continues to pass unchanged.
+- **Verification**:
+  - `pnpm typecheck:self` → exit 0
+  - `pnpm lint:self` → exit 0
+  - Targeted: `vitest run --config vitest.integration.config.ts src/__tests__/profile.test.ts` → 13/13 passed
+  - Targeted: `vitest run --config vitest.unit.config.ts src/__tests__/waitlist-contract.test.ts` → 41/41 passed
+  - Full unit suite (`pnpm vitest run --config vitest.unit.config.ts`) → 214/214 passed across 20 files
+
+## Iteration 10 — 2026-04-22T10:09:13Z — OK
+- **Log**: iteration-010.log
+
