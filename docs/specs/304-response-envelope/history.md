@@ -539,3 +539,23 @@ of every iteration to understand prior context.
 ## Iteration 25 — 2026-04-22T11:19:55Z — OK
 - **Log**: iteration-025.log
 
+## Iteration 26 — 2026-04-22 — DONE
+- **Item**: [docs] Add an "Envelope Contract" section to `backend/CLAUDE.md`, update OpenAPI `info.description`, and decide whether `docs/TECH_DEBT.md` needs a residual-compatibility entry.
+- **Changes**:
+  - `backend/CLAUDE.md` — restructured the existing "Public API Contract" section by extracting the envelope-specific bullets into a new dedicated **"Envelope Contract"** H2 section placed directly after it. The new section documents:
+    - Body shape (`ApiEnvelope<T>` discriminated union with full `ApiError` interface including `retryable` and `details`).
+    - Discriminator rule (`ok`), central code catalog pointer (`backend/src/contracts/api-errors.ts`), and the `204` / unmatched-route exceptions.
+    - Full status-code table (`200` / `201` / `202` / `204` / `400` / `401` / `403` / `404` / `409` / `422` / `429` / `5xx`) with body column.
+    - Explicit rule against flattening handled failures into `200`, plus the documented empty-state exceptions (`GET /referral/code`, `GET /referral/referrer`, `GET /points/mine`).
+    - A **Helpers** subsection with concrete `ok(c, data)` / `ok(c, data, 202)` / `err(c, 404, CODE, message)` / `err(c, 422, VALIDATION_FAILED, message, { details })` snippets.
+    - An **OpenAPI** subsection pointing at the contract tests (`openapi-contract.test.ts`, `waitlist-contract.test.ts`) that enforce the body-shape rule.
+  - `backend/src/index.ts` — expanded the OpenAPI `info.description` string to include a dedicated "Response envelope contract" markdown section summarizing the two body shapes, the discriminator, the status-code semantics, the empty-state exceptions, the catalog location, and a canonical reference link to `docs/specs/304-response-envelope/spec.md`. Preserved the original one-line project description as the lead sentence and kept `version: "0.1.0"` and the `servers` array unchanged.
+  - `docs/TECH_DEBT.md` — **no entry added.** Per the iteration-25 rollout decision (atomic switch, no tolerant shim, no feature flag) and the already-shipped telegram client + waitlist/webapp migration doc, there is no residual compatibility concern left after the atomic cutover. Recording the decision here instead of in `TECH_DEBT.md` per the checklist instruction ("otherwise note 'no debt — clean cutover'"): **no debt — clean cutover.**
+- **Verification**:
+  - Docs-only change. `backend/CLAUDE.md` is pure documentation; the `backend/src/index.ts` edit is a string-literal-only change inside the existing `info.description` field of the `app.doc(...)` call — it cannot introduce type or lint errors.
+  - Root `CLAUDE.md` policy: "Docs-only changes: no verification needed."
+  - Manual verification: re-read both edited files post-change; checklist entry flipped `[ ]` → `[x] (done: iteration 26)`; no other files modified.
+
+## Iteration 26 — 2026-04-22T11:25:17Z — OK
+- **Log**: iteration-026.log
+
