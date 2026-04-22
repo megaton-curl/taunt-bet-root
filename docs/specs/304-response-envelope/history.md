@@ -55,3 +55,17 @@ of every iteration to understand prior context.
 ## Iteration 3 — 2026-04-22T09:25:50Z — OK
 - **Log**: iteration-003.log
 
+## Iteration 4 — 2026-04-22 — DONE
+- **Item**: [middleware] Convert `backend/src/middleware/jwt-auth.ts` to return `401 { ok: false, error: { code: "AUTH_REQUIRED", ... } }` envelopes; update `auth.test.ts` assertions.
+- **Changes**:
+  - Rewrote `backend/src/middleware/jwt-auth.ts`: replaced three `c.json({ error: ... }, 401)` call sites with `err(c, 401, API_ERROR_CODES.AUTH_REQUIRED, <message>)`. Imported `err` from `../contracts/api-envelope.js` and `API_ERROR_CODES` from `../contracts/api-errors.js`. Renamed the `catch (err)` binding to `catch (verifyError)` to avoid shadowing the imported helper.
+  - Updated `backend/src/__tests__/auth.test.ts`: the four 401 rejection tests now assert envelope shape (`body.ok === false`, `body.error.code === "AUTH_REQUIRED"`) in addition to status. The two message-specific tests assert the exact message for the two distinct 401 paths ("Missing or invalid Authorization header" and "Invalid or expired token").
+  - `auth-routes.test.ts` intentionally left unchanged: its 401 cases come from the auth routes themselves (challenge/verify/refresh), not the JWT middleware. Those routes are converted in a later iteration (per checklist) — updating them now would break tests against still-legacy route handlers.
+- **Verification**:
+  - `pnpm typecheck:self` → exit 0
+  - `pnpm lint:self` → exit 0
+  - `pnpm vitest run --config vitest.unit.config.ts` → 214/214 passed across 20 files
+
+## Iteration 4 — 2026-04-22T09:28:56Z — OK
+- **Log**: iteration-004.log
+
