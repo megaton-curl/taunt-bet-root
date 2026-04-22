@@ -301,3 +301,24 @@ of every iteration to understand prior context.
 ## Iteration 13 — 2026-04-22T10:28:25Z — OK
 - **Log**: iteration-013.log
 
+## Iteration 14 — 2026-04-22 — DONE
+- **Item**: [routes] Convert `backend/src/routes/challenges.ts` to envelope responses; update `challenge-routes.test.ts`.
+- **Changes**:
+  - Rewrote both challenge routes in `backend/src/routes/challenges.ts`:
+    - `GET /mine`: success → `ok(c, { daily, weekly, onboarding })`; `401 AUTH_REQUIRED` for missing userId; `500 PRECONDITION_FAILED` for unexpected DB errors. Empty challenges/bonus/onboarding defaults (e.g., `onboarding: null` when all steps are completed) remain `200` envelopes per FR-7.
+    - `GET /mine/history`: success → `ok(c, { items, nextCursor })`; `401 AUTH_REQUIRED`; `500 PRECONDITION_FAILED`. Empty history returns `200 { ok: true, data: { items: [], nextCursor: null } }`.
+  - Both 2xx response schemas now use `envelope(SuccessSchema)`; 4xx/5xx use `ErrorEnvelopeSchema`. Dropped the `ErrorResponseSchema` import from `validators.ts` (legacy schema still lives there for the cleanup iteration).
+  - Renamed `catch (err)` bindings to `catch (fetchError|queryError)` to avoid shadowing the imported `err` helper.
+  - Updated `backend/src/__tests__/challenge-routes.test.ts`:
+    - All four success assertions (two `/mine` tests, two `/mine/history` tests) now assert `body.ok === true` and destructure `body.data`.
+    - The "expired assignments are marked expired on read" test continues to assert only DB state (no body inspection), so it works unchanged.
+- **Verification**:
+  - `pnpm -C backend typecheck:self` → exit 0
+  - `pnpm -C backend lint:self` → exit 0
+  - Targeted: `vitest run --config vitest.integration.config.ts src/__tests__/challenge-routes.test.ts` → 5/5 passed
+  - Targeted: `vitest run --config vitest.unit.config.ts src/__tests__/openapi-contract.test.ts src/__tests__/waitlist-contract.test.ts` → 49/49 passed
+  - Full unit suite (`vitest run --config vitest.unit.config.ts`) → 214/214 passed across 20 files
+
+## Iteration 14 — 2026-04-22T10:31:41Z — OK
+- **Log**: iteration-014.log
+
