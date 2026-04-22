@@ -342,3 +342,22 @@ of every iteration to understand prior context.
 ## Iteration 15 — 2026-04-22T10:35:17Z — OK
 - **Log**: iteration-015.log
 
+## Iteration 16 — 2026-04-22 — DONE
+- **Item**: [routes] Convert `backend/src/routes/dogpile.ts` to envelope responses; update `dogpile-public-routes.test.ts` and the dogpile passthrough test in `public-referral-routes.test.ts`.
+- **Changes**:
+  - Rewrote both dogpile routes in `backend/src/routes/dogpile.ts`:
+    - `GET /current`: success → `ok(c, <event-or-null>)`. All three branches (active, scheduled, empty) now emit the envelope. Empty case returns `200 { ok: true, data: null }` per FR-7 (documented success with null payload). 200 schema uses `envelope(DogpileCurrentResponseSchema)` — the inner schema is already `.nullable()`, so `data: <event | null>` falls out naturally without a wrapping object. `500 PRECONDITION_FAILED` for DB failures.
+    - `GET /schedule`: success → `ok(c, { items })` with empty array being documented success. `500 PRECONDITION_FAILED` for DB failures.
+  - Both 2xx schemas now use `envelope(SuccessSchema)`; all 5xx use `ErrorEnvelopeSchema`. Dropped the `errorMessage` import from `api-errors.ts` and the `ErrorResponseSchema` import from `validators.ts` (legacy helpers still live there for the cleanup iteration).
+  - Renamed `catch (err)` bindings to `catch (queryError)` to avoid shadowing the imported `err` helper.
+  - Updated `backend/src/__tests__/dogpile-public-routes.test.ts`: all five tests now assert `body.ok === true` and destructure `body.data` (including the null-return case: `body.data === null`).
+  - Updated `backend/src/__tests__/public-referral-routes.test.ts` — the "GET /dogpile/current remains public" passthrough test now asserts envelope shape and reads fields via `body.data.*`.
+- **Verification**:
+  - `pnpm -C backend typecheck:self` → exit 0
+  - `pnpm -C backend lint:self` → exit 0
+  - Targeted: `vitest run --config vitest.integration.config.ts src/__tests__/dogpile-public-routes.test.ts src/__tests__/public-referral-routes.test.ts` → 12/12 passed
+  - Full unit suite (`vitest run --config vitest.unit.config.ts`) → 214/214 passed across 20 files
+
+## Iteration 16 — 2026-04-22T10:38:47Z — OK
+- **Log**: iteration-016.log
+
