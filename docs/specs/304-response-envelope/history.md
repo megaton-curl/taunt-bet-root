@@ -69,3 +69,17 @@ of every iteration to understand prior context.
 ## Iteration 4 — 2026-04-22T09:28:56Z — OK
 - **Log**: iteration-004.log
 
+## Iteration 5 — 2026-04-22 — DONE
+- **Item**: [middleware] Convert `backend/src/middleware/rate-limit.ts` to `429` envelope with `RATE_LIMITED` code; update `rate-limit.test.ts` to assert envelope body.
+- **Changes**:
+  - Rewrote `backend/src/middleware/rate-limit.ts`: both 429 call sites (global-limit and per-identity-limit) now use `err(c, 429, API_ERROR_CODES.RATE_LIMITED, "Too many requests", { retryable: true, details: { retryAfterMs: config.windowMs } })`. `Retry-After` header is preserved. Imported `err` from `../contracts/api-envelope.js` and `API_ERROR_CODES` from `../contracts/api-errors.js`.
+  - Updated `backend/src/__tests__/rate-limit.test.ts`: the per-wallet 429 test and the global 429 test now assert the full envelope body (`{ ok: false, error: { code: "RATE_LIMITED", message, retryable: true, details: { retryAfterMs } } }`). The 30-second-window test also asserts `details.retryAfterMs === 30_000`. Retry-After header assertions preserved.
+- **Verification**:
+  - `pnpm typecheck:self` → exit 0
+  - `pnpm lint:self` → exit 0
+  - `pnpm vitest run --config vitest.unit.config.ts src/__tests__/rate-limit.test.ts` → 7/7 passed
+  - Full unit suite (`pnpm vitest run --config vitest.unit.config.ts`) → 214/214 passed across 20 files
+
+## Iteration 5 — 2026-04-22T09:32:36Z — OK
+- **Log**: iteration-005.log
+

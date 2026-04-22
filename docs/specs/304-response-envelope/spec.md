@@ -7,7 +7,7 @@
 | Status | Ready |
 | Priority | P1 |
 | Track | Core |
-| NR_OF_TRIES | 4 |
+| NR_OF_TRIES | 5 |
 
 ---
 
@@ -465,7 +465,7 @@ This change affects real clients in this repository and cannot be treated as bac
 #### Middleware
 
 - [x] [middleware] Convert `backend/src/middleware/jwt-auth.ts` to return `401 { ok: false, error: { code: "AUTH_REQUIRED", ... } }` envelopes for missing/invalid/expired tokens. Update `backend/src/__tests__/auth.test.ts` and `auth-routes.test.ts` assertions to match envelope shape. (done: iteration 4)
-- [ ] [middleware] Convert `backend/src/middleware/rate-limit.ts` to return `429 { ok: false, error: { code: "RATE_LIMITED", retryable: true, details: { retryAfterMs? } } }`. Update `rate-limit.test.ts` to assert both status and envelope body.
+- [x] [middleware] Convert `backend/src/middleware/rate-limit.ts` to return `429 { ok: false, error: { code: "RATE_LIMITED", retryable: true, details: { retryAfterMs? } } }`. Update `rate-limit.test.ts` to assert both status and envelope body. (done: iteration 5)
 
 #### Public route conversion (one iteration per file)
 
