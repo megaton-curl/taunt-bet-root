@@ -4,7 +4,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | Draft |
+| Status | Ready |
 | Priority | P1 |
 | Track | Core |
 | NR_OF_TRIES | 0 |
@@ -450,17 +450,64 @@ This change affects real clients in this repository and cannot be treated as bac
 
 ### Implementation Checklist
 
-- [ ] Add `api-envelope.ts` with success/error helpers and schemas
-- [ ] Rewrite `api-errors.ts` into a stable error-code catalog
-- [ ] Update `invalidRequestHook` to emit `422` error envelopes
-- [ ] Convert public route declarations to real-status envelopes
-- [ ] Preserve `204` logout and `202` accepted async semantics where already meaningful
-- [ ] Convert normal empty-state reads to `200` success envelopes
-- [ ] Remove legacy response helpers and schemas
-- [ ] Update route tests and waitlist contract tests
-- [ ] Add an OpenAPI envelope contract test
-- [ ] Write the client migration doc for waitlist/webapp/telegram
-- [ ] Update backend docs and tech-debt notes
+> Refinement decisions (2026-04-22):
+> - **Rollout**: atomic switch, no tolerant shim, no feature flag.
+> - **Client scope**: backend + telegram client in-repo; waitlist + webapp handled via migration doc only (FE is a separate project, per CLAUDE.md).
+> - **Granularity**: one iteration per route file.
+> - **Out of scope for this spec**: `backend/src/routes/admin.ts` (tracked in 303-peek-admin) and `backend/src/routes/internal.ts` (service-auth webhooks).
+
+#### Foundations (must land first)
+
+- [ ] [contracts] Create `backend/src/contracts/api-envelope.ts` exporting `ApiEnvelopeSuccess<T>`, `ApiEnvelopeError`, `ApiEnvelope<T>`, `ApiError`, `ApiErrorSchema`, `ErrorEnvelopeSchema`, `envelope(dataSchema)`, `ok(c, data, status?)`, `err(c, status, code, message, opts?)`. Add unit tests covering serialization of success (200/201/202), error (400/401/403/404/409/422/429/500/503), and schema round-trip of discriminated-union envelopes.
+- [ ] [contracts] Rewrite `backend/src/contracts/api-errors.ts` to export the `API_ERROR_CODES` catalog listed in FR-2 plus the `ApiErrorCode` type. Keep legacy `errorMessage`/`structuredErrorMessage`/`ErrorResponseBody`/`StructuredErrorResponseBody` exports in place for now (they will be deleted in the cleanup iteration). Add a unit test asserting the catalog is the single source of truth.
+- [ ] [openapi] Update `invalidRequestHook` in `backend/src/openapi/hono.ts` to return `422 { ok: false, error: { code: "VALIDATION_FAILED", message: "Invalid request", retryable: false, details: result.error.issues } }`. Add a test via any OpenAPI-validated route that asserts status 422 + envelope body + Zod issue list.
+
+#### Middleware
+
+- [ ] [middleware] Convert `backend/src/middleware/jwt-auth.ts` to return `401 { ok: false, error: { code: "AUTH_REQUIRED", ... } }` envelopes for missing/invalid/expired tokens. Update `backend/src/__tests__/auth.test.ts` and `auth-routes.test.ts` assertions to match envelope shape.
+- [ ] [middleware] Convert `backend/src/middleware/rate-limit.ts` to return `429 { ok: false, error: { code: "RATE_LIMITED", retryable: true, details: { retryAfterMs? } } }`. Update `rate-limit.test.ts` to assert both status and envelope body.
+
+#### Public route conversion (one iteration per file)
+
+- [ ] [routes] Convert `backend/src/routes/auth.ts` — `POST /challenge`, `POST /verify`, `POST /refresh` use success envelopes; error paths use `401 INVALID_SIGNATURE` / `401 CHALLENGE_EXPIRED` / `401 REFRESH_TOKEN_INVALID`; `POST /logout` remains `204`. Update `auth-routes.test.ts` to assert envelope shape and preserved statuses.
+- [ ] [routes] Convert `backend/src/routes/referral.ts` — all nine endpoints. Preserve `409 CODE_ALREADY_SET` / `CODE_TAKEN` / `SELF_REFERRAL` / `ALREADY_LINKED`, `404 CODE_NOT_FOUND` / `CLAIM_NOT_FOUND`, `422 BELOW_THRESHOLD` / `ZERO_BALANCE`, `202` for `POST /claim`. Empty-state GETs return `200 { ok: true, data: { ... nullable fields ... } }`. Update `referral-routes.test.ts`.
+- [ ] [routes] Convert `backend/src/routes/public-referral.ts` — `GET /code/:code` returns `200 { ok: true, data: { exists: boolean } }`; `GET /:identifier` returns `200` or `404 NOT_FOUND`. Update `public-referral-routes.test.ts`.
+- [ ] [routes] Convert `backend/src/routes/profile.ts` — `GET /me` (`200` or `404 PROFILE_NOT_FOUND`), `PUT /username` (`200` or `409 USERNAME_TAKEN` / `429 USERNAME_COOLDOWN` / `422 INVALID_USERNAME`), `GET /transactions` (`200` or `422`), `POST /confirm-tx` (`200` / `404` / `422`). Update `profile.test.ts` and `profile-me-zeroed.test.ts`.
+- [ ] [routes] Convert `backend/src/routes/public-profile.ts` — `GET /:userId` returns `200` or `404 NOT_FOUND`. Update/extend existing test coverage as needed.
+- [ ] [routes] Convert `backend/src/routes/create.ts` (FlipYou public entry) — success envelopes; domain failures mapped to `400` / `403` / `404` / `409` / `422` per FR-11. Update any FlipYou route-level tests.
+- [ ] [routes] Convert `backend/src/routes/potshot-create.ts` — same envelope + status mapping as FR-11.
+- [ ] [routes] Convert `backend/src/routes/closecall.ts` — `/current-round`, `/history`, `/by-id/:roundId`, `/bet` follow FR-11 conventions. Update `closecall-routes.test.ts`.
+- [ ] [routes] Convert `backend/src/routes/challenges.ts` — read endpoints return success envelopes. Update `challenge-routes.test.ts`.
+- [ ] [routes] Convert `backend/src/routes/points.ts` — `GET /mine` may return `200` with zero-value envelope data when no row exists. Update `points-and-crates-routes.test.ts`.
+- [ ] [routes] Convert `backend/src/routes/dogpile.ts` — `/current`, `/schedule` return success envelopes, null/empty as documented success. Update `dogpile-public-routes.test.ts`.
+- [ ] [routes] Convert `backend/src/routes/leaderboard.ts` — `GET /` returns success envelope. Update `leaderboard.test.ts`.
+- [ ] [routes] Convert `backend/src/routes/price.ts` — `GET /sol-usd` returns `200` success envelope or `503 { ok: false, error: { code: "PRICE_UNAVAILABLE", retryable: true } }`.
+- [ ] [routes] Convert `backend/src/routes/health.ts` — `GET /` returns `200 { ok: true, data: { status, version, workerRunning } }`.
+- [ ] [routes] Convert `backend/src/routes/telegram-link.ts` — `POST /generate-link` returns `200 { ok: true, data: { deepLink, alreadyLinked } }` for both already-linked and new-token branches. Service-auth Telegram webhook routes (if any in this file) remain out of scope.
+
+#### Cleanup
+
+- [ ] [contracts] Delete legacy helpers: `errorMessage`, `structuredErrorMessage`, `ErrorResponseBody`, `StructuredErrorResponseBody`, `StructuredErrorDetail` from `api-errors.ts` and `ErrorResponseSchema` / `StructuredErrorDetailSchema` / `StructuredErrorResponseSchema` from `validators.ts`. Grep the full backend (`backend/src/**`) to confirm zero remaining imports before deleting. `./scripts/verify` must pass.
+
+#### Tests + OpenAPI contract
+
+- [ ] [test] Extend `backend/src/__tests__/openapi-contract.test.ts` to scan every declared public JSON response in the generated OpenAPI document and assert: (a) 2xx JSON bodies use `envelope(SuccessSchema)`; (b) 4xx/5xx JSON bodies use `ErrorEnvelopeSchema`; (c) `ApiError` and `ErrorEnvelope` components appear exactly once. Admin/internal/service-auth routes explicitly excluded.
+- [ ] [test] Update `backend/src/__tests__/waitlist-contract.test.ts` to extract `.data` from success envelopes, assert the expected success status (`200`/`201`/`202`) per endpoint, and assert error envelope shape on representative failure paths.
+
+#### Telegram client
+
+- [ ] [telegram] Update `telegram/src/backend-client.ts` to parse envelopes: on success pull `.data`; on failure pull `.error.code`/`.error.message`. Update telegram tests. Run `cd telegram && pnpm verify` and ensure exit 0.
+
+#### Docs
+
+- [ ] [docs] Write `docs/specs/304-response-envelope/client-migration.md` covering: `waitlist/src/lib/auth-api.ts`, `waitlist/src/lib/referral-api.ts`, `waitlist/src/components/TelegramCard.tsx`, `webapp/src/lib/api.ts`, `webapp/src/lib/auth/api.ts`, `webapp/src/lib/parse-transaction-error.ts`, `webapp/src/pages/profile/profile-data.ts`, `telegram/src/backend-client.ts` — with concrete before/after snippets and the atomic rollout order.
+- [ ] [docs] Add an "Envelope Contract" section to `backend/CLAUDE.md` describing body shape + status semantics, update OpenAPI `info.description` to mention the contract and link this spec, and add a `docs/TECH_DEBT.md` entry only if any residual compatibility concern remains after the atomic switch (otherwise note "no debt — clean cutover").
+
+#### Mandatory coverage markers
+
+- [ ] [test] Add local deterministic E2E coverage for primary user flow(s) in e2e/local/** (or mark N/A with reason for non-web/non-interactive specs) — **N/A**: this is a backend JSON contract spec with no interactive frontend flow introduced; route-level tests in `backend/src/__tests__/` cover the full request/response contract.
+- [ ] [test] Add visual route/state coverage in e2e/visual/**; run pnpm test:visual and update baselines only for intentional UI changes — **N/A**: backend-only spec, and per the `/refine` skill visual regression is deferred until the frontend repo is established.
+- [ ] [test] If external provider/oracle/VRF integration is in scope, add devnet real-provider E2E coverage in e2e/devnet/** with env validation + retry/backoff (or mark N/A with reason) — **N/A**: this spec only reshapes existing response bodies; no new provider/oracle/VRF integration is added. Existing Pyth-backed `/price/sol-usd` keeps its current integration, only its error body changes shape.
 
 ### Testing Requirements
 
