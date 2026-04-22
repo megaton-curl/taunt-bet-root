@@ -7,7 +7,7 @@
 | Status | Ready |
 | Priority | P1 |
 | Track | Core |
-| NR_OF_TRIES | 24 |
+| NR_OF_TRIES | 25 |
 
 ---
 
@@ -500,7 +500,7 @@ This change affects real clients in this repository and cannot be treated as bac
 
 #### Docs
 
-- [ ] [docs] Write `docs/specs/304-response-envelope/client-migration.md` covering: `waitlist/src/lib/auth-api.ts`, `waitlist/src/lib/referral-api.ts`, `waitlist/src/components/TelegramCard.tsx`, `webapp/src/lib/api.ts`, `webapp/src/lib/auth/api.ts`, `webapp/src/lib/parse-transaction-error.ts`, `webapp/src/pages/profile/profile-data.ts`, `telegram/src/backend-client.ts` — with concrete before/after snippets and the atomic rollout order.
+- [x] [docs] Write `docs/specs/304-response-envelope/client-migration.md` covering: `waitlist/src/lib/auth-api.ts`, `waitlist/src/lib/referral-api.ts`, `waitlist/src/components/TelegramCard.tsx`, `webapp/src/lib/api.ts`, `webapp/src/lib/auth/api.ts`, `webapp/src/lib/parse-transaction-error.ts`, `webapp/src/pages/profile/profile-data.ts`, `telegram/src/backend-client.ts` — with concrete before/after snippets and the atomic rollout order. (done: iteration 25)
 - [ ] [docs] Add an "Envelope Contract" section to `backend/CLAUDE.md` describing body shape + status semantics, update OpenAPI `info.description` to mention the contract and link this spec, and add a `docs/TECH_DEBT.md` entry only if any residual compatibility concern remains after the atomic switch (otherwise note "no debt — clean cutover").
 
 #### Mandatory coverage markers

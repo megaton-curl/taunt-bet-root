@@ -523,3 +523,19 @@ of every iteration to understand prior context.
 ## Iteration 24 — 2026-04-22T11:15:25Z — OK
 - **Log**: iteration-024.log
 
+## Iteration 25 — 2026-04-22 — DONE
+- **Item**: [docs] Write `docs/specs/304-response-envelope/client-migration.md` covering all eight consumer files with concrete before/after snippets and the atomic rollout order.
+- **Changes**:
+  - Added `docs/specs/304-response-envelope/client-migration.md` (≈580 lines) structured as: envelope contract summary → atomic rollout order → canonical `ApiEnvelope<T>` + `isEnvelope()` parser → per-client sections for **Telegram** (already-migrated reference pointing at `telegram/src/backend-client.ts:89-111` and `:165-174`), **Waitlist** (`auth-api.ts`, `referral-api.ts`, `TelegramCard.tsx`), and **Webapp** (`api.ts`, `auth/api.ts`, `parse-transaction-error.ts`, `profile-data.ts`).
+  - Each per-file section includes a literal "Before" code snippet pulled from the current (pre-migration) source (with `file_path:line_number` refs) plus an "After" diff showing the minimal envelope-aware replacement. Error-code tables map catalog codes → scenarios for the authentication, referral, and telegram-link surfaces (e.g. `INVALID_SIGNATURE` / `CHALLENGE_EXPIRED` / `REFRESH_TOKEN_INVALID` on auth; `CODE_TAKEN` / `SELF_REFERRAL` / `ALREADY_LINKED` / `INVALID_CODE` on referral; `TELEGRAM_ALREADY_LINKED` / `TELEGRAM_TOKEN_EXPIRED` / `AUTH_REQUIRED` on redeem).
+  - Called out the two behavioural shifts waitlist/webapp callers need to handle explicitly: (a) `GET /referral/code` now returns `200 { data: { code: string | null } }` instead of `404`, and (b) `GET /referral/referrer` now returns `200` with all-nullable fields instead of `404` — the existing `err.status === 404` catches stay as defense-in-depth.
+  - Noted the webapp `ApiError` extension needed (adding optional `code` and `details` fields) so `parse-transaction-error.ts` can do richer code-based branching without breaking its current status-based contract.
+  - Rollout section documents the atomic switch per the spec refinement (no tolerant shim, no feature flag) with a concrete 3-step deploy sequence (staging verify → coordinated prod promote → coordinated rollback).
+  - Closed with a per-client migration checklist and a pointer to the existing backend/telegram test files as the reference harness.
+- **Verification**:
+  - Docs-only change — no build, lint, or test check applies per root `CLAUDE.md` ("Docs-only changes: no verification needed").
+  - Manually verified: file exists at expected path (581 lines), spec checklist entry flipped `[ ]` → `[x] (done: iteration 25)`, no other files modified.
+
+## Iteration 25 — 2026-04-22T11:19:55Z — OK
+- **Log**: iteration-025.log
+
