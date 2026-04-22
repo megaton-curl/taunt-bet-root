@@ -78,7 +78,28 @@ Execution defaults for humans and AI agents. Use this file for day-to-day implem
 
 ---
 
-## 8) Third-Party Dependency Integration (Default)
+## 8) Public API Contract Rules (Default)
+
+- Public JSON routes use the shared envelope body:
+  - success: `{ ok: true, data }`
+  - error: `{ ok: false, error }`
+- Explicit `204` responses and framework-generated unmatched-route `404/405` are the only normal exceptions to the envelope body rule.
+- Preserve semantic HTTP statuses:
+  - `200` / `201` / `202` for success
+  - `204` for no-body success
+  - `400` / `422` for malformed or invalid requests
+  - `401` / `403` for auth and permission failures
+  - `404` for missing resources
+  - `409` for conflicts and invalid current state
+  - `429` for cooldowns and rate limits
+  - `5xx` for server faults
+- Do not flatten handled domain failures into `200`.
+- Use `200` with nullable, empty, or default-valued payloads only when the absence is the documented success answer for the route.
+- When changing a public backend contract, audit status/body-sensitive consumers in `waitlist/`, `webapp/`, and `telegram/` in the same task, or log the rollout gap in `docs/TECH_DEBT.md`.
+
+---
+
+## 9) Third-Party Dependency Integration (Default)
 
 When writing code that integrates with any external dependency — SDK, API, on-chain program, library, oracle — follow this checklist:
 
@@ -93,7 +114,7 @@ When writing code that integrates with any external dependency — SDK, API, on-
 
 ---
 
-## 9) Devnet E2E Verification (Default)
+## 10) Devnet E2E Verification (Default)
 
 - Run `./scripts/verify --devnet` before PRs that touch chain-facing code (`solana/`, `backend/packages/anchor-client/`, `backend/packages/game-engine/` winner/payout logic).
 - NOT required every iteration — IS automated in `spec-loop.sh` for specs that reference flipyou, Pot Shot, or Close Call.
