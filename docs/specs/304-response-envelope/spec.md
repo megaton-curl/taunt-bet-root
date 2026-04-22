@@ -7,7 +7,7 @@
 | Status | Ready |
 | Priority | P1 |
 | Track | Core |
-| NR_OF_TRIES | 0 |
+| NR_OF_TRIES | 1 |
 
 ---
 
@@ -458,7 +458,7 @@ This change affects real clients in this repository and cannot be treated as bac
 
 #### Foundations (must land first)
 
-- [ ] [contracts] Create `backend/src/contracts/api-envelope.ts` exporting `ApiEnvelopeSuccess<T>`, `ApiEnvelopeError`, `ApiEnvelope<T>`, `ApiError`, `ApiErrorSchema`, `ErrorEnvelopeSchema`, `envelope(dataSchema)`, `ok(c, data, status?)`, `err(c, status, code, message, opts?)`. Add unit tests covering serialization of success (200/201/202), error (400/401/403/404/409/422/429/500/503), and schema round-trip of discriminated-union envelopes.
+- [x] [contracts] Create `backend/src/contracts/api-envelope.ts` exporting `ApiEnvelopeSuccess<T>`, `ApiEnvelopeError`, `ApiEnvelope<T>`, `ApiError`, `ApiErrorSchema`, `ErrorEnvelopeSchema`, `envelope(dataSchema)`, `ok(c, data, status?)`, `err(c, status, code, message, opts?)`. Add unit tests covering serialization of success (200/201/202), error (400/401/403/404/409/422/429/500/503), and schema round-trip of discriminated-union envelopes. (done: iteration 1)
 - [ ] [contracts] Rewrite `backend/src/contracts/api-errors.ts` to export the `API_ERROR_CODES` catalog listed in FR-2 plus the `ApiErrorCode` type. Keep legacy `errorMessage`/`structuredErrorMessage`/`ErrorResponseBody`/`StructuredErrorResponseBody` exports in place for now (they will be deleted in the cleanup iteration). Add a unit test asserting the catalog is the single source of truth.
 - [ ] [openapi] Update `invalidRequestHook` in `backend/src/openapi/hono.ts` to return `422 { ok: false, error: { code: "VALIDATION_FAILED", message: "Invalid request", retryable: false, details: result.error.issues } }`. Add a test via any OpenAPI-validated route that asserts status 422 + envelope body + Zod issue list.
 
