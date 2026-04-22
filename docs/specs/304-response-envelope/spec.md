@@ -7,7 +7,7 @@
 | Status | Ready |
 | Priority | P1 |
 | Track | Core |
-| NR_OF_TRIES | 26 |
+| NR_OF_TRIES | 27 |
 
 ---
 
@@ -505,7 +505,7 @@ This change affects real clients in this repository and cannot be treated as bac
 
 #### Mandatory coverage markers
 
-- [ ] [test] Add local deterministic E2E coverage for primary user flow(s) in e2e/local/** (or mark N/A with reason for non-web/non-interactive specs) — **N/A**: this is a backend JSON contract spec with no interactive frontend flow introduced; route-level tests in `backend/src/__tests__/` cover the full request/response contract.
+- [x] [test] Add local deterministic E2E coverage for primary user flow(s) in e2e/local/** (or mark N/A with reason for non-web/non-interactive specs) — **N/A**: this is a backend JSON contract spec with no interactive frontend flow introduced; route-level tests in `backend/src/__tests__/` cover the full request/response contract. (done: iteration 27)
 - [ ] [test] Add visual route/state coverage in e2e/visual/**; run pnpm test:visual and update baselines only for intentional UI changes — **N/A**: backend-only spec, and per the `/refine` skill visual regression is deferred until the frontend repo is established.
 - [ ] [test] If external provider/oracle/VRF integration is in scope, add devnet real-provider E2E coverage in e2e/devnet/** with env validation + retry/backoff (or mark N/A with reason) — **N/A**: this spec only reshapes existing response bodies; no new provider/oracle/VRF integration is added. Existing Pyth-backed `/price/sol-usd` keeps its current integration, only its error body changes shape.
 

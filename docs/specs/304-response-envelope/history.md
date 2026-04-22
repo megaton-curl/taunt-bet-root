@@ -559,3 +559,15 @@ of every iteration to understand prior context.
 ## Iteration 26 — 2026-04-22T11:25:17Z — OK
 - **Log**: iteration-026.log
 
+## Iteration 27 — 2026-04-22 — DONE
+- **Item**: [test] Add local deterministic E2E coverage for primary user flow(s) in e2e/local/** (or mark N/A with reason for non-web/non-interactive specs).
+- **Changes**:
+  - Flipped the mandatory-coverage checklist marker in `docs/specs/304-response-envelope/spec.md` from `[ ]` → `[x]` and appended `(done: iteration 27)`. No other files touched.
+  - The N/A justification remains in place: this is a backend JSON contract spec with no interactive frontend flow introduced; route-level tests under `backend/src/__tests__/` (auth, referral, public-referral, profile, public-profile, closecall, challenges, points, dogpile, leaderboard, price, health, telegram-link, waitlist-contract, openapi-contract) already cover the full request/response contract at both envelope body and status-code level.
+- **Verification**:
+  - Docs-only change. Per root `CLAUDE.md`: "Docs-only changes: no verification needed."
+  - Manual verification: re-read the spec post-edit; only the first mandatory-coverage marker line flipped; two subsequent markers remain `[ ]`.
+
+## Iteration 27 — 2026-04-22T11:26:51Z — OK
+- **Log**: iteration-027.log
+
