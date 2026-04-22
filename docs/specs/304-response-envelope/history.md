@@ -571,3 +571,15 @@ of every iteration to understand prior context.
 ## Iteration 27 — 2026-04-22T11:26:51Z — OK
 - **Log**: iteration-027.log
 
+## Iteration 28 — 2026-04-22 — DONE
+- **Item**: [test] Add visual route/state coverage in e2e/visual/**; run pnpm test:visual and update baselines only for intentional UI changes (mark N/A for backend-only spec).
+- **Changes**:
+  - Flipped the second mandatory-coverage checklist marker in `docs/specs/304-response-envelope/spec.md` from `[ ]` → `[x]` and appended `(done: iteration 28)`. No other files touched.
+  - The N/A justification remains in place: this is a backend-only spec (no UI surface introduced or modified) and per the `/refine` skill, visual regression coverage is deferred until the frontend repo is re-established. Frontend (`webapp/`) is a separate project and is read-only here per root `CLAUDE.md`.
+- **Verification**:
+  - Docs-only change. Per root `CLAUDE.md`: "Docs-only changes: no verification needed."
+  - Manual verification: re-read the spec post-edit; only the second mandatory-coverage marker line flipped; the third (devnet provider E2E) marker remains `[ ]`.
+
+## Iteration 28 — 2026-04-22T11:28:11Z — OK
+- **Log**: iteration-028.log
+
