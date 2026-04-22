@@ -1,10 +1,10 @@
-# Specification: [304] Response Envelope Contract
+# Specification: [304] Response Envelope + Semantic HTTP Contract
 
 ## Meta
 
 | Field | Value |
 |-------|-------|
-| Status | Ready |
+| Status | Draft |
 | Priority | P1 |
 | Track | Core |
 | NR_OF_TRIES | 0 |
@@ -13,15 +13,13 @@
 
 ## Overview
 
-Unify every public JSON API response behind a single **envelope shape**, decoupling HTTP status codes from application outcomes. HTTP status codes keep their transport-layer meaning (auth, route existence, rate limit, server crash); application outcomes — success, domain rejection, validation failure, resource-not-found-by-id — all ride inside the body of a `200 OK`.
+Unify every public JSON API response behind a single envelope shape and a single error-code catalog, while preserving semantic HTTP status codes.
 
-Today the backend mixes two patterns:
-1. HTTP-native status codes (404 for missing resource, 409 for conflict, 400 for validation, etc.) with handwritten body shapes per route.
-2. An inconsistent partial envelope via `structuredErrorMessage()` that sometimes nests under `error`, sometimes is bare.
+The problem in the current backend is twofold:
+1. Public routes return inconsistent body shapes on both success and failure.
+2. Some normal read-side empty states have historically been modeled as errors, forcing clients into unnecessary `try/catch` and status-based special cases.
 
-The consequence: frontend clients must carry per-route `try/catch` around reads that can legitimately return "nothing" (e.g. `GET /referral/code` when the user hasn't set one), and different routes have different error shapes. This spec formalizes a single contract: `{ ok: true, data } | { ok: false, error: { code, message, retryable?, details? } }` for every public route, with a narrow, documented list of HTTP-level exceptions.
-
-### Target envelope
+This spec fixes the body-shape inconsistency without flattening transport semantics. Public JSON responses should use one of two body shapes:
 
 ```ts
 type ApiEnvelope<T> =
@@ -29,95 +27,128 @@ type ApiEnvelope<T> =
   | { ok: false; error: ApiError };
 
 interface ApiError {
-  code: string;          // SCREAMING_SNAKE_CASE, stable across versions
-  message: string;       // human-readable, may change
-  retryable?: boolean;   // whether the same request could succeed on retry
-  details?: unknown;     // optional structured payload (e.g. field-level validation errors)
+  code: string;        // SCREAMING_SNAKE_CASE, stable across versions
+  message: string;     // human-readable, may change
+  retryable?: boolean; // whether retrying the same request may succeed
+  details?: unknown;   // optional structured metadata (zod issues, limits, etc.)
 }
 ```
+
+HTTP status still carries meaning:
+- `200` / `201` / `202` for successful outcomes
+- `204` for explicit no-body success exceptions
+- `400` / `422` for malformed or invalid requests
+- `401` / `403` for auth and permission failures
+- `404` for missing resources when absence is exceptional
+- `409` for conflicts and invalid current state
+- `429` for rate limits and cooldowns
+- `5xx` for server faults
+
+Only use `200` for an "empty" answer when that absence is itself the documented success case, such as "no referral code yet" or "no referrer linked yet."
 
 ### HTTP status rules
 
 | Status | Meaning | Body shape |
 |--------|---------|------------|
-| `200` | App-level outcome (success OR rejection) | Envelope |
-| `401` | Authentication middleware failed | `{ error: "Authentication required" }` (plain, legacy-compatible) |
-| `404` | Route does not exist (Hono default) | Hono default |
-| `405` | Method not allowed (Hono default) | Hono default |
-| `429` | Rate limit (middleware) | `{ error: "Too many requests" }` |
-| `5xx` | Server crash, unhandled exception | Varies |
+| `200` | Synchronous success, including documented empty-state reads | `{ ok: true, data }` |
+| `201` | Resource created | `{ ok: true, data }` |
+| `202` | Accepted async work | `{ ok: true, data }` |
+| `204` | Success with no response body | No body |
+| `400` | Malformed request or invalid identifier format | `{ ok: false, error }` |
+| `401` | Missing/invalid/expired auth | `{ ok: false, error }` |
+| `403` | Authenticated but forbidden | `{ ok: false, error }` |
+| `404` | Resource not found | `{ ok: false, error }` |
+| `405` | Method not allowed on unknown route shape | Hono default |
+| `409` | Conflict or invalid current state | `{ ok: false, error }` |
+| `422` | Request validation failed | `{ ok: false, error }` |
+| `429` | Rate limit or cooldown | `{ ok: false, error }` |
+| `5xx` | Server fault | Prefer `{ ok: false, error }` for handled cases; unhandled crashes may vary |
 
-Everything else — validation failure, not-found-by-id, business rejection, conflict, below-threshold, self-referral, etc. — is a `200` with `ok: false`.
+### What changes from the current spec
+
+- Keep the envelope and stable `error.code` catalog.
+- Do not convert domain failures to `200`.
+- Do convert normal empty-state reads to `200` success envelopes where appropriate.
+- Do update middleware and route handlers so explicit JSON responses use the same envelope body.
 
 ## User Stories
 
-- As a frontend engineer, I want one response shape across every endpoint so that I can write a single `apiCall()` helper instead of per-route error handling
-- As a frontend engineer, I want "empty" answers (no code set, no referrer, no active claim) to be successful reads so that my console, Sentry, and error boundaries don't fire on normal flows
-- As a backend engineer, I want a stable machine-readable `error.code` catalog so that clients can switch on specific cases without string-matching `message`
-- As an operator, I want HTTP `4xx`/`5xx` counters to reflect transport/platform health only so that LB/CDN/monitoring alerts aren't noisy with legitimate business rejections
-- As an SDK author, I want OpenAPI schemas to describe exactly one success response per route so that generated clients are simpler and type narrowing is automatic
+- As a frontend engineer, I want one response body shape so shared parsing is simple.
+- As a frontend engineer, I still want meaningful HTTP statuses so generic fetch helpers, retries, and route-level behavior remain predictable.
+- As a backend engineer, I want stable machine-readable `error.code` values instead of ad hoc strings.
+- As an operator, I want `404`, `409`, `429`, and `5xx` metrics to keep their real meaning.
+- As an SDK author, I want OpenAPI to describe both success and error bodies consistently without erasing transport semantics.
 
 ---
 
 ## Capability Alignment
 
-- **`docs/SCOPE.md` references**: Cross-cutting backend API hardening (no new capability; improves the contract of existing ones).
-- **Current baseline fit**: In Progress — partial hybrid today; backend `feat/hybrid-empty-states` branch flipped two empty-state referral reads to `200 { code: null }` / `200 { referrer: null, ... }`. This spec generalizes that pattern.
+- **`docs/SCOPE.md` references**: Cross-cutting backend API hardening; no new product capability.
+- **Current baseline fit**: Partial. The codebase already moved some empty-state referral reads to success-style answers; this spec formalizes that direction and generalizes the body contract.
 - **Planning bucket**: Core.
 
 ## Required Context Files
 
-- `backend/src/contracts/api-errors.ts` — existing error helpers to replace
-- `backend/src/contracts/validators.ts` — Zod response schemas to envelope-wrap
-- `backend/src/openapi/hono.ts` — `createOpenApiApp` + `invalidRequestHook` (validation hook to update)
-- `backend/src/routes/*.ts` — every route handler (migration target)
-- `backend/src/__tests__/waitlist-contract.test.ts` — pinned contract for waitlist-consumed routes
-- `backend/src/middleware/jwt-auth.ts` — auth middleware (must continue to return 401)
-- `backend/src/middleware/rate-limit.ts` — rate limit middleware (must continue to return 429)
-- `waitlist/src/lib/referral-api.ts` + `waitlist/src/lib/auth-api.ts` — client shape currently consumed (read-only reference; coordinated MR after backend ships)
-- `docs/specs/300-referral-system/spec.md` — referral routes currently use mixed error shapes; baseline for FR-5
+- `backend/src/contracts/api-errors.ts`
+- `backend/src/contracts/validators.ts`
+- `backend/src/openapi/hono.ts`
+- `backend/src/routes/*.ts`
+- `backend/src/middleware/jwt-auth.ts`
+- `backend/src/middleware/rate-limit.ts`
+- `backend/src/__tests__/waitlist-contract.test.ts`
+- `waitlist/src/lib/auth-api.ts`
+- `waitlist/src/lib/referral-api.ts`
+- `waitlist/src/components/TelegramCard.tsx`
+- `webapp/src/lib/api.ts`
+- `webapp/src/lib/auth/api.ts`
+- `webapp/src/lib/parse-transaction-error.ts`
+- `webapp/src/pages/profile/profile-data.ts`
+- `telegram/src/backend-client.ts`
 
 ## Contract Files
 
-- **New**: `backend/src/contracts/api-envelope.ts` — envelope type, `ok()`/`err()` helpers, `envelope(schema)` Zod builder
-- **New**: `backend/src/contracts/api-errors.ts` (rewrite) — centralized `ApiErrorCode` enum / const catalog
-- **Updated**: every route file's `createRoute({ responses: ... })` block
-- **Updated**: `backend/src/__tests__/waitlist-contract.test.ts` — asserts envelope shape, not bare properties
+- **New**: `backend/src/contracts/api-envelope.ts`
+- **Updated**: `backend/src/contracts/api-errors.ts`
+- **Updated**: `backend/src/openapi/hono.ts`
+- **Updated**: every public route file in `backend/src/routes/`
+- **Updated**: route tests + contract tests for affected consumers
 
 ---
 
 ## System Invariants
 
-1. **One success shape.** Every OpenAPI-described public route declares exactly one `200` response with an envelope schema; no `4xx` responses are declared by handlers (except `401` for auth-required routes).
-2. **Envelope is a discriminated union on `ok`.** Clients dispatch on `body.ok`; `data` and `error` are mutually exclusive.
-3. **Error codes are stable.** `error.code` is SCREAMING_SNAKE_CASE and defined once in the catalog. Renaming an existing code is a breaking change requiring a spec iteration.
-4. **HTTP codes mean transport, not business.** A handler never returns a non-200 for a domain outcome. `401`, `404` (route), `405`, `429`, `5xx` stay HTTP-native and bypass the envelope.
-5. **Validation failures are enveloped.** The `defaultHook` for Zod request-parse failures returns `200 { ok: false, error: { code: "VALIDATION_FAILED", details: <zod issues> } }`.
-6. **JSON only.** The envelope applies to `application/json` responses. Binary, streaming, and `text/*` responses are exempt (none exist in this codebase today; reserved for future endpoints).
-7. **Internal / admin / webhook routes MAY opt out.** `/internal/*`, `/admin/*`, and service-auth webhook routes are not public OpenAPI and may keep their current shape; they are out of scope for this spec.
-8. **OpenAPI discoverability.** The `ApiEnvelope<T>` schema is registered as a reusable component; route responses reference it via `envelope(SuccessSchema)`.
+1. **One body contract.** Every declared public JSON response uses the envelope shape, except explicit `204` responses and framework-generated unmatched-route `404/405`.
+2. **Semantic HTTP is preserved.** Status codes keep their transport and application meaning; route authors do not collapse handled domain failures into `200`.
+3. **`ok` is the discriminator.** Success responses are `{ ok: true, data }`; error responses are `{ ok: false, error }`.
+4. **Error codes are stable.** Every emitted `error.code` is defined once in the central catalog. Renaming a shipped code is a breaking change.
+5. **Validation is not success.** OpenAPI/Zod request validation failures return `422`, not `200`.
+6. **Empty-state reads are documented success.** A route may return `200` with `null`, empty arrays, or default-zero values only when that absence is the intended success answer.
+7. **Async acceptance stays async.** Endpoints that enqueue or hand off work may use `202 { ok: true, data }`.
+8. **Cooldowns and rate limits stay `429`.** Do not hide these behind `200`.
+9. **Auth and permission stay `401/403`.** Do not hide these behind `200`.
+10. **OpenAPI is explicit.** Public route declarations must describe success envelopes and error envelopes at their real statuses.
 
 ---
 
 ## Functional Requirements
 
-<!-- FR acceptance criteria checkboxes are audited by /gap-analysis after completion.
-     Each checkbox gets an HTML comment annotation: satisfied/deferred/gap with evidence.
-
-     SCOPE NOTE: Frontend UI is handled by a separate team in a separate repo.
-     This spec covers backend routing, contracts, and tests. Frontend client updates
-     (waitlist, webapp, telegram) are documented as coordinated follow-ups in FR-15
-     but are NOT implemented inside this spec loop. -->
-
 ### FR-1: Envelope primitives and helpers
 
-Introduce the envelope type, runtime helpers for handlers, and a Zod schema builder for OpenAPI response declarations.
+Introduce shared types, schemas, and helpers for success and error envelopes.
 
 **Deliverable:** `backend/src/contracts/api-envelope.ts` exporting:
 
 ```ts
-export interface ApiEnvelopeSuccess<T> { ok: true; data: T; }
-export interface ApiEnvelopeError { ok: false; error: ApiError; }
+export interface ApiEnvelopeSuccess<T> {
+  ok: true;
+  data: T;
+}
+
+export interface ApiEnvelopeError {
+  ok: false;
+  error: ApiError;
+}
+
 export type ApiEnvelope<T> = ApiEnvelopeSuccess<T> | ApiEnvelopeError;
 
 export interface ApiError {
@@ -127,43 +158,54 @@ export interface ApiError {
   details?: unknown;
 }
 
-export function ok<T>(c: Context, data: T, status: 200 = 200): ReturnType<Context["json"]>;
+export const ApiErrorSchema: z.ZodType<ApiError>;
+export const ErrorEnvelopeSchema: z.ZodType<ApiEnvelopeError>;
+
+export function ok<T>(
+  c: Context,
+  data: T,
+  status?: 200 | 201 | 202,
+): ReturnType<Context["json"]>;
+
 export function err(
   c: Context,
+  status: 400 | 401 | 403 | 404 | 409 | 422 | 429 | 500 | 503,
   code: ApiErrorCode,
   message: string,
   opts?: { retryable?: boolean; details?: unknown },
-  status: 200 = 200,
 ): ReturnType<Context["json"]>;
 
-// Zod builder for route responses. Returns a discriminated union schema.
-export function envelope<T extends z.ZodTypeAny>(dataSchema: T): z.ZodType<ApiEnvelope<z.infer<T>>>;
+export function envelope<T extends z.ZodTypeAny>(
+  dataSchema: T,
+): z.ZodType<ApiEnvelope<z.infer<T>>>;
 ```
 
 **Acceptance Criteria:**
-- [ ] `api-envelope.ts` created with exactly the exports above (types, `ok`, `err`, `envelope`)
-- [ ] `ok(c, data)` returns `c.json({ ok: true, data }, 200)`
-- [ ] `err(c, code, message, opts?)` returns `c.json({ ok: false, error: { code, message, ...opts } }, 200)`
-- [ ] `envelope(s)` produces a Zod discriminated union on `ok` with `data: s` on the true branch and the standard `ApiError` shape on the false branch
-- [ ] Unit tests in `api-envelope.test.ts` cover: `ok()` success serialization, `err()` with and without `retryable`/`details`, Zod parsing round-trips both branches
+- [ ] `ok(c, data)` returns `200 { ok: true, data }`
+- [ ] `ok(c, data, 201|202)` preserves the supplied success status
+- [ ] `err(c, status, code, message, opts?)` returns `{ ok: false, error }` with the supplied non-2xx status
+- [ ] `envelope(schema)` produces a discriminated union on `ok`
+- [ ] Unit tests cover success and error serialization plus schema round-trips
 
-### FR-2: Error code catalog
+### FR-2: Centralized error-code catalog
 
-Centralize every `error.code` string in one place. Replace ad-hoc inline strings.
+Every emitted `error.code` must come from one shared catalog.
 
-**Deliverable:** `backend/src/contracts/api-errors.ts` (rewritten):
+**Deliverable:** `backend/src/contracts/api-errors.ts` exports a central catalog and type:
 
 ```ts
 export const API_ERROR_CODES = {
-  // Validation
+  AUTH_REQUIRED: "AUTH_REQUIRED",
+  FORBIDDEN: "FORBIDDEN",
+  RATE_LIMITED: "RATE_LIMITED",
   VALIDATION_FAILED: "VALIDATION_FAILED",
+  INVALID_REQUEST: "INVALID_REQUEST",
+  INVALID_PARAMS: "INVALID_PARAMS",
 
-  // Auth (app-level; JWT middleware still returns HTTP 401)
   INVALID_SIGNATURE: "INVALID_SIGNATURE",
   CHALLENGE_EXPIRED: "CHALLENGE_EXPIRED",
   REFRESH_TOKEN_INVALID: "REFRESH_TOKEN_INVALID",
 
-  // Referral
   CODE_ALREADY_SET: "CODE_ALREADY_SET",
   CODE_TAKEN: "CODE_TAKEN",
   CODE_NOT_FOUND: "CODE_NOT_FOUND",
@@ -174,24 +216,22 @@ export const API_ERROR_CODES = {
   BELOW_THRESHOLD: "BELOW_THRESHOLD",
   CLAIM_NOT_FOUND: "CLAIM_NOT_FOUND",
 
-  // Profile
   PROFILE_NOT_FOUND: "PROFILE_NOT_FOUND",
   USERNAME_TAKEN: "USERNAME_TAKEN",
   USERNAME_COOLDOWN: "USERNAME_COOLDOWN",
   INVALID_USERNAME: "INVALID_USERNAME",
 
-  // Game
   MATCH_NOT_FOUND: "MATCH_NOT_FOUND",
   MATCH_PHASE_INVALID: "MATCH_PHASE_INVALID",
   ROUND_NOT_FOUND: "ROUND_NOT_FOUND",
   BET_TOO_SMALL: "BET_TOO_SMALL",
   BET_TOO_LARGE: "BET_TOO_LARGE",
 
-  // Telegram
   TELEGRAM_NOT_LINKED: "TELEGRAM_NOT_LINKED",
+  TELEGRAM_ALREADY_LINKED: "TELEGRAM_ALREADY_LINKED",
   TELEGRAM_TOKEN_EXPIRED: "TELEGRAM_TOKEN_EXPIRED",
 
-  // Generic
+  PRICE_UNAVAILABLE: "PRICE_UNAVAILABLE",
   NOT_FOUND: "NOT_FOUND",
   CONFLICT: "CONFLICT",
   PRECONDITION_FAILED: "PRECONDITION_FAILED",
@@ -201,16 +241,15 @@ export type ApiErrorCode = typeof API_ERROR_CODES[keyof typeof API_ERROR_CODES];
 ```
 
 **Acceptance Criteria:**
-- [ ] Every existing inline error-code string in `backend/src/routes/*.ts` is replaced by a reference to `API_ERROR_CODES.*`
-- [ ] `ApiErrorCode` is exported and used as the `code` type on `ApiError`
-- [ ] Legacy exports `errorMessage()` and `structuredErrorMessage()` are removed from `api-errors.ts` (no callers remain after FR-4 through FR-12)
-- [ ] `grep -r "\"NO_CODE\"\|\"NO_REFERRER\"\|\"CODE_TAKEN\"" backend/src` returns only the catalog file
+- [ ] Public routes no longer inline ad hoc `code` strings
+- [ ] `ApiError.code` is typed as `ApiErrorCode`
+- [ ] Legacy `errorMessage()` and `structuredErrorMessage()` are removed after route conversion
 
-### FR-3: Validation hook emits envelope
+### FR-3: Validation hook emits `422` error envelope
 
-Update `createOpenApiApp`'s `defaultHook` so Zod request-parse failures return an enveloped `VALIDATION_FAILED` instead of `400 { error: "Invalid request" }`.
+Update the OpenAPI invalid-request hook so schema validation failures return a structured envelope at `422`.
 
-**Deliverable:** `backend/src/openapi/hono.ts` updated:
+**Deliverable:** `backend/src/openapi/hono.ts`:
 
 ```ts
 export function invalidRequestHook<E extends Env, P extends string>(
@@ -218,199 +257,176 @@ export function invalidRequestHook<E extends Env, P extends string>(
   c: Context<E, P>,
 ) {
   if (result.success) return;
-  return err(c, API_ERROR_CODES.VALIDATION_FAILED, "Invalid request", {
-    retryable: false,
-    details: result.error.issues,
-  });
+  return err(
+    c,
+    422,
+    API_ERROR_CODES.VALIDATION_FAILED,
+    "Invalid request",
+    {
+      retryable: false,
+      details: result.error.issues,
+    },
+  );
 }
 ```
 
 **Acceptance Criteria:**
-- [ ] `invalidRequestHook` returns a `200` enveloped response (not `400`)
-- [ ] `details` contains the Zod issue list (path, message, code)
-- [ ] Every OpenAPI route declared via `createOpenApiApp` gets the new hook automatically (no per-route override needed)
-- [ ] An integration test submits an invalid body and asserts `status === 200 && body.ok === false && body.error.code === "VALIDATION_FAILED"`
+- [ ] OpenAPI/Zod parse failures return `422`
+- [ ] The body is `{ ok: false, error: { code: "VALIDATION_FAILED", details } }`
+- [ ] `details` contains the Zod issue list
 
-### FR-4: OpenAPI envelope wrapper
+### FR-4: OpenAPI describes real status codes plus shared envelopes
 
-Route declarations must use `envelope(SuccessSchema)` so generated OpenAPI describes the discriminated union, and the `ApiEnvelope` component is registered once, not inlined per route.
-
-**Deliverable:** helper re-exported from `src/openapi/hono.ts`:
-
-```ts
-export { envelope } from "../contracts/api-envelope.js";
-```
-
-And a one-time registration in `createOpenApiApp`:
-
-```ts
-app.openAPIRegistry.register("ApiError", ApiErrorSchema);
-// envelope() internally composes ApiError so all routes share the same component
-```
+Public route declarations must describe enveloped success and error responses at their real statuses.
 
 **Acceptance Criteria:**
-- [ ] Generated `openapi.json` contains `components.schemas.ApiError` exactly once
-- [ ] Every converted route's `responses.200.content.application/json.schema` references the envelope shape (verified by asserting the schema has `oneOf` with `ok` discriminator in the generated spec)
-- [ ] Per-route `ErrorResponseSchema` / `StructuredErrorResponseSchema` imports are removed after the final route conversion (FR-12)
+- [ ] `200` / `201` / `202` JSON responses use `envelope(SuccessSchema)`
+- [ ] `400` / `401` / `403` / `404` / `409` / `422` / `429` JSON responses use `ErrorEnvelopeSchema`
+- [ ] Generated OpenAPI contains reusable `ApiError` and `ErrorEnvelope` components exactly once
+- [ ] No converted route declares a bare `{ error: string }` JSON schema
 
-### FR-5: Auth middleware retains HTTP 401 (no envelope)
+### FR-5: Auth and permission keep `401` / `403`
 
-Auth failure is a transport concern. The JWT middleware keeps returning `401` with a plain `{ error: "Authentication required" }` body. This is both the least-surprising behavior for browsers/proxies and backwards-compatible with existing `parseResponse()` callers.
-
-**Acceptance Criteria:**
-- [ ] `backend/src/middleware/jwt-auth.ts` unchanged in behavior: missing/invalid/expired token ⇒ `401`
-- [ ] A routing test confirms: request with no `Authorization` header to a protected route returns `401` and NOT a `200` envelope
-- [ ] `backend/CLAUDE.md` "Envelope contract" section explicitly documents that `401` bypasses the envelope
-
-### FR-6: Rate limit middleware retains HTTP 429 (no envelope)
-
-Same reasoning as FR-5. Load balancers, CDNs, and SDK retry logic expect `429` at the transport layer.
+Auth and permission failures must stay transport-visible.
 
 **Acceptance Criteria:**
-- [ ] `backend/src/middleware/rate-limit.ts` unchanged in behavior: over-limit ⇒ `429`
-- [ ] Existing rate-limit tests (if any) still pass unmodified
-- [ ] `backend/CLAUDE.md` envelope section documents that `429` bypasses the envelope
+- [ ] Missing/invalid/expired token returns `401 { ok: false, error }`
+- [ ] Wallet mismatch / forbidden action returns `403 { ok: false, error }`
+- [ ] Clients may still branch on status for auth flows
 
-### FR-7: Convert `/auth/*` routes
+### FR-6: Rate limits and cooldowns keep `429`
 
-All four endpoints (`/challenge`, `/verify`, `/refresh`, `/logout`) return envelope on all outcomes. `/logout` currently returns `204 No Content`; keep `204` for logout (no body) — it's semantically "request fulfilled, nothing to tell you" and any FE consuming it doesn't parse a body.
-
-Success bodies (`ChallengeNonceResponseSchema`, `TokenResponseSchema`) ride inside `data`. Domain errors like "challenge expired" / "bad signature" / "refresh token invalid" become `200 { ok: false, error: { code: "CHALLENGE_EXPIRED" | "INVALID_SIGNATURE" | "REFRESH_TOKEN_INVALID" } }`.
+Rate limit and cooldown responses must remain `429`, with the envelope body.
 
 **Acceptance Criteria:**
-- [ ] `POST /auth/challenge` returns `200` enveloped on success and on domain errors
-- [ ] `POST /auth/verify` same; `INVALID_SIGNATURE` / `CHALLENGE_EXPIRED` now envelope-encoded instead of HTTP 400/401
-- [ ] `POST /auth/refresh` returns `200` envelope or `REFRESH_TOKEN_INVALID` envelope
-- [ ] `POST /auth/logout` continues to return `204` (documented exception)
-- [ ] `waitlist-contract.test.ts` updated to assert envelope shape for the three enveloped auth routes
-- [ ] Existing auth route tests in `backend/src/__tests__/auth-routes.test.ts` updated to assert envelope shape
+- [ ] `backend/src/middleware/rate-limit.ts` returns `429 { ok: false, error: { code: "RATE_LIMITED", ... } }`
+- [ ] Username cooldown in `/profile/username` remains `429`
+- [ ] Existing tests are updated to assert both status and envelope shape
 
-### FR-8: Convert `/referral/*` routes
+### FR-7: Normal empty-state reads stay `200`
 
-Completes the refactor started on `feat/hybrid-empty-states`. All eight endpoints envelope-wrap.
-
-Notable: `POST /referral/claim` currently returns `202 Accepted`. Drop to `200` enveloped — the envelope's `data.status: "pending"` field already encodes "accepted, queued". HTTP `202` is not load-bearing for any current client.
+When "nothing there" is the intended success answer, model it as a success envelope.
 
 **Acceptance Criteria:**
-- [ ] `POST /referral/code` envelopes success + `CODE_ALREADY_SET` / `CODE_TAKEN` / validation errors
-- [ ] `GET /referral/code` envelopes `{ code: string | null }` (retaining the nullable contract shipped on `feat/hybrid-empty-states`)
-- [ ] `POST /referral/apply` envelopes success + `CODE_NOT_FOUND` / `SELF_REFERRAL` / `ALREADY_LINKED`
-- [ ] `GET /referral/referrer` envelopes referrer-or-nulls payload
-- [ ] `GET /referral/stats` envelopes stats
-- [ ] `GET /referral/referrals` envelopes `{ items }`
-- [ ] `GET /referral/earnings` envelopes paginated `{ items, pagination }`
-- [ ] `POST /referral/claim` returns `200` envelope (not `202`); `ZERO_BALANCE` / `BELOW_THRESHOLD` are enveloped
-- [ ] `GET /referral/claim/:claimId` envelopes `{ claimId, amountLamports, status, txSignature? }` or `CLAIM_NOT_FOUND`
-- [ ] `src/__tests__/referral-routes.test.ts` updated for all converted endpoints
+- [ ] `GET /referral/code` returns `200 { ok: true, data: { code: string | null } }`
+- [ ] `GET /referral/referrer` returns `200` with all nullable fields when no referrer is linked
+- [ ] `GET /points/mine` may return `200` zero values when the player has no points row
+- [ ] `GET /public-referral/code/:code` remains a probe-style `200 { exists: boolean }`
 
-### FR-9: Convert `/profile/*` + `/public-profile/*` + `/public-referral/*` routes
+### FR-8: Convert `/auth/*`
 
 **Acceptance Criteria:**
-- [ ] `GET /profile/me` envelopes `PlayerProfileSchema`; `PROFILE_NOT_FOUND` enveloped
-- [ ] `PUT /profile/username` envelopes `UsernameUpdateResponseSchema`; `USERNAME_TAKEN` / `USERNAME_COOLDOWN` / `INVALID_USERNAME` enveloped
-- [ ] `GET /profile/transactions` envelopes `TransactionsPageResponseSchema`
-- [ ] `POST /profile/confirm-tx` envelopes success + validation errors
-- [ ] `GET /public-profile/:userId` envelopes `PublicPlayerProfileSchema`; missing profile returns `NOT_FOUND` envelope
-- [ ] `GET /public-referral/code/:code` envelopes `{ exists: boolean }`
-- [ ] Corresponding route tests updated
+- [ ] `POST /auth/challenge` returns `200` success envelope
+- [ ] `POST /auth/verify` returns `200` success envelope or `401` error envelope for `INVALID_SIGNATURE` / `CHALLENGE_EXPIRED`
+- [ ] `POST /auth/refresh` returns `200` success envelope or `401` error envelope for `REFRESH_TOKEN_INVALID`
+- [ ] `POST /auth/logout` remains `204 No Content`
 
-### FR-10: Convert game routes (`/flip-you/*`, `/pot-shot/*`, `/closecall/*`)
+### FR-9: Convert `/referral/*`
 
 **Acceptance Criteria:**
-- [ ] `POST /flip-you/create`, `GET /flip-you/by-id/:matchId`, `GET /flip-you/settle/*` enveloped; `MATCH_NOT_FOUND` / `MATCH_PHASE_INVALID` enveloped
-- [ ] `POST /pot-shot/create`, `GET /pot-shot/current`, `GET /pot-shot/by-id/:matchId` enveloped
-- [ ] `POST /closecall/bet` enveloped; `BET_TOO_SMALL` / `BET_TOO_LARGE` enveloped
-- [ ] `GET /closecall/current`, `GET /closecall/by-id/:roundId`, `GET /closecall/history` enveloped; `ROUND_NOT_FOUND` enveloped
-- [ ] Corresponding route tests updated
+- [ ] `POST /referral/code`: `200` success, `409` for `CODE_ALREADY_SET` / `CODE_TAKEN`, `422` for invalid code format
+- [ ] `GET /referral/code`: `200` success with nullable code
+- [ ] `POST /referral/apply`: `200` success, `404` for `CODE_NOT_FOUND`, `409` for `SELF_REFERRAL` / `ALREADY_LINKED`, `422` for invalid code format
+- [ ] `GET /referral/referrer`, `GET /referral/stats`, `GET /referral/referrals`, `GET /referral/earnings`: success envelopes at `200`
+- [ ] `POST /referral/claim`: `202` success envelope, `422` for `ZERO_BALANCE` / `BELOW_THRESHOLD`
+- [ ] `GET /referral/claim/:claimId`: `200` success or `404` `CLAIM_NOT_FOUND`
 
-### FR-11: Convert `/challenges/*`, `/points/*`, `/crates/*`, `/dogpile/*`, `/leaderboard/*`, `/price/*` routes
-
-**Acceptance Criteria:**
-- [ ] Every read endpoint returns envelope
-- [ ] Every write endpoint returns envelope
-- [ ] Corresponding route tests updated
-- [ ] No `createRoute()` block in any converted file declares a `4xx` response schema (only `401` for auth-required routes)
-
-### FR-12: Convert `/telegram/generate-link` (public JWT-protected) + `/health` routes
-
-`/telegram` service-auth routes (redeem-link, webhooks) stay out of scope (internal, not public OpenAPI). Only the JWT-protected `/telegram/generate-link` migrates.
-
-`/health` is used by load balancer health checks; keep the current minimal body shape but envelope-wrap. LB probes check `200` status, not body structure, so enveloping is safe.
+### FR-10: Convert `/profile/*`, `/public-profile/*`, `/public-referral/*`
 
 **Acceptance Criteria:**
-- [ ] `POST /telegram/generate-link` enveloped; the two-branch response (already-linked vs new-token) becomes `data: AlreadyLinked | NewToken` with a discriminator field
-- [ ] `waitlist-contract.test.ts`'s `POST /telegram/generate-link` test updated to assert envelope shape
+- [ ] `GET /profile/me`: `200` success or `404` `PROFILE_NOT_FOUND`
+- [ ] `PUT /profile/username`: `200` success, `409` `USERNAME_TAKEN`, `429` `USERNAME_COOLDOWN`, `422` `INVALID_USERNAME`
+- [ ] `GET /profile/transactions`: `200` success, `422` for invalid filters
+- [ ] `POST /profile/confirm-tx`: `200` success, `404` when profile is missing, `422` for invalid body or invalid game
+- [ ] `GET /public-profile/:userId`: `200` success or `404` `NOT_FOUND`
+- [ ] `GET /public-referral/code/:code`: `200 { exists }`
+- [ ] `GET /public-referral/:identifier`: `200` success or `404` `NOT_FOUND`
+
+### FR-11: Convert game routes
+
+This includes FlipYou, PotShot, and CloseCall public routes.
+
+**Acceptance Criteria:**
+- [ ] Invalid wallet / malformed identifiers return `400` or `422` with the error envelope
+- [ ] Wallet/auth mismatch returns `403`
+- [ ] Missing round or match returns `404`
+- [ ] Conflict and invalid phase cases return `409`
+- [ ] Bet bounds and similar domain validation failures return `422`
+- [ ] Success responses remain `200` or `201` as appropriate
+
+### FR-12: Convert `/challenges/*`, `/points/*`, `/dogpile/*`, `/leaderboard/*`, `/price/*`, `/health`, and `POST /telegram/generate-link`
+
+**Acceptance Criteria:**
+- [ ] Read endpoints return success envelopes
 - [ ] `GET /health` returns `200 { ok: true, data: { status, version, workerRunning } }`
-- [ ] A devcontainer LB probe (curl `-f` / exit code) still succeeds against `/health`
+- [ ] `GET /price/sol-usd` returns `503` error envelope when unavailable
+- [ ] `POST /telegram/generate-link` returns `200` success envelope for both the already-linked and new-token branches
+- [ ] Service-auth Telegram webhook routes may remain out of scope
 
-### FR-13: Remove deprecated error helpers
-
-Once every route is converted, delete `errorMessage()` and `structuredErrorMessage()` exports, and delete the legacy `ErrorResponseSchema` / `StructuredErrorResponseSchema` Zod schemas from `validators.ts`.
-
-**Acceptance Criteria:**
-- [ ] `errorMessage` and `structuredErrorMessage` are deleted from `src/contracts/api-errors.ts`
-- [ ] `ErrorResponseSchema` and `StructuredErrorResponseSchema` are deleted from `src/contracts/validators.ts`
-- [ ] `grep -r "errorMessage\|structuredErrorMessage\|ErrorResponseSchema\|StructuredErrorResponseSchema" backend/src` returns no results
-- [ ] `pnpm typecheck` passes
-
-### FR-14: Update waitlist contract test
-
-`backend/src/__tests__/waitlist-contract.test.ts` currently asserts the top-level response keys of each waitlist-consumed route. After this spec, every 200 response has exactly two keys: `ok` + `data` (or `error`). Update the contract assertions to read the inner `data` schema.
-
-**Deliverable:** new helper `function dataShapeKeys(spec, path, method): string[]` that resolves `responses.200.content.application/json.schema.oneOf[0].properties.data.properties`, and a contract entry format change from `response: ["code"]` to `response: ["code"]` but with the data-shape extraction applied. Per-endpoint contract entries stay alphabetized.
+### FR-13: Remove deprecated response helpers
 
 **Acceptance Criteria:**
-- [ ] `waitlist-contract.test.ts` uses `dataShapeKeys()` to extract the envelope-wrapped data shape
-- [ ] Every contract entry's `response` field still lists the inner domain keys (e.g. `["code"]` for `GET /referral/code`)
-- [ ] A new assertion per route verifies the envelope: top-level keys `["data", "ok"]`
-- [ ] The test comment header updated to reference this spec ID (`docs/specs/304-response-envelope/spec.md`)
+- [ ] `errorMessage` and `structuredErrorMessage` are deleted
+- [ ] Legacy `ErrorResponseSchema` and `StructuredErrorResponseSchema` are deleted
+- [ ] Public routes emit only envelope bodies for declared JSON responses
 
-### FR-15: Coordinated frontend client update — documentation only (out of implementation scope)
-
-This spec does not modify `waitlist/`, `webapp/`, or `telegram/` client code — those repos are read-only from this workspace. Instead, this FR captures the exact client-side diff needed, so the coordinated MR can be cut cleanly.
-
-**Deliverable:** `docs/specs/304-response-envelope/client-migration.md` enumerating:
-1. Shape change: `ReferralCodeResponse` etc. become `ApiEnvelope<...>`
-2. `parseResponse<T>()` helper updated to dispatch on `body.ok`, not `res.ok`
-3. `401` handling preserved (HTTP-level)
-4. Rollout order: ship tolerant client (reads both old and new shape) first, then ship envelope backend, then remove tolerance shim
-5. Per-file delta for `waitlist/src/lib/referral-api.ts`, `waitlist/src/lib/auth-api.ts`, `waitlist/src/components/ReferralLinkCard.tsx`, `waitlist/src/components/ReferralCodeCard.tsx`, `waitlist/src/context/ReferralContext.tsx`
+### FR-14: Update contract and route tests
 
 **Acceptance Criteria:**
-- [ ] `client-migration.md` exists and lists the exact diff for each waitlist file
-- [ ] Rollout order is documented (tolerant client ships before backend cutover)
-- [ ] Document explicitly flags that the MR lives in `taunt-bet/waitlist.git`, not in this repo
+- [ ] `backend/src/__tests__/waitlist-contract.test.ts` extracts the inner `data` shape from success envelopes
+- [ ] The contract test also asserts the expected success status (`200` or `202`) per endpoint
+- [ ] Route tests assert both status and envelope body for representative error paths
+- [ ] A new OpenAPI contract test asserts every declared public JSON response is an envelope at its declared status
+
+### FR-15: Client compatibility and rollout
+
+This change affects real clients in this repository and cannot be treated as backend-only.
+
+**Deliverable:** `docs/specs/304-response-envelope/client-migration.md` covering:
+1. Shared body parsing for `waitlist/`, `webapp/`, and `telegram/`
+2. Existing status-based logic that must remain intact
+3. Any tolerant parsing shim needed for staged rollout
+4. Rollout order
+
+**Acceptance Criteria:**
+- [ ] The doc explicitly covers `waitlist/src/lib/auth-api.ts`
+- [ ] The doc explicitly covers `waitlist/src/lib/referral-api.ts`
+- [ ] The doc explicitly covers `waitlist/src/components/TelegramCard.tsx`
+- [ ] The doc explicitly covers `webapp/src/lib/api.ts`
+- [ ] The doc explicitly covers `webapp/src/lib/auth/api.ts`
+- [ ] The doc explicitly covers `webapp/src/lib/parse-transaction-error.ts`
+- [ ] The doc explicitly covers `webapp/src/pages/profile/profile-data.ts`
+- [ ] The doc explicitly covers `telegram/src/backend-client.ts`
+- [ ] Rollout order preserves compatibility for deployed clients
 
 ### FR-16: Documentation
 
-Update backend developer docs and add tech-debt entry for the coordinated rollout.
-
 **Acceptance Criteria:**
-- [ ] `backend/CLAUDE.md` gains an "## Envelope Contract" section summarizing FR-1 through FR-6 (the public rules, not the migration mechanics)
-- [ ] OpenAPI `info.description` in `src/index.ts` mentions the envelope and links to this spec
-- [ ] `docs/TECH_DEBT.md` gains a row: "2026-04-22 — Envelope rollout: waitlist prod client must be updated in lockstep with backend deploy; see spec 304."
+- [ ] `backend/CLAUDE.md` gains an "Envelope Contract" section explaining body shape plus status semantics
+- [ ] OpenAPI `info.description` mentions the envelope contract and links to this spec
+- [ ] `docs/TECH_DEBT.md` records any temporary client/backend compatibility shim required during rollout
 
 ---
 
 ## Success Criteria
 
-- Every response body returned by a public OpenAPI-described route is either `{ ok: true, data: ... }` or `{ ok: false, error: { code, message, ... } }`, excepting `401`/`404-route`/`405`/`429`/`5xx`.
-- A frontend can consume any public route with a single helper: `const body = await res.json(); if (!body.ok) handle(body.error.code); else use(body.data);`.
-- `openapi.json` contains a reusable `ApiError` component and every path's `200` response references the envelope schema.
-- Every `error.code` emitted by the backend is defined in `API_ERROR_CODES`.
-- No `4xx` status (other than `401`) is emitted by any handler in `backend/src/routes/`.
+- Every declared public JSON response body is either `{ ok: true, data: ... }` or `{ ok: false, error: ... }`, except explicit `204` responses and framework-generated unmatched-route `404/405`.
+- HTTP status codes remain semantically meaningful.
+- Empty-state reads that are truly normal return `200` success envelopes instead of faux errors.
+- Handled validation failures return `422`, handled conflicts return `409`, handled missing resources return `404`, handled auth failures return `401/403`, handled cooldown/rate limits return `429`.
+- Generated OpenAPI documents both success and error envelopes at their real statuses.
+- Waitlist, webapp, and Telegram clients can adopt one body parser without losing their current status-based behavior.
 
 ## Dependencies
 
-- `@hono/zod-openapi` — used as-is; discriminated unions are supported
-- `zod` — `z.discriminatedUnion` for envelope schema
+- `@hono/zod-openapi`
+- `zod`
 
 ## Assumptions
 
-- Current production waitlist deploy can tolerate a brief (single deploy cycle) mismatch because the tolerance-first rollout in FR-15 ships before the backend cutover.
-- No non-JSON public endpoints exist today. (Verified: all `createRoute()` responses use `"application/json"`.)
-- `202 Accepted` semantics are not relied on by any client; the only current `202` is `POST /referral/claim`, and it's safe to flatten to `200`.
-- Hono's default `404` for unmatched routes is acceptable as-is; no client expects an enveloped body on unknown URLs.
+- Current clients already branch on `res.ok`, `response.status`, or `ApiError.status`; this spec intentionally preserves that behavior.
+- The main contract win comes from uniform response bodies and stable `error.code`, not from flattening status codes.
+- No non-JSON public endpoints currently require special handling beyond `204` logout.
 
 ---
 
@@ -418,15 +434,15 @@ Update backend developer docs and add tech-debt entry for the coordinated rollou
 
 | # | Acceptance Criterion | Validation Method | Evidence Required |
 |---|----------------------|-------------------|-------------------|
-| 1 | Envelope primitives type-check | `pnpm typecheck` after FR-1 | Exit 0 |
-| 2 | Envelope helpers serialize correctly | Unit test `api-envelope.test.ts` | 100% branch coverage of `ok`/`err`/`envelope` |
-| 3 | Validation hook envelopes failures | Integration test in `invalid-request.test.ts` | POST with bad body → 200 envelope with `VALIDATION_FAILED` |
-| 4 | Auth middleware still returns 401 | `auth-routes.test.ts` | Request without token → 401 (not envelope) |
-| 5 | Every route returns envelope | Contract scan: `openapi.json` → every `responses["200"].content.application/json.schema` is a `oneOf` with `ok` discriminator | Generated OpenAPI + assertion |
-| 6 | No handler emits non-401 4xx | AST grep / ripgrep: `rg "c\.json\(.+, (40[0-9]|41[0-9]|42[0-9])\)" backend/src/routes` (ignoring 401) | Empty result |
-| 7 | Waitlist contract test passes on envelope shape | `pnpm test src/__tests__/waitlist-contract.test.ts` | Exit 0 |
-| 8 | Full test suite green | `./scripts/verify` | Exit 0 |
-| 9 | Client migration doc complete | Manual read-through against read-only `waitlist/` source | `client-migration.md` covers every file in `waitlist/src/lib/` that calls backend |
+| 1 | Envelope helpers serialize correctly | Unit tests for `ok()` / `err()` / `envelope()` | Green test run |
+| 2 | Validation failures use `422` | Integration test with invalid request | `422` + `VALIDATION_FAILED` + Zod issues |
+| 3 | Auth and permission stay semantic | Route tests | `401` / `403` with error envelope |
+| 4 | Cooldowns and rate limits stay semantic | Route tests | `429` with error envelope |
+| 5 | Empty-state reads stay success | Route tests | `200` success envelopes with nullable/default data |
+| 6 | OpenAPI stays consistent | Contract scan of `openapi.json` | Every declared JSON response uses envelope schema |
+| 7 | Clients remain compatible | Manual audit of waitlist/webapp/telegram helpers | Migration doc references real files and logic |
+| 8 | Legacy helpers fully removed | `rg` against backend sources | No legacy helper/schema hits |
+| 9 | Full regression suite passes | `./scripts/verify` | Exit 0 |
 
 ---
 
@@ -434,80 +450,33 @@ Update backend developer docs and add tech-debt entry for the coordinated rollou
 
 ### Implementation Checklist
 
-<!-- Ordered: infrastructure first, then route conversions (parallelizable once infra lands), then cleanup + docs. -->
-
-- [ ] [backend] Create `src/contracts/api-envelope.ts` with `ApiEnvelopeSuccess`, `ApiEnvelopeError`, `ApiError`, `ok()`, `err()`, `envelope()` exports; export `ApiErrorSchema` Zod schema
-- [ ] [test] Add `src/__tests__/api-envelope.test.ts` covering `ok()` / `err()` serialization and `envelope()` discriminated-union round-trip; verify test fails before implementation, passes after
-- [ ] [backend] Rewrite `src/contracts/api-errors.ts` to export the `API_ERROR_CODES` const object and `ApiErrorCode` type; keep `errorMessage` / `structuredErrorMessage` temporarily re-exported as deprecated shims that `throw` at runtime so any lingering caller explodes loudly (removed in a later step)
-- [ ] [backend] Update `src/openapi/hono.ts` `invalidRequestHook` to emit envelope `VALIDATION_FAILED` with Zod issue details, and register the `ApiError` component once on `createOpenApiApp()`
-- [ ] [test] Add `src/__tests__/invalid-request-hook.test.ts`: POST a route with an invalid body, assert `status === 200 && body.ok === false && body.error.code === "VALIDATION_FAILED" && Array.isArray(body.error.details)`
-- [ ] [backend] Convert `src/routes/auth.ts`: every endpoint returns envelope via `ok()`/`err()`; keep `POST /auth/logout` at `204`; `createRoute().responses` blocks drop all `4xx` entries except `401` on auth-required routes (auth has none)
-- [ ] [test] Update `src/__tests__/auth-routes.test.ts` to assert envelope shape on success + `INVALID_SIGNATURE` / `CHALLENGE_EXPIRED` / `REFRESH_TOKEN_INVALID` paths; run and verify pass
-- [ ] [backend] Convert `src/routes/referral.ts`: all eight endpoints envelope; `POST /referral/claim` drops from `202` to `200`; replace every inline code string with `API_ERROR_CODES.*`
-- [ ] [test] Update `src/__tests__/referral-routes.test.ts` to assert envelope shape for all converted endpoints; run and verify pass
-- [ ] [backend] Convert `src/routes/profile.ts`: `/me`, `/username`, `/transactions`, `/confirm-tx` envelope; drop per-route `ErrorResponseSchema` imports
-- [ ] [test] Update `src/__tests__/profile-routes.test.ts`; run and verify pass
-- [ ] [backend] Convert `src/routes/public-profile.ts` + `src/routes/public-referral.ts`; `GET /public-referral/code/:code` returns envelope with `{ exists }` payload
-- [ ] [test] Update `src/__tests__/public-profile-routes.test.ts` + `src/__tests__/public-referral-routes.test.ts`; run and verify pass
-- [ ] [backend] Convert `src/routes/create.ts` (FlipYou) + `src/routes/potshot-create.ts`; round-lookup and settle endpoints envelope; replace `MATCH_NOT_FOUND` / `MATCH_PHASE_INVALID` strings with `API_ERROR_CODES.*`
-- [ ] [test] Update FlipYou + PotShot route tests; run and verify pass
-- [ ] [backend] Convert `src/routes/closecall.ts`: `/bet`, `/current`, `/by-id/:roundId`, `/history` envelope; `BET_TOO_SMALL` / `BET_TOO_LARGE` / `ROUND_NOT_FOUND` via catalog
-- [ ] [test] Update `src/__tests__/closecall-routes.test.ts`; run and verify pass
-- [ ] [backend] Convert `src/routes/challenges.ts`, `src/routes/points.ts`, `src/routes/dogpile.ts` (crates live inside challenges or points module — convert in place)
-- [ ] [test] Update challenge / points / crate / dogpile route tests; run and verify pass
-- [ ] [backend] Convert `src/routes/leaderboard.ts` + `src/routes/price.ts`
-- [ ] [test] Update leaderboard + price route tests; run and verify pass
-- [ ] [backend] Convert `src/routes/health.ts`: `GET /health` returns envelope; confirm LB probe (curl `-fsS http://localhost:3100/health`) still returns exit 0
-- [ ] [test] Update `src/__tests__/health-routes.test.ts`; run and verify pass
-- [ ] [backend] Convert `src/routes/telegram-link.ts` public JWT-protected endpoint `POST /telegram/generate-link`; service-auth webhook routes stay as-is
-- [ ] [test] Update `src/__tests__/telegram-link-routes.test.ts`; run and verify pass
-- [ ] [backend] Delete `errorMessage` and `structuredErrorMessage` from `src/contracts/api-errors.ts`; delete `ErrorResponseSchema` + `StructuredErrorResponseSchema` from `src/contracts/validators.ts`; run `pnpm typecheck` to confirm zero callers remain
-- [ ] [test] Update `src/__tests__/waitlist-contract.test.ts`: add `dataShapeKeys()` helper, update every `WAITLIST_CONTRACT` entry's assertions to read the envelope's `data` shape, assert top-level envelope keys on every enveloped route
-- [ ] [test] Add new `src/__tests__/envelope-contract.test.ts`: iterates every path in the generated `openapi.json`, asserts the `200` response schema is an envelope `oneOf` on `ok`, and asserts no handler declares a `4xx` response other than `401`
-- [ ] [backend] Verify no non-401 4xx emission: `rg "c\.json\(.+, (400|402|403|404|405|409|422|429)\)" backend/src/routes` returns empty; commit a CI-run script `scripts/check-envelope.sh` that runs this grep + exits non-zero if matches found
-- [ ] [docs] Add "## Envelope Contract" section to `backend/CLAUDE.md` summarizing the rules from System Invariants (1)–(8)
-- [ ] [docs] Update `src/index.ts` OpenAPI `info.description` to mention the envelope contract and link to spec 304
-- [ ] [docs] Add tech-debt row to `docs/TECH_DEBT.md` for the coordinated waitlist rollout
-- [ ] [docs] Write `docs/specs/304-response-envelope/client-migration.md` with per-file waitlist diff and rollout order (tolerant client first, then backend cutover, then tolerance removal)
-- [ ] [test] Add local deterministic E2E coverage for primary user flow(s) in `e2e/local/**` (or mark N/A with reason for non-web/non-interactive specs) — **N/A**: this is a cross-cutting backend contract change with no new user flows; verification lives in backend integration tests + the envelope-contract scan
-- [ ] [test] Add visual route/state coverage in `e2e/visual/**`; run `pnpm test:visual` and update baselines only for intentional UI changes — **N/A**: no UI change in this repo; frontend visual regression is deferred until the frontend repo is established
-- [ ] [test] If external provider/oracle/VRF integration is in scope, add devnet real-provider E2E coverage in `e2e/devnet/**` with env validation + retry/backoff (or mark N/A with reason) — **N/A**: no new provider integration; envelope is purely a response-shape contract
+- [ ] Add `api-envelope.ts` with success/error helpers and schemas
+- [ ] Rewrite `api-errors.ts` into a stable error-code catalog
+- [ ] Update `invalidRequestHook` to emit `422` error envelopes
+- [ ] Convert public route declarations to real-status envelopes
+- [ ] Preserve `204` logout and `202` accepted async semantics where already meaningful
+- [ ] Convert normal empty-state reads to `200` success envelopes
+- [ ] Remove legacy response helpers and schemas
+- [ ] Update route tests and waitlist contract tests
+- [ ] Add an OpenAPI envelope contract test
+- [ ] Write the client migration doc for waitlist/webapp/telegram
+- [ ] Update backend docs and tech-debt notes
 
 ### Testing Requirements
 
-The agent MUST complete ALL before outputting the completion signal:
-
-#### Code Quality
 - [ ] All existing tests pass
-- [ ] New tests added for envelope primitives + validation hook + envelope-contract scan
-- [ ] No lint errors (`pnpm lint` exit 0)
-
-#### Functional Verification
-- [ ] Every public OpenAPI route returns envelope on success
-- [ ] Every public OpenAPI route returns envelope on domain/validation error
-- [ ] Only `401` bypasses the envelope (asserted by `envelope-contract.test.ts`)
-- [ ] `scripts/check-envelope.sh` exits 0 (no non-401 4xx emissions)
-
-#### Integration Verification
-- [ ] Devnet E2E passes — `pnpm test:e2e:devnet` (if running; envelope is observed via existing waitlist-smoke.spec.ts which treats `res.ok` at transport level)
-- [ ] OpenAPI schema generates cleanly (`curl localhost:3100/openapi.json | jq .` with a dev `ADMIN_TOKEN`)
+- [ ] New envelope helper tests pass
+- [ ] New validation-hook tests pass
+- [ ] Route tests assert both status and envelope body
+- [ ] OpenAPI contract scan passes
 - [ ] `./scripts/verify` exits 0
 
 ### Iteration Instructions
 
-If ANY check fails:
-1. Identify the specific issue
-2. Fix the code
-3. Re-run tests
-4. Re-verify all criteria
-5. Check again
+If any check fails:
+1. Identify the mismatch between status semantics and envelope semantics.
+2. Fix the route/helper/schema.
+3. Re-run the relevant tests.
+4. Re-verify the full contract scan.
 
-**Only when ALL checks pass, output:** `<promise>DONE</promise>`
-
-### Post-Completion: Gap Analysis
-
-After the spec loop outputs `<promise>DONE</promise>`, `spec-loop.sh` automatically runs `/gap-analysis 304-response-envelope --non-interactive` which:
-1. Audits every FR acceptance criterion against the codebase
-2. Writes `docs/specs/304-response-envelope/gap-analysis.md` with inventory + audit + recommendations
-3. Annotates FR checkboxes with HTML comment evidence (`<!-- satisfied: ... -->`)
-4. Commits everything together with the completion commit
+**Only when all checks pass, output:** `<promise>DONE</promise>`
