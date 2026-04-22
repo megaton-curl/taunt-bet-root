@@ -401,3 +401,20 @@ of every iteration to understand prior context.
 ## Iteration 18 — 2026-04-22T10:45:57Z — OK
 - **Log**: iteration-018.log
 
+## Iteration 19 — 2026-04-22 — DONE
+- **Item**: [routes] Convert `backend/src/routes/health.ts` to envelope responses.
+- **Changes**:
+  - Rewrote `GET /` in `backend/src/routes/health.ts`:
+    - Success → `ok(c, { status: "ok", version: "0.1.0", workerRunning: isWorkerRunning() })`. 200 response schema now uses `envelope(HealthResponseSchema)`.
+    - No error paths — health is a cheap process-local probe with no failure modes.
+  - Updated `backend/src/__tests__/endpoints.test.ts` `GET /health` test:
+    - Success assertion now asserts `body.ok === true` and destructures `body.data.status` / `body.data.version` / `body.data.workerRunning`.
+- **Verification**:
+  - `pnpm -C backend typecheck:self` → exit 0
+  - `pnpm -C backend lint:self` → exit 0
+  - Targeted: `vitest run --config vitest.unit.config.ts src/__tests__/openapi-contract.test.ts src/__tests__/waitlist-contract.test.ts` → 49/49 passed
+  - Targeted: `vitest run --config vitest.integration.config.ts src/__tests__/endpoints.test.ts` → 14/14 passed
+
+## Iteration 19 — 2026-04-22T10:48:19Z — OK
+- **Log**: iteration-019.log
+
