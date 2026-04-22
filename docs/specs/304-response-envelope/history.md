@@ -277,3 +277,27 @@ of every iteration to understand prior context.
 ## Iteration 12 — 2026-04-22T10:23:53Z — OK
 - **Log**: iteration-012.log
 
+## Iteration 13 — 2026-04-22 — DONE
+- **Item**: [routes] Convert `backend/src/routes/closecall.ts` (Close Call public entry) to envelope responses; update endpoint-level Close Call tests.
+- **Changes**:
+  - Rewrote all five Close Call routes in `backend/src/routes/closecall.ts`:
+    - `GET /current-round`: success → `ok(c, { round })` with `round: T | null`. All three branches (current-minute PDA, previous-minute open PDA, empty) use the envelope. Exception-fallback keeps `200 { round: null }` as documented success. 200 schema uses `envelope(roundEnvelopeResponseSchema("round", CloseCallRoundSchema, { nullable: true }))`.
+    - `GET /history`: success → `ok(c, { rounds })`; no error responses (empty list is documented success).
+    - `GET /by-id/{roundId}`: success → `ok(c, response)`; `400 INVALID_REQUEST` for non-numeric roundId (retryable:false); **`404 ROUND_NOT_FOUND`** for missing round (mirroring Pot Shot's use of the round-specific catalog code).
+    - `GET /candles`: success → `ok(c, { candles, currentOpenPrice, currentMinuteTs })`; exception-fallback preserves empty-state `200` envelope (documented success). Inlined the candles response schema as `CloseCallCandlesResponseSchema`.
+    - `POST /bet`: success → `ok(c, { transaction, minuteTs, roundPda })`; `400 INVALID_REQUEST` for bad base58 / non-pubkey wallet; `401 AUTH_REQUIRED` for defense-in-depth missing userId; `403 FORBIDDEN` for wallet/profile mismatch; `404 PROFILE_NOT_FOUND` for missing profile; **`503 PRICE_UNAVAILABLE`** (retryable:true) for missing boundary price; `500 PRECONDITION_FAILED` for tx-build failure. `422` declared for default-hook validation failures (amount bounds, shape).
+  - All 2xx response schemas now use `envelope(SuccessSchema)`; all 4xx/5xx use `ErrorEnvelopeSchema`. Removed the `ErrorResponseSchema` import from `validators.ts`. Dropped `decodeCloseCallRound` / boundary-price / etc. unchanged.
+  - Renamed `catch (err)` bindings to `catch (fetchError|queryError|buildError)` to avoid shadowing the imported `err` helper.
+  - Updated `backend/src/__tests__/closecall-routes.test.ts`:
+    - 403 wallet-mismatch test: now asserts `body.ok === false`, `body.error.code === "FORBIDDEN"`, and preserves the original human-readable message.
+    - 404 missing-profile test: now asserts `body.error.code === "PROFILE_NOT_FOUND"` and the preserved message.
+  - `backend/src/__tests__/openapi-contract.test.ts` already uses the shared `unwrapEnvelope` helper from iteration 11, so the `/closecall/by-id/{roundId}` 200-schema descent keeps working automatically.
+- **Verification**:
+  - `pnpm -C backend typecheck:self` → exit 0
+  - `pnpm -C backend lint:self` → exit 0
+  - Targeted: `vitest run --config vitest.unit.config.ts src/__tests__/closecall-routes.test.ts src/__tests__/openapi-contract.test.ts src/__tests__/waitlist-contract.test.ts` → 51/51 passed
+  - Full unit suite (`vitest run --config vitest.unit.config.ts`) → 214/214 passed across 20 files
+
+## Iteration 13 — 2026-04-22T10:28:25Z — OK
+- **Log**: iteration-013.log
+
