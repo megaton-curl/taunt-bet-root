@@ -83,3 +83,31 @@ of every iteration to understand prior context.
 ## Iteration 5 — 2026-04-22T09:32:36Z — OK
 - **Log**: iteration-005.log
 
+## Iteration 6 — 2026-04-22 — DONE
+- **Item**: [routes] Convert `backend/src/routes/auth.ts` to envelope responses; update `auth-routes.test.ts`.
+- **Changes**:
+  - Rewrote all four auth routes in `backend/src/routes/auth.ts`:
+    - `POST /challenge`: success → `ok(c, { nonce, message, expiresAt })`; declared 200 response now uses `envelope(ChallengeNonceResponseSchema)`; legacy 400 replaced with `422 ErrorEnvelopeSchema` (matches real hook behavior from iteration 3).
+    - `POST /verify`: success → `ok(c, tokens)`; 401 errors use `err(c, 401, INVALID_SIGNATURE | CHALLENGE_EXPIRED, ...)`; the 500 profile-establish path uses `PRECONDITION_FAILED` (closest catalog fit for "required state couldn't be established"); declared 400/500 schemas replaced with `ErrorEnvelopeSchema`, added `422 ErrorEnvelopeSchema`.
+    - `POST /refresh`: success → `ok(c, tokens)`; all three 401 paths (invalid, reuse, expired) use `err(c, 401, REFRESH_TOKEN_INVALID, ...)`; 400 replaced with `422 ErrorEnvelopeSchema`.
+    - `POST /logout`: unchanged — still returns `204` with no body.
+    - Removed `ErrorResponseSchema` import (kept `ChallengeNonceResponseSchema` + `TokenResponseSchema` as the inner data schemas inside `envelope(...)`).
+  - Updated `backend/src/contracts/api-envelope.ts` to unblock route handler typing:
+    - Added overload signatures on `ok<T>(c, data)` → `ok<T, S>(c, data, status)` so the handler return type narrows to the specific `200 | 201 | 202` literal the route declared (TypeScript inference would otherwise widen to the `SuccessStatus` union and fail the hono-zod-openapi `Handler` constraint).
+    - Made `err<S extends ErrorStatus>(c, status, code, message, opts?)` generic on status for the same reason.
+    - Introduced `ApiErrorDetails = any` alias for `ApiError.details` and `err(opts.details)`. Hono's `TypedResponse` narrows `unknown` to `JSONValue` in the inferred route response, which caused a type mismatch against a fully-typed `unknown`. `any` is the pragmatic fit — runtime values remain JSON-serializable (Zod issues, limits, etc.) and the schema-level `z.unknown().optional()` is unchanged.
+    - Added `/* eslint-disable no-redeclare, no-undef */` around the overloaded `ok`/`err` block (overloads trigger base `no-redeclare`; `Response` intersection type triggers `no-undef` since ESLint doesn't know the global). typescript-eslint's own no-redeclare is overload-aware but isn't enabled in the shared config.
+  - Updated `backend/src/__tests__/auth-routes.test.ts`:
+    - Every success assertion now destructures `{ ok, data }` from the envelope.
+    - 401 assertions now check `body.ok === false` and `body.error.code` equals the exact catalog code: `REFRESH_TOKEN_INVALID` (replay, post-logout, invalid-token), `INVALID_SIGNATURE` (wrong wallet, wrong signature), `CHALLENGE_EXPIRED` (already-used nonce).
+  - Updated `backend/src/__tests__/waitlist-contract.test.ts` `responseKeys` helper — added `unwrapEnvelope()` that detects an envelope `oneOf` variant with `ok: true` and descends into the `data` schema's properties. Non-enveloped legacy routes (referral/*, public-referral/*) still work via fall-through. This makes the waitlist-contract test pass for the auth routes right now and will keep passing as other routes convert in later iterations.
+- **Verification**:
+  - `pnpm typecheck:self` → exit 0
+  - `pnpm lint:self` → exit 0
+  - Targeted: `vitest run src/__tests__/auth-routes.test.ts src/__tests__/auth.test.ts src/__tests__/rate-limit.test.ts` → 22/22 passed
+  - Targeted: `vitest run src/__tests__/api-envelope.test.ts src/__tests__/openapi-invalid-request-hook.test.ts src/__tests__/waitlist-contract.test.ts` → 71/71 passed
+  - Full unit suite (`pnpm vitest run --config vitest.unit.config.ts`) → 214/214 passed across 20 files
+
+## Iteration 6 — 2026-04-22T09:47:44Z — OK
+- **Log**: iteration-006.log
+
