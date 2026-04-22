@@ -497,3 +497,29 @@ of every iteration to understand prior context.
 ## Iteration 23 — 2026-04-22T11:07:06Z — OK
 - **Log**: iteration-023.log
 
+## Iteration 24 — 2026-04-22 — DONE
+- **Item**: [telegram] Update `telegram/src/backend-client.ts` to parse envelopes; convert backend service-auth Telegram routes to envelope for consistency; update telegram tests; run `cd telegram && pnpm verify`.
+- **Changes**:
+  - Converted the 4 service-auth routes in `backend/src/routes/telegram-link.ts` to envelope format (iteration 20 had explicitly left these as legacy per an ambiguous reading of FR-12; converting them now is required because the atomic-switch rollout decision means the telegram client cannot parse envelopes unless the backend emits them):
+    - `serviceAuth` middleware: `401 { error: "UNAUTHORIZED" }` → `err(c, 401, AUTH_REQUIRED, "Missing or invalid service secret")`.
+    - `POST /redeem-link`: success → `ok(c, { userId, username, alreadyLinked: false })`; `422 VALIDATION_FAILED` for malformed body / missing fields (was 400 "INVALID_REQUEST"); `409 TELEGRAM_ALREADY_LINKED` with `details: { existingUserId }` (was 409 with top-level `existingUserId`); `404 TELEGRAM_TOKEN_EXPIRED` (was 404 "TOKEN_NOT_FOUND"); `500 PRECONDITION_FAILED` on exception.
+    - `GET /linked-user`: success → `ok(c, { userId })`; `422 VALIDATION_FAILED` for missing query param; `404 TELEGRAM_NOT_LINKED` (was 404 "NOT_LINKED"); `500 PRECONDITION_FAILED` on exception.
+    - `GET /referral-info`: success → `ok(c, { userId, username, referralCode, referredCount })`; `422 VALIDATION_FAILED`; `404 TELEGRAM_NOT_LINKED`; `500 PRECONDITION_FAILED`.
+    - `GET /referral-leaderboard`: success → `ok(c, { entries, userRank, userCount })`; `500 PRECONDITION_FAILED` on exception.
+    - Renamed `catch (err)` bindings to `catch (redeemError|lookupError|fetchError)` to avoid shadowing the imported `err` helper.
+  - Rewrote `telegram/src/backend-client.ts`:
+    - Added internal `ApiEnvelope<T>` type plus `parseEnvelope()` helper that extracts JSON, verifies envelope shape (`ok` field present), and logs "backend response missing envelope" if not.
+    - `getLinkedUserId`: on success envelope → `data.userId`; on error envelope or parse failure → `null`.
+    - `redeemTelegramLink`: on success envelope → spread `data` into result; on error envelope, switch on `error.code`: `TELEGRAM_ALREADY_LINKED` → `{ ok: false, error: "TELEGRAM_ALREADY_LINKED" }`, `TELEGRAM_TOKEN_EXPIRED` → `{ ok: false, error: "TOKEN_NOT_FOUND" }`, `AUTH_REQUIRED` → `{ ok: false, error: "UNAUTHORIZED" }`, else → `UNKNOWN`. Preserves the `RedeemLinkResult` public type (commands.ts enum) — client-facing symbols unchanged so `commands.ts` / `commands.test.ts` work without modification.
+    - `getReferralInfo` + `getReferralLeaderboard`: on success envelope → `data`; otherwise → `null`.
+    - Dropped individual `try/catch` blocks around `response.json()` in each method; the shared `parseEnvelope` handles parse failures centrally.
+  - Added `telegram/src/__tests__/backend-client.test.ts` (16 tests) covering: success-envelope extraction per method, error-envelope handling (`TELEGRAM_NOT_LINKED` → null, `TELEGRAM_ALREADY_LINKED` → mapped error, `TELEGRAM_TOKEN_EXPIRED` → `TOKEN_NOT_FOUND`, `AUTH_REQUIRED` → `UNAUTHORIZED`, other codes → `UNKNOWN`), no-envelope fallback logging, missing-service-secret guard, network-error fallback, and non-JSON body handling.
+- **Verification**:
+  - `pnpm -C backend lint` → exit 0
+  - `pnpm -C backend typecheck` → exit 0
+  - Backend unit suite → 240/240 passed across 20 files
+  - `cd telegram && pnpm verify` (typecheck + build + test) → 56/56 passed across 6 files (up from 40; +16 new backend-client tests)
+
+## Iteration 24 — 2026-04-22T11:15:25Z — OK
+- **Log**: iteration-024.log
+

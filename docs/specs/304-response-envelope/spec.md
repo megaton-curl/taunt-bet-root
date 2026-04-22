@@ -7,7 +7,7 @@
 | Status | Ready |
 | Priority | P1 |
 | Track | Core |
-| NR_OF_TRIES | 23 |
+| NR_OF_TRIES | 24 |
 
 ---
 
@@ -496,7 +496,7 @@ This change affects real clients in this repository and cannot be treated as bac
 
 #### Telegram client
 
-- [ ] [telegram] Update `telegram/src/backend-client.ts` to parse envelopes: on success pull `.data`; on failure pull `.error.code`/`.error.message`. Update telegram tests. Run `cd telegram && pnpm verify` and ensure exit 0.
+- [x] [telegram] Update `telegram/src/backend-client.ts` to parse envelopes: on success pull `.data`; on failure pull `.error.code`/`.error.message`. Update telegram tests. Run `cd telegram && pnpm verify` and ensure exit 0. (done: iteration 24)
 
 #### Docs
 
