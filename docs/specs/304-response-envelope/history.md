@@ -440,3 +440,18 @@ of every iteration to understand prior context.
 ## Iteration 20 — 2026-04-22T10:51:17Z — OK
 - **Log**: iteration-020.log
 
+## Iteration 21 — 2026-04-22 — DONE
+- **Item**: [contracts] Delete legacy helpers from `api-errors.ts` and `validators.ts`.
+- **Changes**:
+  - Deleted from `backend/src/contracts/api-errors.ts`: `ErrorResponseBody` interface, `StructuredErrorDetail` interface, `StructuredErrorResponseBody` interface, `errorMessage()` function, `structuredErrorMessage()` function, and the accompanying "Legacy helpers" comment block.
+  - Deleted from `backend/src/contracts/validators.ts`: `ErrorResponseSchema`, `StructuredErrorDetailSchema`, `StructuredErrorResponseSchema`.
+  - Pre-deletion grep (`backend/src/**`) confirmed zero remaining import sites for any of the eight symbols — only the definitions themselves still referenced them. All public routes were migrated to the envelope helpers (`ok` / `err` / `envelope` / `ErrorEnvelopeSchema`) during iterations 4–20, so this is a clean cutover.
+  - `OkResponseSchema` and `UsernameCooldownResponseSchema` kept in `validators.ts` — not on the deletion list for this iteration and still part of the validators namespace.
+- **Verification**:
+  - `pnpm -C backend typecheck:self` → exit 0
+  - `pnpm -C backend lint:self` → exit 0
+  - Full unit suite (`pnpm vitest run --config vitest.unit.config.ts`) → 214/214 passed across 20 files
+
+## Iteration 21 — 2026-04-22T10:53:37Z — OK
+- **Log**: iteration-021.log
+

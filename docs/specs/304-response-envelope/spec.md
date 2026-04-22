@@ -7,7 +7,7 @@
 | Status | Ready |
 | Priority | P1 |
 | Track | Core |
-| NR_OF_TRIES | 20 |
+| NR_OF_TRIES | 21 |
 
 ---
 
@@ -487,7 +487,7 @@ This change affects real clients in this repository and cannot be treated as bac
 
 #### Cleanup
 
-- [ ] [contracts] Delete legacy helpers: `errorMessage`, `structuredErrorMessage`, `ErrorResponseBody`, `StructuredErrorResponseBody`, `StructuredErrorDetail` from `api-errors.ts` and `ErrorResponseSchema` / `StructuredErrorDetailSchema` / `StructuredErrorResponseSchema` from `validators.ts`. Grep the full backend (`backend/src/**`) to confirm zero remaining imports before deleting. `./scripts/verify` must pass.
+- [x] [contracts] Delete legacy helpers: `errorMessage`, `structuredErrorMessage`, `ErrorResponseBody`, `StructuredErrorResponseBody`, `StructuredErrorDetail` from `api-errors.ts` and `ErrorResponseSchema` / `StructuredErrorDetailSchema` / `StructuredErrorResponseSchema` from `validators.ts`. Grep the full backend (`backend/src/**`) to confirm zero remaining imports before deleting. `./scripts/verify` must pass. (done: iteration 21)
 
 #### Tests + OpenAPI contract
 
