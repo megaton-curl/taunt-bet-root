@@ -17,3 +17,6 @@
 [submodule "telegram"]
 	path = telegram
 	url = https://github.com/taunt-bet/telegram.git
+[submodule "peek"]
+	path = peek
+	url = https://github.com/taunt-bet/peek.git
