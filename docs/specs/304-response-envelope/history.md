@@ -40,3 +40,18 @@ of every iteration to understand prior context.
 ## Iteration 2 — 2026-04-22T09:20:18Z — OK
 - **Log**: iteration-002.log
 
+## Iteration 3 — 2026-04-22 — DONE
+- **Item**: [openapi] Update `invalidRequestHook` in `backend/src/openapi/hono.ts` to return `422` envelope with `VALIDATION_FAILED` + Zod issue list; add hook test.
+- **Changes**:
+  - Rewrote `backend/src/openapi/hono.ts`: hook now accepts `{ success: true } | { success: false; error: z.ZodError }`, returns `err(c, 422, API_ERROR_CODES.VALIDATION_FAILED, "Invalid request", { retryable: false, details: result.error.issues })`. Removed legacy `errorMessage` import (will be deleted in cleanup iteration).
+  - Added `backend/src/__tests__/openapi-invalid-request-hook.test.ts` — 4 tests: 422 status + VALIDATION_FAILED envelope + retryable:false; Zod issue list includes all failing paths; body round-trips through `ErrorEnvelopeSchema`; valid requests still succeed.
+  - Updated `backend/src/__tests__/auth-routes.test.ts` — two tests that asserted 400 + `{ error: "Invalid request" }` now assert 422 + envelope shape (the `/auth/challenge` route converts in a later iteration; only the hook-level assertion changed).
+  - Updated `backend/src/__tests__/leaderboard.test.ts` — same assertion shift for the legacy game-alias test.
+- **Verification**:
+  - `pnpm typecheck:self` → exit 0
+  - `pnpm lint:self` → exit 0
+  - `pnpm vitest run --config vitest.unit.config.ts` → 214/214 passed (20 files, +4 new hook tests)
+
+## Iteration 3 — 2026-04-22T09:25:50Z — OK
+- **Log**: iteration-003.log
+
