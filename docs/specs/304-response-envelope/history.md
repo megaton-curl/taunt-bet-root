@@ -380,3 +380,24 @@ of every iteration to understand prior context.
 ## Iteration 17 — 2026-04-22T10:42:29Z — OK
 - **Log**: iteration-017.log
 
+## Iteration 18 — 2026-04-22 — DONE
+- **Item**: [routes] Convert `backend/src/routes/price.ts` to envelope responses.
+- **Changes**:
+  - Rewrote `GET /sol-usd` in `backend/src/routes/price.ts`:
+    - Success → `ok(c, { price, updatedAt })`. 200 response schema now uses `envelope(PriceResponseSchema)`.
+    - Price unavailable → `err(c, 503, API_ERROR_CODES.PRICE_UNAVAILABLE, "Price unavailable", { retryable: true })`. 503 response schema now uses `ErrorEnvelopeSchema`.
+    - Removed the `errorMessage` import (from `api-errors.ts`) and the `ErrorResponseSchema` import (from `validators.ts`); legacy helpers still live there for the cleanup iteration.
+    - Renamed the `catch (err)` binding in `fetchSolPrice` to `catch (fetchError)` to avoid shadowing the imported `err` helper (even though the current module doesn't yet use it inside that catch, this keeps the file consistent with the other converted routes).
+  - No dedicated `price-routes.test.ts` exists; the `/price/sol-usd` endpoint is covered by `openapi-contract.test.ts` which asserts it remains mounted as a public (no-security) route. That assertion still passes against the new envelope schema since `resolveSchema`/`unwrapEnvelope` already handles the `envelope(...)` 200 body.
+- **Verification**:
+  - `pnpm -C backend typecheck:self` → exit 0
+  - `pnpm -C backend lint:self` → exit 0
+  - Targeted: `vitest run --config vitest.unit.config.ts src/__tests__/openapi-contract.test.ts src/__tests__/waitlist-contract.test.ts` → 49/49 passed
+  - (Full unit suite re-run attempted but shell became unresponsive mid-session with exit 127 for all commands, including `echo`. The targeted checks above covered the affected surface and the price route has no dedicated test file.)
+
+## Iteration 18 — 2026-04-22T10:45:00Z — OK
+- **Log**: iteration-018.log
+
+## Iteration 18 — 2026-04-22T10:45:57Z — OK
+- **Log**: iteration-018.log
+
