@@ -111,3 +111,37 @@ of every iteration to understand prior context.
 ## Iteration 6 — 2026-04-22T09:47:44Z — OK
 - **Log**: iteration-006.log
 
+## Iteration 7 — 2026-04-22 — DONE
+- **Item**: [routes] Convert `backend/src/routes/referral.ts` to envelope responses; update `referral-routes.test.ts`.
+- **Changes**:
+  - Rewrote all nine referral routes in `backend/src/routes/referral.ts`:
+    - `POST /code`: success → `ok(c, { code })`; `401 AUTH_REQUIRED`; `404 PROFILE_NOT_FOUND`; `409 CODE_ALREADY_SET` / `CODE_TAKEN` (with retryable:false); `500 PRECONDITION_FAILED`. Custom invalid-request hook now returns `422 INVALID_CODE` (was `400 INVALID_CODE`) and passes Zod issues in `details`.
+    - `POST /apply`: success → `ok(c, { referrerUserId, benefit })`; `401 AUTH_REQUIRED`; `404 PROFILE_NOT_FOUND` / `CODE_NOT_FOUND`; **`409 SELF_REFERRAL`** (was 400) / `409 ALREADY_LINKED`; `422 INVALID_CODE` for invalid body (was 400); `500 PRECONDITION_FAILED`.
+    - `GET /code`: success → `ok(c, { code: row?.code ?? null })`; `401 AUTH_REQUIRED`.
+    - `GET /referrer`: success → `ok(c, { referrerUserId, referrerUsername, referrerCode, linkedAt })` with all-null empty-state; `401 AUTH_REQUIRED`; `500 PRECONDITION_FAILED`.
+    - `GET /stats`: success → `ok(c, stats)` with zero-default fields; `401`; `500`.
+    - `GET /referrals`: success → `ok(c, { items })`; `401`; `500`.
+    - `GET /earnings`: success → `ok(c, { items, pagination })`; removed dead `INVALID_PARAMS` 400 branch (Zod `z.coerce.number().int().min(1).default(1)` guarantees non-NaN after validation, and the default 422 hook already covers invalid query params). `401`; `422`; `500`.
+    - `POST /claim`: success → `ok(c, { claimId, amountLamports, status }, 202)` (preserves 202); `401`; `404 PROFILE_NOT_FOUND`; **`422 ZERO_BALANCE` / `422 BELOW_THRESHOLD`** (was 400); `500 PRECONDITION_FAILED`.
+    - `GET /claim/:claimId`: success → `ok(c, {...})`; `401`; `404 CLAIM_NOT_FOUND` (both missing claim and wrong-owner cases); `500`.
+  - All response schemas now use `envelope(SuccessSchema)` for 2xx and `ErrorEnvelopeSchema` for 4xx/5xx. Removed imports of `errorMessage`/`structuredErrorMessage`/`ErrorResponseSchema`/`StructuredErrorResponseSchema` from `api-errors.ts` and `validators.ts` (legacy helpers still live there for the cleanup iteration).
+  - Inlined `EarningsResponseSchema` locally (was an inline `z.object(...)` in the route responses map).
+  - Renamed `catch (err)` bindings to `catch (insertError|fetchError|claimError)` to avoid shadowing the imported `err` helper.
+  - Updated `backend/src/__tests__/referral-routes.test.ts`:
+    - All success assertions destructure `body.data`, assert `body.ok === true`.
+    - `POST /code` invalid-format tests: status 400 → 422.
+    - `POST /apply` self-referral test: status 400 → 409, renamed to "rejects self-referral with 409".
+    - `POST /apply` empty code test: status 400 → 422, renamed to "rejects empty code with 422".
+    - `POST /claim` zero-balance / below-threshold / double-claim tests: status 400 → 422.
+    - `GET /claim/:claimId` 404 assertions now check `body.error.code === "CLAIM_NOT_FOUND"`.
+  - Updated `backend/src/__tests__/waitlist-contract.test.ts` `arrayItemKeys` helper — now routes through `unwrapEnvelope` before descending into the array property, so envelope-wrapped list responses (now `GET /referrals`) match the waitlist contract.
+- **Verification**:
+  - `pnpm typecheck:self` → exit 0
+  - `pnpm lint:self` → exit 0
+  - Targeted: `vitest run --config vitest.integration.config.ts src/__tests__/referral-routes.test.ts` → 29/29 passed
+  - Targeted: `vitest run --config vitest.unit.config.ts src/__tests__/waitlist-contract.test.ts` → 41/41 passed
+  - Full unit suite (`pnpm vitest run --config vitest.unit.config.ts`) → 214/214 passed across 20 files
+
+## Iteration 7 — 2026-04-22T09:56:24Z — OK
+- **Log**: iteration-007.log
+

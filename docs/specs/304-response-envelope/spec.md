@@ -7,7 +7,7 @@
 | Status | Ready |
 | Priority | P1 |
 | Track | Core |
-| NR_OF_TRIES | 6 |
+| NR_OF_TRIES | 7 |
 
 ---
 
@@ -470,7 +470,7 @@ This change affects real clients in this repository and cannot be treated as bac
 #### Public route conversion (one iteration per file)
 
 - [x] [routes] Convert `backend/src/routes/auth.ts` — `POST /challenge`, `POST /verify`, `POST /refresh` use success envelopes; error paths use `401 INVALID_SIGNATURE` / `401 CHALLENGE_EXPIRED` / `401 REFRESH_TOKEN_INVALID`; `POST /logout` remains `204`. Update `auth-routes.test.ts` to assert envelope shape and preserved statuses. (done: iteration 6)
-- [ ] [routes] Convert `backend/src/routes/referral.ts` — all nine endpoints. Preserve `409 CODE_ALREADY_SET` / `CODE_TAKEN` / `SELF_REFERRAL` / `ALREADY_LINKED`, `404 CODE_NOT_FOUND` / `CLAIM_NOT_FOUND`, `422 BELOW_THRESHOLD` / `ZERO_BALANCE`, `202` for `POST /claim`. Empty-state GETs return `200 { ok: true, data: { ... nullable fields ... } }`. Update `referral-routes.test.ts`.
+- [x] [routes] Convert `backend/src/routes/referral.ts` — all nine endpoints. Preserve `409 CODE_ALREADY_SET` / `CODE_TAKEN` / `SELF_REFERRAL` / `ALREADY_LINKED`, `404 CODE_NOT_FOUND` / `CLAIM_NOT_FOUND`, `422 BELOW_THRESHOLD` / `ZERO_BALANCE`, `202` for `POST /claim`. Empty-state GETs return `200 { ok: true, data: { ... nullable fields ... } }`. Update `referral-routes.test.ts`. (done: iteration 7)
 - [ ] [routes] Convert `backend/src/routes/public-referral.ts` — `GET /code/:code` returns `200 { ok: true, data: { exists: boolean } }`; `GET /:identifier` returns `200` or `404 NOT_FOUND`. Update `public-referral-routes.test.ts`.
 - [ ] [routes] Convert `backend/src/routes/profile.ts` — `GET /me` (`200` or `404 PROFILE_NOT_FOUND`), `PUT /username` (`200` or `409 USERNAME_TAKEN` / `429 USERNAME_COOLDOWN` / `422 INVALID_USERNAME`), `GET /transactions` (`200` or `422`), `POST /confirm-tx` (`200` / `404` / `422`). Update `profile.test.ts` and `profile-me-zeroed.test.ts`.
 - [ ] [routes] Convert `backend/src/routes/public-profile.ts` — `GET /:userId` returns `200` or `404 NOT_FOUND`. Update/extend existing test coverage as needed.
