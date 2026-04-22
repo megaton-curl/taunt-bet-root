@@ -145,3 +145,26 @@ of every iteration to understand prior context.
 ## Iteration 7 — 2026-04-22T09:56:24Z — OK
 - **Log**: iteration-007.log
 
+## Iteration 8 — 2026-04-22 — DONE
+- **Item**: [routes] Convert `backend/src/routes/public-referral.ts` to envelope responses; update `public-referral-routes.test.ts`.
+- **Changes**:
+  - Rewrote both public-referral routes in `backend/src/routes/public-referral.ts`:
+    - `GET /code/:code`: success → `ok(c, { exists })` (200); invalid-format input still returns `200 { ok: true, data: { exists: false } }` (probe-style, per FR-7); failure path now uses `err(c, 500, PRECONDITION_FAILED, ...)`.
+    - `GET /:identifier`: success → `ok(c, { userId, username, referralCode })` with nullable `referralCode`; missing profile returns `err(c, 404, NOT_FOUND, "Profile not found")`; failure path uses `err(c, 500, PRECONDITION_FAILED, ...)`.
+    - 200 responses now declare `envelope(SuccessSchema)`; 404/500 declare `ErrorEnvelopeSchema`. Removed imports of `errorMessage` (from `api-errors.ts`) and `ErrorResponseSchema` (from `validators.ts`) — legacy helpers still live there for the cleanup iteration.
+    - Renamed `catch (err)` bindings to `catch (lookupError)` in both handlers to avoid shadowing the imported `err` helper.
+  - Updated `backend/src/__tests__/public-referral-routes.test.ts`:
+    - Success assertions destructure `body.data` and assert `body.ok === true`.
+    - 404 assertion now checks `body.error.code === "NOT_FOUND"` instead of the legacy `{ error: "NOT_FOUND" }` shape.
+    - `/code/:code` equality assertions updated to the full envelope shape `{ ok: true, data: { exists } }`.
+    - Dogpile passthrough test left unchanged (dogpile routes are converted in a later iteration).
+- **Verification**:
+  - `pnpm typecheck:self` → exit 0
+  - `pnpm lint:self` → exit 0
+  - Targeted: `vitest run --config vitest.integration.config.ts src/__tests__/public-referral-routes.test.ts` → 7/7 passed
+  - Targeted: `vitest run --config vitest.unit.config.ts src/__tests__/waitlist-contract.test.ts` → 41/41 passed
+  - Full unit suite (`pnpm vitest run --config vitest.unit.config.ts`) → 214/214 passed across 20 files
+
+## Iteration 8 — 2026-04-22T09:59:36Z — OK
+- **Log**: iteration-008.log
+
