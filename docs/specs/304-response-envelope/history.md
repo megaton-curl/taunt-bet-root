@@ -418,3 +418,25 @@ of every iteration to understand prior context.
 ## Iteration 19 — 2026-04-22T10:48:19Z — OK
 - **Log**: iteration-019.log
 
+## Iteration 20 — 2026-04-22 — DONE
+- **Item**: [routes] Convert `backend/src/routes/telegram-link.ts` — `POST /generate-link` to envelope responses; service-auth webhook routes stay out of scope.
+- **Changes**:
+  - Rewrote `POST /generate-link` in `backend/src/routes/telegram-link.ts`:
+    - Missing userId → `err(c, 401, API_ERROR_CODES.AUTH_REQUIRED, "Authentication required")` (defense-in-depth; JWT middleware is applied upstream in `index.ts` / `index-waitlist.ts`).
+    - Already-linked branch → `ok(c, { alreadyLinked: true, telegramUserId, telegramUsername, linkedAt, botUrl, communityUrl })`.
+    - New-token branch → `ok(c, { token, deepLink, expiresAt, botUrl, communityUrl })`.
+    - Exception path → `err(c, 500, API_ERROR_CODES.PRECONDITION_FAILED, "Failed to generate link token")`.
+    - Renamed the `catch (err)` binding to `catch (generateError)` to avoid shadowing the imported `err` helper.
+  - Service-auth routes (`POST /redeem-link`, `GET /linked-user`, `GET /referral-info`, `GET /referral-leaderboard`, and the inline `serviceAuth` middleware) left untouched per the checklist note — Telegram webhook routes are explicitly out of scope.
+  - Updated `backend/src/__tests__/waitlist-contract.test.ts`:
+    - Both `POST /telegram/generate-link` branches now assert `body.ok === true` and extract `body.data` before comparing keys against `TELEGRAM_GENERATE_LINK_CONTRACT.{newTokenResponse,alreadyLinkedResponse}`.
+    - The already-linked assertion now reads `data.alreadyLinked === true` (was `body.alreadyLinked`).
+- **Verification**:
+  - `pnpm -C backend typecheck:self` → exit 0
+  - `pnpm -C backend lint:self` → exit 0
+  - Targeted: `vitest run --config vitest.unit.config.ts src/__tests__/waitlist-contract.test.ts` → 41/41 passed
+  - Full unit suite (`vitest run --config vitest.unit.config.ts`) → 214/214 passed across 20 files
+
+## Iteration 20 — 2026-04-22T10:51:17Z — OK
+- **Log**: iteration-020.log
+

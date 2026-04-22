@@ -7,7 +7,7 @@
 | Status | Ready |
 | Priority | P1 |
 | Track | Core |
-| NR_OF_TRIES | 19 |
+| NR_OF_TRIES | 20 |
 
 ---
 
@@ -483,7 +483,7 @@ This change affects real clients in this repository and cannot be treated as bac
 - [x] [routes] Convert `backend/src/routes/leaderboard.ts` — `GET /` returns success envelope. Update `leaderboard.test.ts`. (done: iteration 17)
 - [x] [routes] Convert `backend/src/routes/price.ts` — `GET /sol-usd` returns `200` success envelope or `503 { ok: false, error: { code: "PRICE_UNAVAILABLE", retryable: true } }`. (done: iteration 18)
 - [x] [routes] Convert `backend/src/routes/health.ts` — `GET /` returns `200 { ok: true, data: { status, version, workerRunning } }`. (done: iteration 19)
-- [ ] [routes] Convert `backend/src/routes/telegram-link.ts` — `POST /generate-link` returns `200 { ok: true, data: { deepLink, alreadyLinked } }` for both already-linked and new-token branches. Service-auth Telegram webhook routes (if any in this file) remain out of scope.
+- [x] [routes] Convert `backend/src/routes/telegram-link.ts` — `POST /generate-link` returns `200 { ok: true, data: { deepLink, alreadyLinked } }` for both already-linked and new-token branches. Service-auth Telegram webhook routes (if any in this file) remain out of scope. (done: iteration 20)
 
 #### Cleanup
 
