@@ -13,6 +13,8 @@ Execution defaults for humans and AI agents. Use this file for day-to-day implem
 - Telegram bot: `telegram/` submodule
 - Docs, scripts, e2e: root repo
 - Dev-only local diagnostics: `test-tools/`
+- Root workspace, `backend/`, and `chat/` are the authoritative repos for default implementation work.
+- `waitlist/` and `webapp/` are consult-only by default. Review them for impact when contracts move, but do not proactively patch them unless explicitly asked.
 - Do not edit generated/build outputs (`dist/`, compiled artifacts, coverage outputs).
 - If a task requires crossing submodule boundaries, state why in the final report.
 
@@ -52,7 +54,16 @@ Execution defaults for humans and AI agents. Use this file for day-to-day implem
 
 ---
 
-## 5) Dead Code Cleanup (Default)
+## 5) Production Safety (Default)
+
+- Production data safety is paramount. Prefer additive and reversible changes over destructive rewrites.
+- Migrations must preserve live data unless there is an explicit, documented deletion or transformation plan.
+- Never discard, truncate, reset, or backfill-overwrite production data without approval, rollback steps, and operator-facing verification notes.
+- If a contract change lands in an authoritative repo before consumers adopt it, document the rollout gap in root docs rather than silently patching consult-only repos.
+
+---
+
+## 6) Dead Code Cleanup (Default)
 
 - After any refactor, removal, or dependency change: grep for orphaned imports, unused exports, and stale env vars. Don't leave dead references behind.
 - Remove files that are no longer imported or referenced — don't comment them out or leave "removed" placeholders.
@@ -61,7 +72,7 @@ Execution defaults for humans and AI agents. Use this file for day-to-day implem
 
 ---
 
-## 6) Amount Units (Default)
+## 7) Amount Units (Default)
 
 - Functional money values must use lamports end-to-end. Convert user-entered SOL amounts to lamports at the first real boundary and keep lamports in state, API payloads, signatures, persistence, tests, and on-chain args.
 - SOL decimal strings/numbers are for display and input ergonomics only. Do not use floating SOL values for matching, equality checks, payout math, signatures, or database writes.
@@ -69,16 +80,17 @@ Execution defaults for humans and AI agents. Use this file for day-to-day implem
 
 ---
 
-## 7) Documentation Update Rules (Default)
+## 8) Documentation Update Rules (Default)
 
 - Update `docs/DECISIONS.md` only for durable decisions (not temporary implementation details).
 - Update `docs/TECH_DEBT.md` for temporary compromises.
 - Update `docs/LESSONS.md` with one compact row when a meaningful mistake is discovered.
 - When changing a public backend endpoint, keep runtime contracts, OpenAPI, and endpoint tests in sync in the same change.
+- When changing an authoritative backend or chat contract, note consult-only consumer impact in root docs if `waitlist/` or `webapp/` will follow later.
 
 ---
 
-## 8) Public API Contract Rules (Default)
+## 9) Public API Contract Rules (Default)
 
 - Public JSON routes use the shared envelope body:
   - success: `{ ok: true, data }`
@@ -99,7 +111,7 @@ Execution defaults for humans and AI agents. Use this file for day-to-day implem
 
 ---
 
-## 9) Third-Party Dependency Integration (Default)
+## 10) Third-Party Dependency Integration (Default)
 
 When writing code that integrates with any external dependency — SDK, API, on-chain program, library, oracle — follow this checklist:
 
@@ -114,7 +126,7 @@ When writing code that integrates with any external dependency — SDK, API, on-
 
 ---
 
-## 10) Devnet E2E Verification (Default)
+## 11) Devnet E2E Verification (Default)
 
 - Run `./scripts/verify --devnet` before PRs that touch chain-facing code (`solana/`, `backend/packages/anchor-client/`, `backend/packages/game-engine/` winner/payout logic).
 - NOT required every iteration — IS automated in `spec-loop.sh` for specs that reference flipyou, Pot Shot, or Close Call.

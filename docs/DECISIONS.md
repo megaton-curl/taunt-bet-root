@@ -122,6 +122,20 @@ Track key architectural and product decisions as they're made.
 **Impact**: All existing specs with frontend acceptance criteria are marked "out of scope — separate frontend project". Spec template updated to exclude frontend sections. CLAUDE.md updated to reflect scope boundary. Backend provides API contracts; frontend team consumes them.
 **Status**: ✅ Locked
 
+### Decision: Root, Backend, And Chat Are The Authoritative Repos
+**Date**: 2026-04-24
+**Decision**: Treat the root workspace as authoritative for docs, policy, orchestration, and rollout notes; treat `backend/` as authoritative for public API and data contracts; treat `chat/` as authoritative for chat-service behavior. `waitlist/` and `webapp/` remain consult-only references unless explicitly called into scope.
+**Rationale**: This prevents unplanned cross-repo drift and avoids premature consumer edits while backend/chat contracts evolve ahead of frontend adoption.
+**Alternatives considered**: Updating every checked-out consumer repo on each contract change, or treating all submodules as equal implementation surfaces by default.
+**Status**: ✅ Locked
+
+### Decision: Production Data Safety Overrides Convenience
+**Date**: 2026-04-24
+**Decision**: Production systems are now the default operating context. Schema changes, data migrations, and operational fixes must preserve live data by default and require an explicit rollout/rollback plan before any destructive action is taken.
+**Rationale**: The cost of unsafe migration behavior is now materially higher than the cost of slower delivery. Data loss, silent truncation, or ad hoc resets are unacceptable failure modes.
+**Alternatives considered**: Continuing dev-phase shortcuts such as reset-first migrations, destructive cleanups without staged rollout, or undocumented operator actions.
+**Status**: ✅ Locked
+
 ---
 
 ## Template for New Decisions

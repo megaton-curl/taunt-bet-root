@@ -36,6 +36,10 @@ cd chat && pnpm verify && cd ..
 cd telegram && pnpm verify && cd ..
 ```
 
+Production rule:
+
+- Treat all schema and data changes as production-sensitive. Migrations must be additive or carefully staged, preserve existing data, and come with a documented rollout/rollback plan before anything destructive is considered.
+
 ---
 
 ## Submodules
@@ -46,6 +50,13 @@ cd telegram && pnpm verify && cd ..
 | `backend/` | `taunt-bet/backend.git` | Hono REST API, settlement workers, shared TS packages (anchor-client, game-engine, fairness) |
 | `chat/` | `taunt-bet/chat.git` | Dedicated chat service, room/message domain, and separate event-feed transport |
 | `telegram/` | `taunt-bet/telegram.git` | Stateless Telegram bot service that consumes backend public contracts |
+
+Authority map:
+
+- Root workspace is authoritative for policy, docs, orchestration, and submodule pointers.
+- `backend/` is authoritative for public API contracts and backend data behavior.
+- `chat/` is authoritative for chat-service behavior and contracts.
+- `waitlist/` and `webapp/` are consult-only references by default. Review them for downstream impact, but do not proactively edit them unless explicitly asked.
 
 ---
 

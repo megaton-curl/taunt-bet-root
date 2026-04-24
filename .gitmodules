@@ -1,9 +1,11 @@
 [submodule "solana"]
 	path = solana
 	url = https://github.com/taunt-bet/solana.git
+	branch = main
 [submodule "backend"]
 	path = backend
 	url = https://github.com/taunt-bet/backend.git
+	branch = dev
 [submodule "waitlist"]
 	path = waitlist
 	url = https://github.com/taunt-bet/waitlist.git
@@ -11,12 +13,16 @@
 [submodule "chat"]
 	path = chat
 	url = https://github.com/taunt-bet/chat.git
+	branch = dev
 [submodule "webapp"]
 	path = webapp
 	url = https://github.com/taunt-bet/webapp.git
+	branch = dev
 [submodule "telegram"]
 	path = telegram
 	url = https://github.com/taunt-bet/telegram.git
+	branch = dev
 [submodule "peek"]
 	path = peek
 	url = https://github.com/taunt-bet/peek.git
+	branch = dev
