@@ -60,6 +60,10 @@ GAP_ANALYSIS_FILE="$SPEC_DIR/gap-analysis.md"
 LOG_DIR="$SPEC_DIR/logs"
 MAX_ITERATIONS=50
 
+# Writable (owned) submodules the loop commits into. Consult-only repos
+# (waitlist, webapp) are intentionally excluded — see CLAUDE.md.
+OWNED_SUBMODULES=(backend solana chat telegram peek)
+
 # Colors
 GREEN='\033[0;32m'
 RED='\033[0;31m'
@@ -134,6 +138,46 @@ EOF
 }
 
 # ---------------------------------------------------------------------------
+# Submodule helpers — generalize over OWNED_SUBMODULES so iterations that
+# touch peek/chat/telegram (not just backend/solana) get committed and
+# counted as progress.
+# ---------------------------------------------------------------------------
+submodules_have_changes() {
+    local sub
+    for sub in "${OWNED_SUBMODULES[@]}"; do
+        [ -d "$ROOT_DIR/$sub" ] || continue
+        if ! git -C "$ROOT_DIR/$sub" diff --quiet \
+           || ! git -C "$ROOT_DIR/$sub" diff --cached --quiet \
+           || [ -n "$(git -C "$ROOT_DIR/$sub" ls-files --others --exclude-standard)" ]; then
+            return 0
+        fi
+    done
+    return 1
+}
+
+commit_submodule_work() {
+    local iteration="$1"
+    local sub
+    for sub in "${OWNED_SUBMODULES[@]}"; do
+        [ -d "$ROOT_DIR/$sub" ] || continue
+        if ! git -C "$ROOT_DIR/$sub" diff --quiet \
+           || ! git -C "$ROOT_DIR/$sub" diff --cached --quiet \
+           || [ -n "$(git -C "$ROOT_DIR/$sub" ls-files --others --exclude-standard)" ]; then
+            git -C "$ROOT_DIR/$sub" add -A
+            git -C "$ROOT_DIR/$sub" commit -m "spec($SPEC_ID): iteration $iteration
+
+Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>" || true
+        fi
+    done
+}
+
+# Stage spec dir + every owned submodule pointer so the root commit captures
+# any submodule advances from this iteration.
+stage_root_paths() {
+    git -C "$ROOT_DIR" add docs/specs/"$SPEC_ID"/ "${OWNED_SUBMODULES[@]}" 2>/dev/null || true
+}
+
+# ---------------------------------------------------------------------------
 # Blocker — single exit path for all blockers
 # Usage: handle_blocker <iteration> <reason> [log_file]
 # ---------------------------------------------------------------------------
@@ -159,10 +203,12 @@ handle_blocker() {
         echo ""
     } >> "$HISTORY_FILE"
 
-    # Commit whatever partial work exists
+    # Commit whatever partial work exists. Commit submodule work first so
+    # any pointer advances flow into the root commit.
     cd "$ROOT_DIR"
+    commit_submodule_work "$iteration"
     if ! git diff --quiet -- . 2>/dev/null || ! git diff --cached --quiet -- . 2>/dev/null; then
-        git add docs/specs/"$SPEC_ID"/ backend solana 2>/dev/null || true
+        stage_root_paths
         git commit -m "spec($SPEC_ID): iteration $iteration — blocked
 
 Blocker: $reason
@@ -419,8 +465,9 @@ if [ "$(count_remaining)" -eq 0 ]; then
 
     # Commit any gap-analysis/history updates (plus submodule pointer if needed)
     cd "$ROOT_DIR"
+    commit_submodule_work "0"
     if ! git diff --quiet -- . || ! git diff --cached --quiet -- .; then
-        git add docs/specs/"$SPEC_ID"/ backend solana 2>/dev/null || true
+        stage_root_paths
         git commit -m "spec($SPEC_ID): post-completion gap analysis
 
 Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>" || true
@@ -538,8 +585,9 @@ while true; do
 
         # Final commit (implementation + gap analysis + FR updates)
         cd "$ROOT_DIR"
+        commit_submodule_work "$ITERATION"
         if ! git diff --quiet -- . || ! git diff --cached --quiet -- .; then
-            git add docs/specs/"$SPEC_ID"/ backend solana
+            stage_root_paths
             git commit -m "spec($SPEC_ID): complete — all checklist items done
 
 Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>"
@@ -556,18 +604,13 @@ Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>"
     fi
 
     # -------------------------------------------------------------------
-    # Check for changes to commit
+    # Check for changes to commit (across all owned submodules + spec dir)
     # -------------------------------------------------------------------
     cd "$ROOT_DIR"
 
-    # Check both parent repo and submodule for changes
     SUBMODULE_CHANGES=false
-    if [ -d "backend" ]; then
-        cd backend
-        if ! git diff --quiet || ! git diff --cached --quiet || [ -n "$(git ls-files --others --exclude-standard)" ]; then
-            SUBMODULE_CHANGES=true
-        fi
-        cd "$ROOT_DIR"
+    if submodules_have_changes; then
+        SUBMODULE_CHANGES=true
     fi
 
     SPEC_CHANGES=false
@@ -586,18 +629,13 @@ Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>"
         echo ""
     } >> "$HISTORY_FILE"
 
-    # Commit in submodule first if changed
+    # Commit submodule work first so pointer advances flow into the root commit
     if [ "$SUBMODULE_CHANGES" = true ]; then
-        cd backend
-        git add -A
-        git commit -m "spec($SPEC_ID): iteration $ITERATION
-
-Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>" || true
-        cd "$ROOT_DIR"
+        commit_submodule_work "$ITERATION"
     fi
 
-    # Commit in parent repo (spec updates + submodule pointer)
-    git add docs/specs/"$SPEC_ID"/ backend solana
+    # Commit in parent repo (spec updates + every owned submodule pointer)
+    stage_root_paths
     git commit -m "spec($SPEC_ID): iteration $ITERATION
 
 Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>" || true
