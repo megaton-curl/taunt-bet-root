@@ -1668,3 +1668,49 @@ of every iteration to understand prior context.
 ## Iteration 35 — 2026-04-25T13:20:30Z — OK
 - **Log**: iteration-035.log
 
+
+
+## Iteration 36 — 2026-04-25
+
+- FR-8 engine: round detail query joining `rounds` (FlipYou + Pot Shot) or
+  `closecall_rounds` (Close Call) with `game_entries` (per-round
+  participants) and `transactions` (per-round on-chain SOL movements).
+- New `peek/src/server/db/queries/get-round-detail.ts`:
+  - `getRoundDetail({ game, roundId })` — `roundId` is the on-chain `pda`
+    for all 3 games so the future `/games/[game]/rounds/[roundId]` route
+    has a uniform URL shape.
+  - Looks up the round summary by `pda` in the appropriate table, then
+    fetches entries (by `round_pda`) and transactions (by `match_id` +
+    `game`) in parallel via `Promise.all`. Returns `null` when the round
+    isn't found.
+  - Close Call branch resolves transactions through the round's
+    `round_id` (the migration uses the round id as `transactions.match_id`
+    for closecall) and hard-codes `t.game = 'closecall'` to match the
+    existing list-rounds query.
+  - FlipYou + Pot Shot branch double-binds `game` in addition to `pda`
+    so a stale URL with the wrong game param can't surface a row from the
+    other game; defense-in-depth `isPeekRoundsGameId` check after
+    normalization filters out any out-of-band `r.game` value (e.g. a
+    future migration row).
+  - All u64/precision-sensitive values round-trip as `text` (lamport
+    sums, target slot, prices); slot/result_side parse to integers via
+    the same `readInt` helper used in `get-game-rounds.ts`.
+- New view models in `peek/src/lib/types/peek.ts`:
+  - `PeekRoundEntryRow` — operator-readable shape with `userId`,
+    `username` (LEFT JOIN `player_profiles`, null when absent), `wallet`,
+    `amountLamports`, `side`, `isWinner`, `payoutLamports`, `createdAt`,
+    `settledAt`. Distinct from the user-detail `PeekGameEntryRow` because
+    the round-detail page renders participants (so it needs identity
+    columns) instead of a single user's recent entries.
+  - `PeekRoundTransactionRow` — same identity treatment for the
+    `transactions` join (txType, amountLamports, txSig, createdAt).
+  - `PeekRoundDetail` — discriminated union on `game`. The
+    `flipyou`/`potshot` branch carries `PeekRoundRow`; the `closecall`
+    branch carries `PeekCloseCallRoundRow`. Entries + transactions are
+    shared shapes since both tables produce the same operator surface.
+- Targeted check (peek): `pnpm lint` ✅, `pnpm typecheck` ✅, `pnpm test
+  --run` ✅ (334/334, no regressions). The page + dedicated round-detail
+  query/page tests are the next two FR-8 items.
+## Iteration 36 — 2026-04-25T13:25:30Z — OK
+- **Log**: iteration-036.log
+
