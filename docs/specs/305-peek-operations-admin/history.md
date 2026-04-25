@@ -627,3 +627,75 @@ of every iteration to understand prior context.
 ## Iteration 15 — 2026-04-25T11:30:54Z — OK
 - **Log**: iteration-015.log
 
+## Iteration 16 — 2026-04-25
+
+- Added the FR-5 universal-search engine module so the command-center search
+  bar (and the upcoming `/search` route) can resolve every operational
+  identifier against a bounded set of grouped queries:
+  - `peek/src/lib/types/peek.ts` — added the `PeekSearch*` view-model surface
+    (browser-safe, no server imports). `PeekSearchEntityType`
+    (`user | referral | linked_account | round | transaction | queue_event`)
+    + `PEEK_SEARCH_ENTITY_TYPES` const list; `PeekSearchQueryClass`
+    (`empty | free_text | user_id | username | wallet | referral_code |
+    telegram_username | telegram_provider_id | round_pda | match_id |
+    tx_signature | queue_event_id`) for audit-summary labels;
+    `PeekSearchResult` (`{ entityType, id, label, sublabel, context, href }`);
+    `PeekSearchGroup` (`{ entityType, results, truncated }`);
+    `PeekSearchResponse` (`{ query, queryClass, groups, totalResults,
+    perGroupLimit, generatedAt }`); `PEEK_SEARCH_DEFAULT_PER_GROUP_LIMIT = 5`
+    and `PEEK_SEARCH_MAX_PER_GROUP_LIMIT = 25` baseline caps.
+  - `peek/src/server/db/queries/universal-search.ts` —
+    `getUniversalSearchResults({ query, actorEmail, sql?, perGroupLimit?,
+    now?, route?, requestId?, audit? })`. Six per-entity bounded queries run
+    in parallel with `LIMIT ${limit + 1}` so the function can detect
+    `truncated` cleanly:
+    1. `searchUsers` — `player_profiles` exact-match on `user_id`/`wallet`,
+       case-insensitive exact on `username`, and bounded ILIKE fallback;
+       drill-down `/users/${userId}`.
+    2. `searchReferralCodes` — `referral_codes` exact-match on `code`
+       (case-insensitive), `user_id`, `wallet`, plus ILIKE fallback;
+       drill-down to the user detail.
+    3. `searchLinkedAccounts` — `linked_accounts` (active-only) on
+       `provider_account_id` (Telegram id) and `metadata_json->>'telegramUsername'`,
+       handling a leading `@` in the typed query.
+    4. `searchRounds` — exact-match `pda`/`match_id`/`creator` on `rounds`
+       (FlipYou + Pot Shot) plus `pda`/`round_id` on `closecall_rounds`,
+       merged into a single group with the right per-game drill-down.
+    5. `searchTransactions` — `transactions` exact-match on
+       `tx_sig`/`match_id`/`wallet` with the round drill-down.
+    6. `searchQueueEvents` — only fires for purely numeric queries (avoids
+       casting strings to BIGINT) and looks up `event_queue.id::text =`
+       so a paste of a queue event id resolves directly.
+  - **Audit**: emits `peek.search` via `writePeekAuditEvent` with
+    `actorEmail`, `actionId='peek.search'`, `resourceType='search'`,
+    `filterSummary='query_class=<class>'`, and `resultCount` (no raw query
+    in the resourceId; the writer's redaction layer scrubs the
+    `filterSummary` if the heuristic ever produced a JWT-shaped class
+    label, which it cannot). Audit failures are caught silently so search
+    rendering never fails because of an audit-write error.
+  - **Heuristic classifier** (`classifyPeekSearchQuery`): returns the
+    `PeekSearchQueryClass` from a typed query — UUIDs → `free_text`,
+    short-numeric → `queue_event_id`, long-numeric → `telegram_provider_id`,
+    16-char hex → `match_id`, base58 32-44 → `round_pda`, base58 ≥ 80 →
+    `tx_signature`, leading `@` → `telegram_username`, alphanumeric SCREAM
+    → `referral_code`, `[A-Za-z0-9_]{3,32}` → `username`, otherwise
+    `free_text`. The class is purely an audit label — every query type
+    still runs every entity-class lookup so an exact-match user_id that
+    looks like a referral_code does not get dropped.
+  - **Boundedness**: `clampLimit` floors fractional limits and clamps to
+    `[1, 25]`; the default is `5` per group; the empty-query branch
+    short-circuits to six empty groups without hitting the database.
+  - **Injectable seams**: `sql`, `audit` (default uses `writePeekAuditEvent`,
+    callers can pass `null` to disable for tests), `now`, `route`,
+    `requestId` so the next iteration's tests can drive the query module
+    deterministically without touching live Postgres.
+- Targeted check (peek): `pnpm lint` ✅, `pnpm typecheck` ✅,
+  `pnpm test` ✅ (135/135, no regressions; the search tests land in the
+  next iteration per the FR-5 checklist split).
+
+## Iteration 16 — 2026-04-25 — OK
+
+
+## Iteration 16 — 2026-04-25T11:36:28Z — OK
+- **Log**: iteration-016.log
+
