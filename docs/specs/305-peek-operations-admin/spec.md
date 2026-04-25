@@ -7,7 +7,7 @@
 | Status | Ready |
 | Priority | P1 |
 | Track | Core |
-| NR_OF_TRIES | 14 |
+| NR_OF_TRIES | 15 |
 
 ---
 
@@ -483,7 +483,7 @@ Keep the implementation close to existing `peek` conventions and cheap to operat
 #### Command center (FR-3, FR-10)
 - [x] [engine] Command-center query functions for attention items: failed claims, dead queue events, stuck settlements (rounds in nonterminal phases beyond age threshold + high settle-attempts), pending SOL crate payouts, stale active Dogpile events, high-value export activity. Bounded queries + metric metadata per FR-4. (done: iteration 13)
 - [x] [frontend] Update `/` into the command center: global search input + attention queue + small metric strip + recent high-signal activity + direct table access. Preserve users-first usefulness; surface metric definitions and "as of" timestamps. (done: iteration 14)
-- [ ] [test] Command-center query + component tests for populated, sparse, empty, and load-error states.
+- [x] [test] Command-center query + component tests for populated, sparse, empty, and load-error states. (done: iteration 15)
 
 #### Universal search (FR-5)
 - [ ] [engine] Universal search query functions accepting `user_id`, username, wallet, referral code, Telegram username, Telegram provider id, round PDA, match id, tx signature, queue event id. Bounded server-side; grouped by entity type; emits `peek.search` audit events with no secrets.

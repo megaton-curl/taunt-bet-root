@@ -573,3 +573,57 @@ of every iteration to understand prior context.
 ## Iteration 14 — 2026-04-25T11:24:49Z — OK
 - **Log**: iteration-014.log
 
+## Iteration 15 — 2026-04-25
+
+- Added the FR-3/FR-10 command-center test coverage (query + component) using
+  the same SQL-mock pattern that the iteration-12 audit-writer tests
+  established, so no live Postgres is required:
+  - **Component test** — extracted the previously-inline `RecentActivityList`
+    out of `peek/app/page.tsx` into
+    `peek/src/components/recent-activity-list.tsx` (browser-safe, no server
+    imports). Added `peek/src/components/__tests__/recent-activity-list.test.tsx`
+    (4 tests): populated renders one `<li>` per item with time/event-type/actor,
+    a `next/link` to the route, and the `resourceType:resourceId` label;
+    sparse renders `—` for missing actor and omits the link/resource label;
+    empty renders `role="status"` with the operator empty copy; error renders
+    `role="alert"` and suppresses both list + status. Updated `app/page.tsx` to
+    import the extracted component (no behavior change to the rendered page).
+  - **Command-center query test** —
+    `peek/src/server/db/queries/__tests__/get-command-center-attention.test.ts`
+    (8 tests): populated shapes seven `PeekMetric` rows in id order with FR-4
+    bookkeeping (label, source, definition, windowLabel, asOf, freshness,
+    drilldownHref) all populated; thousands-separator `valueDisplay`
+    formatting; postgres-driver string→number coercion for `count(*)::int`;
+    sparse-data path (every query returns `[]`) collapses to zero counts
+    without dropping any metric; threshold overrides surface in both the
+    `windowLabel` and the `definition` copy (so future tuning shows up in the
+    UI); the published `COMMAND_CENTER_DEFAULTS` match what the metrics
+    advertise; rejected SQL queries propagate so the page-level try/catch can
+    render the alert state; every emitted SQL is a bounded
+    `count(*)::int` projection (no row-level data crosses the wire).
+  - **Recent operator events query test** —
+    `peek/src/server/db/queries/__tests__/get-recent-operator-events.test.ts`
+    (8 tests): populated shapes rows into `PeekRecentActivityItem` preserving
+    column order; default limit applied via
+    `RECENT_OPERATOR_EVENTS_DEFAULT_LIMIT`; oversized limits clamp to
+    `RECENT_OPERATOR_EVENTS_MAX_LIMIT` (50); zero/negative clamp up to 1;
+    fractional limits floor to integers; empty result returns `[]`; query
+    orders by `created_at desc` and projects the activity columns
+    (`actorEmail`, `resourceType`, `resourceId`, `route`); rejected queries
+    propagate to the caller.
+- **Type fix on the production module** — widened
+  `CommandCenterThresholds` in `get-command-center-attention.ts` from
+  `typeof COMMAND_CENTER_DEFAULTS` (literal types via `as const`) to an explicit
+  `{ stuckRoundsAgeMinutes: number; ... }` shape. The original literal type
+  prevented `Partial<CommandCenterThresholds>` overrides at call sites
+  (typecheck error: `Type '10' is not assignable to type '5'`). Defaults still
+  ship the same numeric values, but threshold tuning is now a first-class
+  caller-facing override.
+- Targeted check (peek): `pnpm lint` ✅, `pnpm typecheck` ✅,
+  `pnpm test` ✅ (135/135 — was 115/115, +20 new across 3 new test files).
+
+## Iteration 15 — 2026-04-25 — OK
+
+## Iteration 15 — 2026-04-25T11:30:54Z — OK
+- **Log**: iteration-015.log
+
