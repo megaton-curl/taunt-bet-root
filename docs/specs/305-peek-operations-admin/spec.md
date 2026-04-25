@@ -7,7 +7,7 @@
 | Status | Ready |
 | Priority | P1 |
 | Track | Core |
-| NR_OF_TRIES | 25 |
+| NR_OF_TRIES | 26 |
 
 ---
 
@@ -493,7 +493,7 @@ Keep the implementation close to existing `peek` conventions and cheap to operat
 #### Expanded user detail (FR-6)
 - [x] [engine] Expand user-detail queries with linked accounts (`linked_accounts`), latest Telegram link tokens (`telegram_link_tokens`), referral code/inbound referrer/outbound referees/KOL rate/earnings/claims, points balance/lifetime/grants/crates, challenge assignment summary, recent game entries + transactions across all 3 games, fraud flags, and user-related queue events. (done: iteration 19)
 - [x] [frontend] Expand `/users/[userId]` with tabs/anchored sections (identity, linked accounts, referrals, games, rewards, challenges, transactions, attention). Attention flags: failed claim, dead queue event, active fraud flag, pending SOL crate payout, suspicious referral self/loop. (done: iteration 20)
-- [ ] [test] Expanded user-detail query + component tests for full, sparse, and sensitive-section audit (calls audit writer when sensitive sections render).
+- [x] [test] Expanded user-detail query + component tests for full, sparse, and sensitive-section audit (calls audit writer when sensitive sections render). (done: iteration 26)
 
 #### Growth + KOL (FR-7)
 - [ ] [engine] Growth/referral queries: overview metrics (referrers, referred users, activated, earnings, rebates, pending claims, failed claims, KOL count); top-referrers; `referral_kol_rates` with linked performance; claim filters by status/user/amount/date/tx/error; graph navigation queries.

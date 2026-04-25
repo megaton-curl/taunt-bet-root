@@ -1029,3 +1029,45 @@ of every iteration to understand prior context.
 ## Iteration 25 — 2026-04-25T12:10:02Z — OK
 - **Log**: iteration-025.log
 
+## Iteration 26 — 2026-04-25
+
+- Iterations 21-25 all rate-limited at session start without producing
+  changes; the FR-6 query + component test files were already authored in
+  iteration 19/20's parallel work but had not been wired through the test
+  loop — and one assertion was failing because `u-1` appears twice in the
+  rendered DOM (header meta + identity `<dl>`).
+- Fixed `peek/src/components/__tests__/user-detail-view.test.tsx`'s
+  "renders each section's data" case:
+  - Replaced `screen.getByText("u-1")` with
+    `getAllByText("u-1").length >= 2` so the header user-id meta + the
+    identity-section `<dd>` both count as evidence of the populated
+    identity render.
+  - Replaced the bare `screen.getByText("3")` (challenge total) with a
+    section-scoped `within(challengeSection).getByText("3")` because `3`
+    can collide with retry counts / numeric values in other sections.
+  - Used `closest("section")` from the `Challenges` `<h2>` to find the
+    DetailPanel section body without coupling to the section-id naming.
+- Net test surface for FR-6:
+  - `peek/src/server/db/queries/__tests__/get-peek-user-detail.test.ts`
+    — 16 tests: identity-only on miss; full-shape across every section;
+    suspicious-self-referral attention path; sparse fallbacks for every
+    aggregate; bounded recentLimit/tokenLimit binding; default limits;
+    payload-keyed event_queue lookup binds both userId + wallet; audit
+    handler invoked once with route+requestId on a successful read;
+    audit skipped when actorEmail missing / explicitly null / user not
+    found; thrown audit handler is swallowed; non-identity query
+    rejection propagates so the page can render an alert.
+  - `peek/src/components/__tests__/user-detail-view.test.tsx` — 8 tests:
+    full populated render (article header, every section anchor, every
+    section heading in spec order, per-section data, attention strip,
+    attention-section flag descriptions, activeSectionId deep-link);
+    sparse render (no attention strip, operator-readable empty states
+    per section, header falls back to user_id when username is null).
+- Targeted check (peek): `pnpm test` ✅ (196/196 — was 195/196 with one
+  failing assertion, now all green); `pnpm lint` ✅; `pnpm typecheck` ✅.
+
+## Iteration 26 — 2026-04-25 — OK
+
+## Iteration 26 — 2026-04-25T12:14:53Z — OK
+- **Log**: iteration-026.log
+
