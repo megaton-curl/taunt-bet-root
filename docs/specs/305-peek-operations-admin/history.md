@@ -1714,3 +1714,82 @@ of every iteration to understand prior context.
 ## Iteration 36 — 2026-04-25T13:25:30Z — OK
 - **Log**: iteration-036.log
 
+
+
+
+## Iteration 37 — 2026-04-25
+
+- FR-8 frontend: `/games/[game]/rounds/[roundId]` detail page. Reads
+  `getRoundDetail({ game, roundId })` from iteration 36 and renders three
+  sections so an operator can audit the full round lifecycle in one place:
+  round summary, entries, and transactions.
+- New `peek/app/games/[game]/rounds/[roundId]/page.tsx`:
+  - Validates `[game]` against `PEEK_GAME_IDS` and `notFound()`s out-of-band
+    values (e.g. `crash`) before any DB call. Same access path as
+    `/games/[game]`: `getPeekActorContext` + `isRouteAllowedForRole` so an
+    unknown role gets the read-only access-denied alert without leaking the
+    round.
+  - When the query returns `null` for an unknown round PDA the page calls
+    `notFound()`. When the query throws, the page renders an inline
+    `role="alert"` so a transient DB failure doesn't nuke the route — same
+    pattern the per-game list page uses.
+  - Breadcrumb: `← Games · [Game]` with two `Link`s back to `/games` and
+    `/games/[game]` so an operator can jump back to either level without
+    losing their place.
+- Round summary block:
+  - FlipYou + Pot Shot branch: `RoundSummary` renders every `PeekRoundRow`
+    field from FR-8 (phase, match id, pda, creator, amount lamports, target
+    slot, settle attempts, result side, winner, settle tx, created/updated/
+    settled timestamps). Phase reuses the existing
+    `phaseTone(PeekRoundPhase)` mapping so settled/expired/settling/locked
+    visually match the `/games/[game]` list table.
+  - Close Call branch: `CloseCallSummary` renders every
+    `PeekCloseCallRoundRow` field (phase, outcome, round id, pda, open price
+    + Pyth `expo` sublabel, close price, green/red pools, total fee, settle
+    tx, created/settled). Outcome + phase render as side-by-side
+    `StatusChip`s with the same tones as `closecall-rounds-table` so a
+    `refunded`+`refund` round pops the same way it does in the list.
+  - Layout is a `<dl>` grid with `auto-fit, minmax(220px, 1fr)` columns so
+    the summary collapses cleanly on narrow viewports without needing a
+    media-query stylesheet.
+  - Long pubkeys (pda, creator, winner, settle_tx, match id, round id, tx
+    sig, wallet) truncate via the existing `truncate()` helper and keep the
+    full string in `title=` for hover audit. Lamport / u64 values format
+    with thousands separators while preserving the literal `"0"` for
+    measured zeros (FR-4).
+- Entries section (`EntriesTable` over `PeekRoundEntryRow`):
+  - Columns: created, user, wallet, amount lamports (right-aligned), side,
+    winner, payout lamports (right-aligned), settled. The `user` cell
+    becomes a `Link` to `/users/[userId]` (FR-6 drill-down) showing
+    `username` when `player_profiles` had a row, falling back to a
+    truncated user id with the full id in `title=`.
+  - `isWinner` renders as `yes`/`no`/`—` so an operator can scan winners
+    quickly. Lamport zeros stay as `"0"` (measured zero), but null
+    settledAt / null side render `—` to avoid mistaking sparse data for a
+    measured outcome.
+  - Sparse state explains the absence operationally — "No entries recorded
+    for this round" + "the `game_entries` table has no rows joined to this
+    round PDA. This is normal for rounds that were created but never
+    joined." — matching the FR-3 empty-state convention used elsewhere in
+    `peek`.
+- Transactions section (`TransactionsTable` over
+  `PeekRoundTransactionRow`):
+  - Columns: created, type (StatusChip), user (Link or `—`), wallet,
+    amount lamports (right-aligned), tx signature (mono + truncated +
+    `title=`). User column is null when the chain row has no resolved
+    `user_id` so the table doesn't fabricate a user link.
+  - Sparse state references the FR-8 stuck-state filter on
+    `/games/[game]` ("settled rounds without transaction rows are an
+    attention state surfaced by the stuck-state filters") so an operator
+    arriving from a stuck-state filter has a clear hint about what they're
+    looking at.
+- Role gating: the route falls under the default `PEEK_DEFAULT_ROUTE_ROLES`
+  (business + admin) — no explicit prefix rule needed because the round
+  detail isn't admin-only. `/audit` remains the only admin-gated prefix in
+  `PEEK_ROUTE_RULES`.
+- Targeted check (peek): `pnpm lint` ✅, `pnpm typecheck` ✅, `pnpm test
+  --run` ✅ (334/334, no regressions). Dedicated round-detail query +
+  page tests are the next FR-8 checklist item.
+## Iteration 37 — 2026-04-25T13:30:31Z — OK
+- **Log**: iteration-037.log
+
