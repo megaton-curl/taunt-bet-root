@@ -469,3 +469,53 @@ of every iteration to understand prior context.
 ## Iteration 12 — 2026-04-25T11:13:59Z — OK
 - **Log**: iteration-012.log
 
+
+## Iteration 13 — 2026-04-25
+
+- Added the FR-3/FR-10 command-center attention queue query module so the
+  command-center page can render exception states without per-page hardcoded
+  thresholds:
+  - `peek/src/server/db/queries/get-command-center-attention.ts` —
+    `getCommandCenterAttention(options?)` runs seven bounded count queries in
+    parallel and returns a `PeekCommandCenterAttention` envelope:
+    1. `failed_claims` — `referral_claims.status IN ('failed', 'error')`,
+       drill-down `/growth/referrals?claimStatus=failed`.
+    2. `dead_queue_events` — `event_queue.status = 'dead'`, drill-down
+       `/operations/queue?status=dead`.
+    3. `stuck_rounds_flipyou_potshot` — `rounds` in nonterminal phases
+       (`'created' | 'locked' | 'settling'`) older than the age threshold OR
+       `settle_attempts > max`, drill-down `/games?stuck=true`.
+    4. `stuck_rounds_closecall` — `closecall_rounds.phase = 'open'` older than
+       the age threshold (Pyth settles on minute boundaries), drill-down
+       `/games/closecall?stuck=true`.
+    5. `pending_sol_crate_payouts` — `crate_drops.crate_type = 'sol' AND
+       status = 'pending'`, drill-down
+       `/economy/rewards?crateType=sol&status=pending`.
+    6. `stale_active_dogpile_events` — `dogpile_events.status = 'active' AND
+       ends_at < now()` (should have transitioned to `'ended'`), drill-down
+       `/operations/dogpile?status=active`.
+    7. `high_value_exports_24h` — `operator_events.event_type = 'peek.export'
+       AND created_at > now() - 24h AND (payload->>'resultCount')::int > 1000`,
+       drill-down `/audit?eventType=peek.export`.
+  - Each metric is shaped as the foundational `PeekMetric` (FR-4 metric
+    metadata: stable id, label, value/valueDisplay, unit, source table,
+    windowLabel, asOf, definition, freshness, drilldownHref) so the
+    metric-strip primitive renders it without component-side branching.
+  - `COMMAND_CENTER_DEFAULTS` exposes the thresholds (5m stuck rounds, >3
+    settle attempts, 24h export window, >1000-row export threshold) and the
+    function accepts a `CommandCenterOptions` argument with `sql`,
+    `thresholds`, and `now` overrides so future iteration tests can drive
+    deterministic count + asOf assertions and so future tuning does not
+    require module edits.
+  - All seven queries are bounded (`select count(*)::int as "value"`); no
+    row-level data crosses the wire from the command-center query — per-feature
+    pages own their drill-down rows.
+- Added `PeekCommandCenterAttention` and `PeekCommandCenterAttentionId` view
+  models in `peek/src/lib/types/peek.ts` so the command-center page can import
+  the typed envelope without leaking server imports.
+- Targeted check (peek): `pnpm lint` ✅, `pnpm typecheck` ✅,
+  `pnpm test` ✅ (115/115, no regressions; command-center query + page tests
+  land in iterations 14–15 per the checklist split).
+## Iteration 13 — 2026-04-25T11:18:38Z — OK
+- **Log**: iteration-013.log
+

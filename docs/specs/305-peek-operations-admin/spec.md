@@ -7,7 +7,7 @@
 | Status | Ready |
 | Priority | P1 |
 | Track | Core |
-| NR_OF_TRIES | 12 |
+| NR_OF_TRIES | 13 |
 
 ---
 
@@ -481,7 +481,7 @@ Keep the implementation close to existing `peek` conventions and cheap to operat
 - [x] [test] Audit-writer tests: sensitive read, export, access denial, mutation applied, mutation rejected, secret redaction (JWTs/DB URLs/private keys/raw secrets never persisted), and insert-failure behavior. (done: iteration 12)
 
 #### Command center (FR-3, FR-10)
-- [ ] [engine] Command-center query functions for attention items: failed claims, dead queue events, stuck settlements (rounds in nonterminal phases beyond age threshold + high settle-attempts), pending SOL crate payouts, stale active Dogpile events, high-value export activity. Bounded queries + metric metadata per FR-4.
+- [x] [engine] Command-center query functions for attention items: failed claims, dead queue events, stuck settlements (rounds in nonterminal phases beyond age threshold + high settle-attempts), pending SOL crate payouts, stale active Dogpile events, high-value export activity. Bounded queries + metric metadata per FR-4. (done: iteration 13)
 - [ ] [frontend] Update `/` into the command center: global search input + attention queue + small metric strip + recent high-signal activity + direct table access. Preserve users-first usefulness; surface metric definitions and "as of" timestamps.
 - [ ] [test] Command-center query + component tests for populated, sparse, empty, and load-error states.
 
