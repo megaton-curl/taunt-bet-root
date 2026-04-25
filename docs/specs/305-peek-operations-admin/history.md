@@ -699,3 +699,57 @@ of every iteration to understand prior context.
 ## Iteration 16 — 2026-04-25T11:36:28Z — OK
 - **Log**: iteration-016.log
 
+## Iteration 17 — 2026-04-25
+
+- Added the FR-5 universal-search UI so the command-center search bar resolves
+  results across the six operational entity types and renders them grouped on
+  the home page:
+  - `peek/src/components/universal-search-results.tsx` — browser-safe
+    presentational component. Takes `response: PeekSearchResponse | null`
+    (null when no search has run) plus a nullable `error`. Empty/whitespace
+    queries render nothing; non-empty queries with zero results render an
+    operator-readable `role="status"` ("No matches for &quot;…&quot; across
+    users, referral codes, linked accounts, rounds, transactions, or queue
+    events."); non-null `error` renders `role="alert"` and suppresses results.
+  - **Grouping**: only groups with `results.length > 0` are rendered, in the
+    canonical order the query module emits (user, referral, linked_account,
+    round, transaction, queue_event). Each group is a `<section
+    aria-labelledby>` with a heading `<h3>` showing the human label + count
+    (e.g. "Users (2)") and a `<ul aria-label>` of result items. When a
+    group's `truncated` flag is true (the per-group LIMIT+1 fetch saw the
+    cap), the header advertises "showing first {perGroupLimit} — narrow the
+    query for more" so operators know to refine.
+  - **Disambiguating context per row**: each result renders the
+    `next/link` anchor on `result.label` (drill-down to `result.href`), the
+    `result.sublabel` (e.g. wallet for a user, user_id for a referral code,
+    `${game} • ${phase}` for a round, `${game} • ${txType}` for a
+    transaction, `${eventType} • ${status}` for a queue event), and the
+    `result.context` line (e.g. join date, wallet, creator, lamports
+    amount, attempts + scheduled_at). The query module already shapes those
+    fields, so the UI just renders them in a stable three-column grid for
+    quick scanning.
+  - `peek/src/lib/types/peek.ts` — `PeekSearchResponse`/`Group`/`Result`
+    types are unchanged; the UI consumes the existing browser-safe surface
+    added in iteration 16.
+- Wired into `peek/app/page.tsx`:
+  - When `searchParams.query` is non-empty/non-whitespace, the home page
+    calls `getUniversalSearchResults` from iteration 16 with the verified
+    actor email from `getPeekActorContext()`. The audit handler defaults to
+    `writePeekAuditEvent` (so a `peek.search` row lands per FR-5/FR-11), but
+    is explicitly disabled (`audit: null`) when no actor is resolvable so we
+    never write an audit event without a verified email.
+  - Rendered the `UniversalSearchResults` block immediately under the global
+    search form. The route param is forwarded to the audit writer
+    (`route: "/"`).
+  - Errors from the search query are caught into a local `searchError`
+    string so a search failure does not blank the attention queue, summary,
+    activity, or users sections.
+- No backend API changes; no public route additions; no schema changes — the
+  surface is internal to peek and reuses the iteration-16 query module.
+- Targeted check (peek): `pnpm lint` ✅, `pnpm typecheck` ✅,
+  `pnpm test` ✅ (135/135, no regressions; the dedicated UI/audit-emission
+  test file lands in the next iteration per the FR-5 checklist split).
+
+## Iteration 17 — 2026-04-25T11:40:46Z — OK
+- **Log**: iteration-017.log
+

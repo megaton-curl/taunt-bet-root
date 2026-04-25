@@ -7,7 +7,7 @@
 | Status | Ready |
 | Priority | P1 |
 | Track | Core |
-| NR_OF_TRIES | 16 |
+| NR_OF_TRIES | 17 |
 
 ---
 
@@ -487,7 +487,7 @@ Keep the implementation close to existing `peek` conventions and cheap to operat
 
 #### Universal search (FR-5)
 - [x] [engine] Universal search query functions accepting `user_id`, username, wallet, referral code, Telegram username, Telegram provider id, round PDA, match id, tx signature, queue event id. Bounded server-side; grouped by entity type; emits `peek.search` audit events with no secrets. (done: iteration 16)
-- [ ] [frontend] Universal search UI grouped by entity type (user, referral, linked account, round, transaction, queue event) with disambiguating context per result.
+- [x] [frontend] Universal search UI grouped by entity type (user, referral, linked account, round, transaction, queue event) with disambiguating context per result. (done: iteration 17)
 - [ ] [test] Universal search tests: every supported identifier class, bounded-query enforcement, no-result behavior, audit-event emission.
 
 #### Expanded user detail (FR-6)
