@@ -7,7 +7,7 @@
 | Status | Ready |
 | Priority | P1 |
 | Track | Core |
-| NR_OF_TRIES | 10 |
+| NR_OF_TRIES | 11 |
 
 ---
 
@@ -477,7 +477,7 @@ Keep the implementation close to existing `peek` conventions and cheap to operat
 - [x] [frontend] Persistent admin shell with actor email + resolved role badge, role-aware navigation (Users, Growth, Games, Economy, Operations, Audit, Access), hidden links for inaccessible routes, and access-denied + missing-config states that do not leak sensitive data. (done: iteration 10)
 
 #### Audit writer (FR-11)
-- [ ] [engine] `peek/src/server/audit/**` audit writer using `operator_events` with `peek.*` event types (`peek.search`, `peek.user.view_sensitive`, `peek.export`, `peek.access.denied`, `peek.change.applied`, `peek.change.rejected`), actor + route + action + resource + filter summary + result-count + request-id; secret redaction; safe-failure (does not leak to browser).
+- [x] [engine] `peek/src/server/audit/**` audit writer using `operator_events` with `peek.*` event types (`peek.search`, `peek.user.view_sensitive`, `peek.export`, `peek.access.denied`, `peek.change.applied`, `peek.change.rejected`), actor + route + action + resource + filter summary + result-count + request-id; secret redaction; safe-failure (does not leak to browser). (done: iteration 11)
 - [ ] [test] Audit-writer tests: sensitive read, export, access denial, mutation applied, mutation rejected, secret redaction (JWTs/DB URLs/private keys/raw secrets never persisted), and insert-failure behavior.
 
 #### Command center (FR-3, FR-10)

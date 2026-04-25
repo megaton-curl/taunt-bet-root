@@ -389,3 +389,40 @@ of every iteration to understand prior context.
 ## Iteration 10 — 2026-04-25T11:05:34Z — OK
 - **Log**: iteration-010.log
 
+## Iteration 11 — 2026-04-25
+
+- Added the FR-11 audit writer module under `peek/src/server/audit/**` so
+  `peek.*` operator events land in the existing `operator_events` table
+  without a new migration:
+  - `peek/src/server/audit/redact.ts` — `looksLikeSecret`, `redactScalar`,
+    `redactNullableString`, `redactChange`, and `redactPayload`. Patterns
+    cover JWTs (`eyJ…\.…\.…`), DB connection URLs (postgres/mysql/mongodb/
+    redis/amqp), `-----BEGIN […] PRIVATE KEY-----` blocks, `Bearer …`
+    headers, and `cf-access-jwt-assertion: …` lines. Matches are replaced
+    with `PEEK_AUDIT_REDACTED` from `peek/src/lib/types/peek.ts`. Mutation
+    `changes[]` entries get the same scalar redaction so before/after
+    string values cannot persist secrets.
+  - `peek/src/server/audit/writer.ts` — `writePeekAuditEvent({ eventType,
+    payload }, options)` that runs every payload through `redactPayload`,
+    inserts into `operator_events (event_type, payload)` (pda left null —
+    peek records are not round-keyed), and returns
+    `{ ok: true } | { ok: false, reason: "invalid_payload" | "insert_failed" }`.
+    Empty `actorEmail` short-circuits to `invalid_payload` so unauthenticated
+    paths never write a row. DB errors are caught and only forwarded to a
+    server-side `logger` (defaults to `console.error`); the error detail
+    never reaches the writer's return value, so callers cannot accidentally
+    leak DB internals to the browser.
+  - `peek/src/server/audit/index.ts` — public re-exports
+    (`writePeekAuditEvent`, the result types, and the redaction helpers).
+  - The writer accepts an injectable `Sql` and `logger` so the next
+    iteration's tests can drive it without touching live Postgres.
+- Inserts use `sql.json(...)` to keep the JSONB serialization consistent
+  with the backend's existing `operator_events` writer pattern in
+  `backend/src/db/rounds.ts`.
+- Targeted check (peek): `pnpm lint` ✅, `pnpm typecheck` ✅,
+  `pnpm test` ✅ (106/106, no regressions; audit-writer tests land in the
+  next iteration per the checklist split).
+
+## Iteration 11 — 2026-04-25T11:10:28Z — OK
+- **Log**: iteration-011.log
+
