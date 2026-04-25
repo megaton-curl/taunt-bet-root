@@ -91,3 +91,31 @@ of every iteration to understand prior context.
 ## Iteration 3 — 2026-04-25T10:36:33Z — OK
 - **Log**: iteration-003.log
 
+## Iteration 4 — 2026-04-25
+
+- Extended `peek/src/server/access-policy.ts` with the FR-2 centralized
+  route-prefix and action-id authorization helpers:
+  - `PEEK_ROUTE_RULES` table (`/audit` → `admin`); other routes fall back to
+    `PEEK_DEFAULT_ROUTE_ROLES = ["business", "admin"]` per System Invariant
+    #6 (read-only default for any resolved peek role).
+  - `PEEK_ACTION_RULES` table covering the FR-14 initial mutation candidates:
+    `kol_rate.update` (`business`/`admin`), `fraud_flag.status.update`
+    (`admin`), `dogpile.cancel` (`admin`), `reward_config.update` (`admin`).
+  - `getRequiredRolesForRoute(path)` normalizes the path (strips query/hash,
+    trailing slash) and resolves the most-specific matching prefix; unknown
+    paths return the documented default.
+  - `isRouteAllowedForRole(path, role)` → false for `null` role, otherwise
+    membership in the resolved required-roles list.
+  - `getRequiredRolesForAction(actionId)` returns the required roles or
+    `null` when the action id is unknown; `isActionAllowedForRole` fails
+    closed (returns false) on unknown action ids or `null` role.
+  - All rule tables and helpers accept overridable rule arrays so the test
+    suite (next iteration) can exercise unit-table edge cases without
+    coupling to the live policy.
+- Targeted check (peek): `pnpm lint` ✅, `pnpm typecheck` ✅,
+  `pnpm test` ✅ (31/31, no regressions; new helpers will get dedicated
+  unit coverage in the next iteration per the checklist split).
+
+## Iteration 4 — 2026-04-25T10:39:30Z — OK
+- **Log**: iteration-004.log
+

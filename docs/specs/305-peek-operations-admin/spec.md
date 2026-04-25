@@ -7,7 +7,7 @@
 | Status | Ready |
 | Priority | P1 |
 | Track | Core |
-| NR_OF_TRIES | 3 |
+| NR_OF_TRIES | 4 |
 
 ---
 
@@ -462,7 +462,7 @@ Keep the implementation close to existing `peek` conventions and cheap to operat
 - [x] [engine] Add `jose` dep to `peek`; replace the custom Cloudflare Access JWT/JWKS verifier in `peek/src/server/cloudflare-access.ts` with `createRemoteJWKSet` + `jwtVerify` validating issuer, audience, signature, and expiration. Remove custom crypto/JWKS code. (done: iteration 1)
 - [x] [test] Update `peek/src/server/__tests__/cloudflare-access*.test.ts` for `jose`-backed verification: missing token, invalid token, expired token, bad signature, invalid issuer/audience, missing email claim, case normalization, missing config, and `PEEK_DEV_ACCESS_EMAIL` local-only bypass. (done: iteration 2)
 - [x] [engine] Add `peek/src/server/access-policy.ts` (server-only) resolving verified emails to a single effective role (`business` or `admin`), with exact-email and `*@domain` wildcard support, case-insensitive matching, and `admin` precedence; thread the resolved role + actor email through server request context (no browser headers trusted). (done: iteration 3)
-- [ ] [engine] Add centralized route-prefix and action-id authorization helpers in the same module: route-prefix → required role(s); action-id → required role(s); unknown routes default per documented rule; unknown action ids fail closed (deny).
+- [x] [engine] Add centralized route-prefix and action-id authorization helpers in the same module: route-prefix → required role(s); action-id → required role(s); unknown routes default per documented rule; unknown action ids fail closed (deny). (done: iteration 4)
 - [ ] [test] Add `peek/src/server/__tests__/access-policy.test.ts` covering exact email, wildcard domain, case normalization, admin precedence, route allow/deny, action allow/deny, invalid/duplicate policy entries, and actor-context propagation.
 
 #### Foundational view models (FR-4)
