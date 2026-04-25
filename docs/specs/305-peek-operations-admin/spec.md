@@ -7,7 +7,7 @@
 | Status | Ready |
 | Priority | P1 |
 | Track | Core |
-| NR_OF_TRIES | 11 |
+| NR_OF_TRIES | 12 |
 
 ---
 
@@ -478,7 +478,7 @@ Keep the implementation close to existing `peek` conventions and cheap to operat
 
 #### Audit writer (FR-11)
 - [x] [engine] `peek/src/server/audit/**` audit writer using `operator_events` with `peek.*` event types (`peek.search`, `peek.user.view_sensitive`, `peek.export`, `peek.access.denied`, `peek.change.applied`, `peek.change.rejected`), actor + route + action + resource + filter summary + result-count + request-id; secret redaction; safe-failure (does not leak to browser). (done: iteration 11)
-- [ ] [test] Audit-writer tests: sensitive read, export, access denial, mutation applied, mutation rejected, secret redaction (JWTs/DB URLs/private keys/raw secrets never persisted), and insert-failure behavior.
+- [x] [test] Audit-writer tests: sensitive read, export, access denial, mutation applied, mutation rejected, secret redaction (JWTs/DB URLs/private keys/raw secrets never persisted), and insert-failure behavior. (done: iteration 12)
 
 #### Command center (FR-3, FR-10)
 - [ ] [engine] Command-center query functions for attention items: failed claims, dead queue events, stuck settlements (rounds in nonterminal phases beyond age threshold + high settle-attempts), pending SOL crate payouts, stale active Dogpile events, high-value export activity. Bounded queries + metric metadata per FR-4.

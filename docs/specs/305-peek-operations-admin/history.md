@@ -426,3 +426,46 @@ of every iteration to understand prior context.
 ## Iteration 11 — 2026-04-25T11:10:28Z — OK
 - **Log**: iteration-011.log
 
+## Iteration 12 — 2026-04-25
+
+- Added `peek/src/server/audit/__tests__/writer.test.ts` (9 tests) covering the
+  FR-11 audit-writer surface end-to-end:
+  - **Sensitive read**: `peek.user.view_sensitive` insert carries the full
+    payload (route, actionId, resourceType/Id, filterSummary, resultCount,
+    requestId) verbatim into `operator_events`; SQL string contains
+    `insert into operator_events`.
+  - **Export**: `peek.export` insert carries actionId, resultCount, and
+    filterSummary unchanged.
+  - **Access denial**: `peek.access.denied` insert carries route + a
+    `rejectionReason` (e.g. `role_required:admin`) without leaking secrets.
+  - **Mutation applied**: `peek.change.applied` insert carries the
+    `changes[]` before/after array with mixed scalar types (number + string)
+    intact.
+  - **Mutation rejected**: `peek.change.rejected` insert carries
+    `rejectionReason` and the changes[] for the rejected diff.
+  - **Secret redaction**: a payload stuffed with a JWT, postgres connection
+    URL, RSA `-----BEGIN PRIVATE KEY-----` block, `Bearer …` header, and
+    `cf-access-jwt-assertion: …` line is fully redacted to
+    `PEEK_AUDIT_REDACTED` before persistence; the serialized stored payload
+    contains none of the raw secret strings.
+  - **Empty actorEmail**: returns `{ ok: false, reason: "invalid_payload" }`
+    and writes nothing to the SQL mock (no insert call, no `sql.json` call).
+  - **Insert failure**: a rejected insert returns `{ ok: false, reason:
+    "insert_failed" }`, the injected logger is invoked with
+    `"[peek-audit] insert failed"` + `{ eventType }`.
+  - **Error containment**: even when the underlying DB error string contains
+    `password=hunter2`, the structured result never contains those bytes —
+    the writer's return type is a closed union with no error detail.
+- The test creates a typed SQL mock that captures both the tagged-template
+  call (strings + values) and `sql.json(...)` invocations so the writer's
+  payload-shaping contract is asserted directly without touching live
+  Postgres. The mock is passed via the writer's `options.sql` injection
+  seam (the same seam used in production calls when iterations need to run
+  inside a transaction).
+- Targeted check (peek): `pnpm lint` ✅, `pnpm typecheck` ✅,
+  `pnpm test` ✅ (115/115 — was 106/106, +9 new).
+
+
+## Iteration 12 — 2026-04-25T11:13:59Z — OK
+- **Log**: iteration-012.log
+
