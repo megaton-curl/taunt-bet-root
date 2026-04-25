@@ -1291,3 +1291,56 @@ of every iteration to understand prior context.
 ## Iteration 30 — 2026-04-25T12:43:29Z — OK
 - **Log**: iteration-030.log
 
+
+
+## Iteration 31 — 2026-04-25
+
+- FR-8 frontend: wired the `/games` overview page on top of iteration 30's
+  `getGamesOverview()` engine query. Active games render real per-game
+  counters; deferred games (Crash, Game of Trades, Chart the Course, Slots
+  Utopia, Tug of Earn) appear as documented placeholders only, per
+  System Invariant 13.
+- New `peek/app/games/page.tsx` — server-rendered route, `dynamic =
+  "force-dynamic"`. Calls `getPeekActorContext` + `isRouteAllowedForRole`
+  for the page-level access gate (the layout already does the outer gate
+  via the `AdminShell`; the page repeats the check so a no-role caller
+  still sees an `<alert>` instead of an empty data shell). Sections:
+  - **Overview** — feeds the 6-metric strip (`games.total_entries`,
+    `games.unique_users`, `games.wagered_lamports`, `games.settled_entries`,
+    `games.refund_entries`, `games.payout_lamports`) into the existing
+    `MetricStrip`. Each metric carries the FR-4 bookkeeping (label,
+    definition, source `game_entries`, window "All time", asOf,
+    `freshness: "live"`, drilldown `/games`).
+  - **Per-game activity** — renders the new `GamesOverviewTable`
+    against `overview.perGame` (3 rows, one per known `PeekGameId`,
+    zero-filled when missing).
+  - **Deferred games** — static list of the 5 deferred game labels with
+    a per-row reason ("Phase-2 deferred; no persisted rounds table yet."
+    / "Spec-only; awaiting persisted data source.") so an operator can
+    see at a glance why no counters exist.
+- New `peek/src/components/games-overview-table.tsx` — dense readonly
+  table over `PeekGameOverviewRow`. Friendly game labels (`flipyou →
+  FlipYou`, `potshot → Pot Shot`, `closecall → Close Call`) plus the
+  raw id as a sublabel. Right-aligned numeric columns with
+  thousands-separator formatting for both lamport sums and integer
+  counts (FR-4: integer formatting for counts; lamports preserved as
+  precise underlying value via `text` columns). Empty state explains
+  `game_entries` is empty rather than rendering "0" rows that could be
+  mistaken for measurement; error path surfaces the load error in an
+  inline alert.
+- Page error handling mirrors `/growth/referrals`: a single failure in
+  `getGamesOverview()` populates `overviewError` and propagates to both
+  the `MetricStrip` (`error` prop) and `GamesOverviewTable` (`error`
+  prop) so a broken query alerts in both sections without blanking the
+  page.
+- The dedicated FR-8 test pair (`/games` query + page tests) is the
+  next checklist item; this iteration ships the UI scaffolding only.
+  The existing test surface (250 tests) was preserved.
+- Targeted check (peek): `pnpm lint` ✅, `pnpm typecheck` ✅,
+  `pnpm test --run` ✅ (250/250, no regressions), `pnpm build` ✅
+  (Next.js compiles the new `/games` route alongside `/`,
+  `/users/[userId]`, `/growth/referrals`, and `/growth/kol`).
+
+## Iteration 31 — 2026-04-25T12:50:02Z — OK
+- **Log**: iteration-031.log
+

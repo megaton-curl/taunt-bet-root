@@ -7,7 +7,7 @@
 | Status | Ready |
 | Priority | P1 |
 | Track | Core |
-| NR_OF_TRIES | 30 |
+| NR_OF_TRIES | 31 |
 
 ---
 
@@ -502,7 +502,7 @@ Keep the implementation close to existing `peek` conventions and cheap to operat
 
 #### Games (FR-8) — split by route
 - [x] [engine] Games overview queries: cross-game `game_entries` aggregations (entries, unique users, wagered lamports, settled, refunds, payouts, win/loss) per game. (done: iteration 30)
-- [ ] [frontend] `/games` overview page with cross-game activity + documented placeholders for deferred games (Crash, Game of Trades, Chart the Course, Slots Utopia, Tug of Earn).
+- [x] [frontend] `/games` overview page with cross-game activity + documented placeholders for deferred games (Crash, Game of Trades, Chart the Course, Slots Utopia, Tug of Earn). (done: iteration 31)
 - [ ] [test] `/games` overview query + page tests for activity metrics, deferred-game placeholders, sparse data.
 - [ ] [engine] Per-game round queries: FlipYou + Pot Shot from `rounds` (phase, pda, match id, creator, target slot, settle attempts, settle tx, result side, winner, timestamps); Close Call from `closecall_rounds` (phase, pda, prices, outcome, pools, fee, settle tx, timestamps); stuck-state filters (nonterminal beyond age threshold, high settle attempts, settled entries without expected tx, refunds).
 - [ ] [frontend] `/games/[game]` route handling FlipYou + Pot Shot + Close Call via the `[game]` param, with stuck-state filters and shared layout.
