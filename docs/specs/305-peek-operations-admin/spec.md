@@ -7,7 +7,7 @@
 | Status | Ready |
 | Priority | P1 |
 | Track | Core |
-| NR_OF_TRIES | 26 |
+| NR_OF_TRIES | 27 |
 
 ---
 
@@ -496,7 +496,7 @@ Keep the implementation close to existing `peek` conventions and cheap to operat
 - [x] [test] Expanded user-detail query + component tests for full, sparse, and sensitive-section audit (calls audit writer when sensitive sections render). (done: iteration 26)
 
 #### Growth + KOL (FR-7)
-- [ ] [engine] Growth/referral queries: overview metrics (referrers, referred users, activated, earnings, rebates, pending claims, failed claims, KOL count); top-referrers; `referral_kol_rates` with linked performance; claim filters by status/user/amount/date/tx/error; graph navigation queries.
+- [x] [engine] Growth/referral queries: overview metrics (referrers, referred users, activated, earnings, rebates, pending claims, failed claims, KOL count); top-referrers; `referral_kol_rates` with linked performance; claim filters by status/user/amount/date/tx/error; graph navigation queries. (done: iteration 27)
 - [ ] [frontend] `/growth/referrals` (overview + top-referrers + claims) and `/growth/kol` (KOL table with rate, wallet, set_by, timestamps, performance) with filtered tables, drill-down to user detail, empty states, and access checks.
 - [ ] [test] Growth/referral query + page tests for referrers, KOL rows, claims, filters, drill-down, and empty states.
 

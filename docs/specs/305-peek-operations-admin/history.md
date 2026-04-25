@@ -1071,3 +1071,78 @@ of every iteration to understand prior context.
 ## Iteration 26 — 2026-04-25T12:14:53Z — OK
 - **Log**: iteration-026.log
 
+
+## Iteration 27 — 2026-04-25
+
+- FR-7 engine queries: created
+  `peek/src/server/db/queries/get-growth-referrals.ts` covering the four
+  read paths the upcoming `/growth/referrals` and `/growth/kol` pages need
+  plus the one-hop graph navigation node so the next iteration can wire UI
+  without touching SQL again.
+- Five exported entry points, each bounded server-side and using only
+  existing tables (no migrations):
+  - `getGrowthReferralOverview()` — eight FR-4 metrics with full
+    bookkeeping (`id`, `label`, `value`, `valueDisplay`, `unit`, `source`,
+    `windowLabel`, `asOf`, `definition`, `freshness`, `drilldownHref`):
+    `growth.referrers` (distinct `referral_links.referrer_user_id`),
+    `growth.referred_users` (`count(*)`),
+    `growth.activated_referred_users` (referees with at least one
+    `game_entries` row),
+    `growth.referrer_earnings_lamports`,
+    `growth.referee_rebates_lamports`,
+    `growth.pending_claims_lamports` (`status in pending/processing`),
+    `growth.failed_claims` (`status in failed/error`),
+    `growth.kol_count` (`referral_kol_rates`). All eight metrics share the
+    same `generatedAt` timestamp; lamports are formatted via a manual
+    thousands grouper to avoid Number coercion of u64 platform sums.
+  - `listTopReferrers({ limit })` — per-referrer aggregate joining
+    `referral_links` (referee count + active-referee count via
+    `LEFT JOIN (SELECT DISTINCT user_id FROM game_entries)` to avoid the
+    N×M Cartesian explosion), `player_profiles` (username),
+    `referral_codes` (code), `referral_earnings` (wager + earnings sums
+    grouped per referrer), and pending `referral_claims` (sum where status
+    in pending/processing). Defaults to 50 rows, capped at 250. Sorted by
+    `referrer_earned_lamports DESC` so the top earners surface first.
+  - `listKolPerformance({ limit })` — `referral_kol_rates` joined with
+    matching aggregate subqueries on `referral_links` and
+    `referral_earnings` so the KOL table renders rate + actual production
+    side-by-side. Defaults to 100, capped at 500. Sorted by earnings
+    desc, then `updated_at` desc, then `user_id` asc for stable order.
+  - `listReferralClaims({ filters, limit })` — filterable claims table with
+    eight optional filters: `status`, `userId`, `minAmountLamports`,
+    `maxAmountLamports`, `requestedFrom`, `requestedTo`, `txSignature`,
+    `errorContains` (ILIKE). The `status='failed'` value widens to
+    `('failed','error')` so the command-center drill-down link works
+    without a separate alias contract. Defaults to 100, capped at 500.
+  - `getReferralGraphNode(userId, { refereeLimit })` — one-hop node
+    centered on `userId`: inbound referrer (back-link with username +
+    code) + outbound referees (forward-link, ordered by `created_at`).
+    Returns `null` for unknown users so the page can render a 404 cleanly.
+- View-model contracts in `peek/src/lib/types/peek.ts`:
+  - Added `PeekGrowthOverviewMetricId` union (8 ids),
+    `PEEK_GROWTH_OVERVIEW_METRIC_IDS` const array, `PeekGrowthOverview`,
+    `PeekTopReferrerRow`, `PeekKolPerformanceRow`, `PeekGrowthClaimRow`
+    (extends per-user `PeekReferralClaimRow` with `userId`, `username`,
+    `wallet` so the table can link rows back to user-detail),
+    `PeekReferralClaimFilters`, `PeekReferralGraphRefereeRow`,
+    `PeekReferralGraphInboundReferrer`, `PeekReferralGraphNode`. All
+    browser-safe; no server imports introduced.
+- Boundedness + safety:
+  - Every list query takes a `limit` and clamps it through `clampLimit`
+    against per-feature `DEFAULT` and `MAX` constants exported from the
+    module (`PEEK_GROWTH_TOP_REFERRERS_DEFAULT_LIMIT`,
+    `PEEK_GROWTH_KOL_DEFAULT_LIMIT`,
+    `PEEK_GROWTH_CLAIMS_DEFAULT_LIMIT`).
+  - `Promise.all` parallelises the eight overview counts so the metrics
+    page does not chain queries sequentially.
+  - Filters are passed as parameterised values (no `unsafe`); `null`
+    filters are skipped via `(${condition === null} or …)` template
+    expressions matching the existing `list-peek-users.ts` pattern.
+- No frontend wiring this iteration — the next two checklist items
+  (`/growth/referrals` + `/growth/kol` UI, then dedicated tests) handle
+  page composition and assertion coverage.
+- Targeted check (peek): `pnpm lint` ✅, `pnpm typecheck` ✅,
+  `pnpm test` ✅ (196/196, no regressions).
+## Iteration 27 — 2026-04-25T12:22:12Z — OK
+- **Log**: iteration-027.log
+
