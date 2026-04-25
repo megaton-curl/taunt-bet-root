@@ -7,7 +7,7 @@
 | Status | Ready |
 | Priority | P1 |
 | Track | Core |
-| NR_OF_TRIES | 4 |
+| NR_OF_TRIES | 5 |
 
 ---
 
@@ -463,7 +463,7 @@ Keep the implementation close to existing `peek` conventions and cheap to operat
 - [x] [test] Update `peek/src/server/__tests__/cloudflare-access*.test.ts` for `jose`-backed verification: missing token, invalid token, expired token, bad signature, invalid issuer/audience, missing email claim, case normalization, missing config, and `PEEK_DEV_ACCESS_EMAIL` local-only bypass. (done: iteration 2)
 - [x] [engine] Add `peek/src/server/access-policy.ts` (server-only) resolving verified emails to a single effective role (`business` or `admin`), with exact-email and `*@domain` wildcard support, case-insensitive matching, and `admin` precedence; thread the resolved role + actor email through server request context (no browser headers trusted). (done: iteration 3)
 - [x] [engine] Add centralized route-prefix and action-id authorization helpers in the same module: route-prefix → required role(s); action-id → required role(s); unknown routes default per documented rule; unknown action ids fail closed (deny). (done: iteration 4)
-- [ ] [test] Add `peek/src/server/__tests__/access-policy.test.ts` covering exact email, wildcard domain, case normalization, admin precedence, route allow/deny, action allow/deny, invalid/duplicate policy entries, and actor-context propagation.
+- [x] [test] Add `peek/src/server/__tests__/access-policy.test.ts` covering exact email, wildcard domain, case normalization, admin precedence, route allow/deny, action allow/deny, invalid/duplicate policy entries, and actor-context propagation. (done: iteration 5)
 
 #### Foundational view models (FR-4)
 - [ ] [engine] View models part A: extend `peek/src/lib/types/peek.ts` (and `peek/src/lib/access-policy.ts` for browser-safe role names if needed) with shared metric metadata, table-filter, pagination, and table-row primitives. Per-feature shapes get added inside their feature iterations.

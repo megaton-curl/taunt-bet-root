@@ -119,3 +119,45 @@ of every iteration to understand prior context.
 ## Iteration 4 — 2026-04-25T10:39:30Z — OK
 - **Log**: iteration-004.log
 
+## Iteration 5 — 2026-04-25
+
+- Added `peek/src/server/__tests__/access-policy.test.ts` (44 tests) covering
+  the FR-2 surface end-to-end:
+  - `parsePeekRolePolicy`: non-array input, trim+lowercase normalization,
+    invalid roles dropped, missing/non-string `match` dropped, malformed
+    wildcard domains dropped (including `*@`, `*@*.com`, `*@with space.com`),
+    malformed exact emails dropped, exact `(match, role)` de-duplication
+    that still preserves distinct roles for the same email, and rejection of
+    non-object array items.
+  - `loadPeekRolePolicyFromEnv`: empty env, malformed JSON, valid env policy
+    (using `vi.stubEnv("PEEK_ACCESS_POLICY", …)`).
+  - `normalizeActorEmail`: trim+lowercase, nullish/empty/invalid → null.
+  - `resolveRoleForEmail`: invalid email, exact match (case-insensitive),
+    wildcard domain match, admin precedence both ways (exact admin beats
+    wildcard business; wildcard admin beats exact business), no match, and
+    empty policy.
+  - Route helpers: `getRequiredRolesForRoute` returns the documented default
+    for unknown routes (`/`, `/users`, `/games/flipyou`), `admin` for `/audit`
+    + subpaths, refuses prefix-substring leakage (`/auditing` → default), strips
+    `?query` and `#hash`, normalizes paths missing a leading slash, and picks
+    the most specific matching prefix when multiple rules match.
+  - `isRouteAllowedForRole`: denies on null/undefined role, allows
+    business+admin on default routes, denies business on `/audit` while
+    allowing admin.
+  - Action helpers: `getRequiredRolesForAction` returns roles for every FR-14
+    initial mutation id and `null` for unknown ids; `isActionAllowedForRole`
+    fails closed on unknown ids and null role, admin can perform every initial
+    mutation, business can do `kol_rate.update` only, and an injected rules
+    array overrides without leaking the live table.
+  - `getPeekActorContext` (with `vi.mock("next/headers")`): missing header →
+    null, no policy match → null, empty policy → null, exact admin match →
+    `{ email, role: "admin" }`, wildcard match with case+whitespace
+    normalization, malformed verified email header → null.
+  - Live tables: asserts `/audit` rule is admin-only and that
+    `PEEK_ACTION_RULES` includes the FR-14 initial mutation ids.
+- Targeted check (peek): `pnpm lint` ✅, `pnpm typecheck` ✅,
+  `pnpm test` ✅ (75/75 — was 31/31, +44 new).
+
+## Iteration 5 — 2026-04-25T10:42:46Z — OK
+- **Log**: iteration-005.log
+
