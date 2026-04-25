@@ -2277,3 +2277,6 @@ of every iteration to understand prior context.
 ## Iteration 91 — 2026-04-25T15:23:24Z — OK
 - **Log**: iteration-091.log
 
+## Iteration 92 — 2026-04-25T15:23:27Z — BLOCKED
+- **Blocker**: Max iterations (50) reached in this run. Review spec and history, then re-run.
+
