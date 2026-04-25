@@ -519,3 +519,57 @@ of every iteration to understand prior context.
 ## Iteration 13 — 2026-04-25T11:18:38Z — OK
 - **Log**: iteration-013.log
 
+## Iteration 14 — 2026-04-25
+
+- Reshaped `peek/app/page.tsx` into the FR-3 command center while preserving
+  the users-first table baseline:
+  - **Global search** — separate `<form action="/" method="get" role="search">`
+    at the top with a single `name="query"` input. Placeholder advertises the
+    cross-entity surface (`user id, username, wallet, referral code, Telegram,
+    round PDA, tx signature`) so the input reads as global. Submitting routes
+    back to `/?query=…`; the lower filter form carries `query` as a hidden
+    field so applying filters preserves the search. The cross-entity resolution
+    arrives with the universal-search query functions in the next FR-5
+    iteration; routing target stays `/` until then.
+  - **Attention queue** — `MetricStrip` renders the seven metrics from
+    `getCommandCenterAttention` (failed claims, dead queue events, stuck
+    Flip You/Pot Shot rounds, stuck Close Call rounds, pending SOL crate
+    payouts, stale active Dogpile events, high-value exports 24h). Each
+    metric still carries the FR-4 bookkeeping (definition, source, window,
+    "as of", drill-down href) via the iteration-13 query.
+  - **Small metric strip** — kept the existing `SummaryStrip` (4 baseline
+    metrics: total users, users with codes, referred users, unique referrers)
+    so the 303-era summary stays useful and visible.
+  - **Recent activity** — new `RecentActivityList` inline component renders
+    the latest operator events as a dense list (`time | event_type | actor |
+    route + resource`). Empty state is operator-readable ("No recent operator
+    activity recorded yet."), error state renders `role="alert"` and
+    suppresses the list.
+  - **Direct table access** — preserved the existing filter form (sort,
+    direction, hasReferrer/hasReferees/hasCode/hasTelegram), pagination, and
+    `UsersTable` at the bottom of the page. The data-load error branch only
+    affects the Users section now; the attention queue and recent activity
+    have their own try/catch boundaries so a failure in one section does not
+    blank the others.
+- New supporting code:
+  - `peek/src/lib/types/peek.ts` — added `PeekRecentActivityItem`
+    (`id, eventType, actorEmail, resourceType, resourceId, route, createdAt`).
+    Browser-safe; no server imports. The audit-view (`/audit`, later
+    iteration) still owns the full bounded audit-table view model.
+  - `peek/src/server/db/queries/get-recent-operator-events.ts` — bounded
+    query: defaults to 10 rows, hard-capped at `RECENT_OPERATOR_EVENTS_MAX_LIMIT`
+    (50). Selects only the columns the activity strip needs
+    (`id::text`, `event_type`, `payload->>'actorEmail'`, `payload->>'resourceType'`,
+    `payload->>'resourceId'`, `payload->>'route'`, `created_at::text`); does
+    not stream JSONB payloads or before/after diffs across the wire. Accepts
+    an injectable `Sql` for future tests.
+- Targeted check (peek): `pnpm lint` ✅, `pnpm typecheck` ✅,
+  `pnpm test` ✅ (115/115, no regressions; command-center query + page tests
+  land in the next iteration per the checklist split).
+
+## Iteration 14 — 2026-04-25 — OK
+
+
+## Iteration 14 — 2026-04-25T11:24:49Z — OK
+- **Log**: iteration-014.log
+

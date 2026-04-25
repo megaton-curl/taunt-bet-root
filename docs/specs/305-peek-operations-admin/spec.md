@@ -7,7 +7,7 @@
 | Status | Ready |
 | Priority | P1 |
 | Track | Core |
-| NR_OF_TRIES | 13 |
+| NR_OF_TRIES | 14 |
 
 ---
 
@@ -482,7 +482,7 @@ Keep the implementation close to existing `peek` conventions and cheap to operat
 
 #### Command center (FR-3, FR-10)
 - [x] [engine] Command-center query functions for attention items: failed claims, dead queue events, stuck settlements (rounds in nonterminal phases beyond age threshold + high settle-attempts), pending SOL crate payouts, stale active Dogpile events, high-value export activity. Bounded queries + metric metadata per FR-4. (done: iteration 13)
-- [ ] [frontend] Update `/` into the command center: global search input + attention queue + small metric strip + recent high-signal activity + direct table access. Preserve users-first usefulness; surface metric definitions and "as of" timestamps.
+- [x] [frontend] Update `/` into the command center: global search input + attention queue + small metric strip + recent high-signal activity + direct table access. Preserve users-first usefulness; surface metric definitions and "as of" timestamps. (done: iteration 14)
 - [ ] [test] Command-center query + component tests for populated, sparse, empty, and load-error states.
 
 #### Universal search (FR-5)
