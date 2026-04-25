@@ -7,7 +7,7 @@
 | Status | Ready |
 | Priority | P1 |
 | Track | Core |
-| NR_OF_TRIES | 38 |
+| NR_OF_TRIES | 39 |
 
 ---
 
@@ -512,7 +512,7 @@ Keep the implementation close to existing `peek` conventions and cheap to operat
 - [x] [test] Round detail query + page tests across the 3 games (full, sparse, refunded, stuck). (done: iteration 38)
 
 #### Economy (FR-9) — split into 4 feature pairs
-- [ ] [engine] Rewards queries: `reward_config` (key/value/updated_at/definition/expected type) + `reward_pool` (balance/lifetime funded/lifetime paid) + `reward_pool_fundings` (recent + source round ids).
+- [x] [engine] Rewards queries: `reward_config` (key/value/updated_at/definition/expected type) + `reward_pool` (balance/lifetime funded/lifetime paid) + `reward_pool_fundings` (recent + source round ids). (done: iteration 39)
 - [ ] [frontend] `/economy/rewards` page with config table, pool balance card, recent fundings table, drill-down to source rounds.
 - [ ] [test] Rewards query + page tests for sparse/populated/empty/funding-source linkage.
 - [ ] [engine] Points + crates queries: `player_points` + `point_grants` (filterable by user/source type/source id/date) + `crate_drops` (filterable by crate type/status/trigger type/user/date).

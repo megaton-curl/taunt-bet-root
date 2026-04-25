@@ -1894,3 +1894,74 @@ of every iteration to understand prior context.
 ## Iteration 38 — 2026-04-25T13:50:04Z — OK
 - **Log**: iteration-038.log
 
+
+
+## Iteration 39 — 2026-04-25
+
+- FR-9 economy/rewards engine: queries for the three reward-economy tables in
+  migration 011 (`reward_config`, `reward_pool`, `reward_pool_fundings`) and a
+  matching FR-4 overview-metric helper. Backs the upcoming `/economy/rewards`
+  page without changing the public backend.
+- New `peek/src/server/db/queries/get-rewards.ts`:
+  - `listRewardConfig({ sql })` — selects `key, value, updated_at::text` from
+    `reward_config` ordered by key. Each row is annotated server-side with a
+    human-readable `definition` and an `expectedType` (`integer | float |
+    ratio | lamports | unknown`) from the static
+    `PEEK_REWARD_CONFIG_KEY_REGISTRY`. The registry mirrors the seed in
+    `backend/migrations/011_challenge_engine.sql` and the admin allowlist in
+    `backend/src/routes/admin.ts` (`points_per_dollar`,
+    `dogpile_default_multiplier`, `reward_pool_fee_share`,
+    `points_crate_drop_rate`, `sol_crate_drop_rate`, `sol_crate_pool_pct`,
+    `sol_crate_min_value`, `points_crate_min`, `points_crate_max`,
+    `daily_challenge_count`, `weekly_challenge_count`). Unknown keys still
+    surface (with `definition: null`, `expectedType: "unknown"`) so an
+    operator immediately notices a key the registry does not cover —
+    matching the FR-9 read-only-with-clear-scope intent.
+  - `getRewardPool({ sql })` — selects `balance_lamports`, `lifetime_funded`,
+    `lifetime_paid`, and `updated_at` from the `id = 1` singleton.
+    `null` is returned when the singleton is missing (defensive — the
+    migration inserts it at startup, but the page doesn't have to handle a
+    throw if that ever drifts).
+  - `listRewardPoolFundings({ sql, limit })` — bounded ledger read from
+    `reward_pool_fundings` ordered by `created_at desc, id desc`. Default
+    limit `PEEK_REWARD_POOL_FUNDINGS_DEFAULT_LIMIT = 50`, max
+    `PEEK_REWARD_POOL_FUNDINGS_MAX_LIMIT = 250` — same clamp shape used by
+    the growth queries. Returns `{ id, roundId, feeLamports, fundedLamports,
+    createdAt }`; `roundId` is the `reward_pool_fundings.round_id` source
+    round so `/economy/rewards` can drill into the round that fed the pool.
+  - `getRewardsOverview({ sql, now, recentFundingsWindowHours })` — emits
+    one `PeekMetric` per `PeekRewardsOverviewMetricId`:
+    `rewards.balance_lamports`, `rewards.lifetime_funded_lamports`,
+    `rewards.lifetime_paid_lamports`, `rewards.recent_fundings`. Lamport
+    metrics keep the raw u64 string in `value` (FR-4 monetary precision),
+    use thousands-separator formatting in `valueDisplay`, and link to
+    `/economy/rewards#pool` / `/economy/rewards#fundings` for drill-down.
+    The recent-fundings window defaults to
+    `PEEK_REWARDS_RECENT_FUNDINGS_WINDOW_HOURS = 24` (clamped 1..720h) so
+    tests can override the window without touching wall-clock. Pool +
+    recent-fundings queries fire in parallel via `Promise.all` to keep
+    overview latency low.
+- New view-model types in `peek/src/lib/types/peek.ts`:
+  - `PeekRewardConfigExpectedType` — the value-type union
+    (`integer | float | ratio | lamports | unknown`).
+  - `PeekRewardConfigRow` — `{ key, value, updatedAt, definition,
+    expectedType }`. `definition` is `string | null` so unknown keys keep a
+    distinct visual treatment without faking a definition.
+  - `PeekRewardPool` — `{ balanceLamports, lifetimeFunded, lifetimePaid,
+    updatedAt }`. All lamport fields are `string` to round-trip u64.
+  - `PeekRewardPoolFundingRow` — `{ id, roundId, feeLamports,
+    fundedLamports, createdAt }`. `roundId` (not `match_id`) because
+    `reward_pool_fundings.round_id` is the column the migration uses for
+    the funding source.
+  - `PeekRewardsOverviewMetricId` + exported
+    `PEEK_REWARDS_OVERVIEW_METRIC_IDS` constant + `PeekRewardsOverview` —
+    same shape as the games + growth overviews so the metric strip
+    primitive can render rewards metrics without a per-feature branch.
+- Targeted check (peek): `pnpm typecheck` ✅, `pnpm lint` ✅, `pnpm test
+  --run` ✅ (370/370, no regressions). Frontend `/economy/rewards` page +
+  query/page tests are the next two FR-9 checklist items.
+
+
+## Iteration 39 — 2026-04-25T13:56:43Z — OK
+- **Log**: iteration-039.log
+
