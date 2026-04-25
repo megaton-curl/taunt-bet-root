@@ -1590,3 +1590,81 @@ of every iteration to understand prior context.
 ## Iteration 34 — 2026-04-25T13:11:26Z — OK
 - **Log**: iteration-034.log
 
+
+
+## Iteration 35 — 2026-04-25
+
+- FR-8 test gate: dedicated query + view tests for `/games/[game]` covering
+  all three games, the four stuck-state booleans, refund states, and sparse
+  data. Five new test files (67 new tests total; suite now 334/334):
+  - `peek/src/server/db/queries/__tests__/get-game-rounds.test.ts` —
+    `listRounds` + `listCloseCallRounds`. Re-uses the
+    `createSqlMock`/queued-response pattern from the games-overview and
+    growth-referrals tests so the engine surface stays consistent. Covers:
+    populated row shaping (incl. a u64 lamport amount > MAX_SAFE_INTEGER),
+    the `flipyou` vs `potshot` SQL pivot, defense-in-depth filtering of
+    out-of-band game ids (e.g. a future `crash` row), sparse + 1-logical-page
+    behaviour, the phase / search / date filter parameter binding, all four
+    stuck flags (nonterminalAged binds the age interval; highAttempts binds
+    the maxSettleAttempts threshold; settledWithoutTx asserts the correlated
+    `not exists` over `transactions`; refunds asserts `phase = 'expired'`),
+    the no-stuck short-circuit, pagination clamping (page = -3 -> 1, pageSize
+    = 99999 -> `PEEK_GAME_ROUNDS_MAX_PAGE_SIZE`), Postgres `::text` count
+    coercion, settleAttempts/resultSide string coercion, and load-error
+    propagation from either parallel query. Close Call coverage adds: phase
+    + outcome dual-filter binding, the `t.game = 'closecall'` hard-coding in
+    the NOT EXISTS subquery (cc has no `r.game` join column), the `phase =
+    'refunded' OR outcome = 'refund'` refund predicate (the migration allows
+    a settled row to carry a `refund` outcome before the phase transition
+    lands, so checking either captures the operator-visible state),
+    nonterminalAged on `phase = 'open'` with override threshold, and the
+    Pyth `openPriceExpo` integer coercion from the postgres string.
+  - `peek/src/components/__tests__/game-rounds-table.test.tsx` — populated
+    rendering of every FR-8 column for FlipYou+Pot Shot, lamport thousands
+    formatting, em-dash placeholders for null target slot/settleTx/winner/
+    settledAt, StatusChip integration per phase, full-value `title=`
+    on truncated pubkeys, refund-row (phase=`expired`) operator visibility,
+    sparse empty-state pointing at the `rounds` table, and error-alert
+    state suppressing both the table and the empty status.
+  - `peek/src/components/__tests__/closecall-rounds-table.test.tsx` —
+    populated Close Call rendering with the Pyth `expo -8` sublabel, all
+    twelve column headers, phase + outcome dual chips (open / settled /
+    refunded × pending / green / red / refund), `title=` audit hover for
+    long pubkeys, an open-round null-set asserting at least 3 em-dashes
+    (closePrice + settleTx + settledAt), the refunded+refund composite
+    refund row, the sparse state pointing at `closecall_rounds`, and the
+    error-alert state.
+  - `peek/src/components/__tests__/game-rounds-filter-bar.test.tsx` — the
+    discriminated-union form. FlipYou + Pot Shot variant: blank-form state
+    with the `phase` whitelist matching `PEEK_ROUND_PHASES`, populated state
+    reflecting every filter value back into the input, Pot Shot's aria
+    label, the missing `Outcome` dropdown (rounds table has no Pyth
+    outcome), and the `name` attributes aligning with
+    `normalizeRoundFiltersFromSearchParams`. Close Call variant: phase +
+    outcome whitelists per `PEEK_CLOSECALL_PHASES` /
+    `PEEK_CLOSECALL_OUTCOMES`, the missing `High settle attempts` checkbox
+    (closecall has no `settle_attempts` column), populated state, and the
+    `outcome` input name contract.
+  - `peek/src/lib/__tests__/games-search-params.test.ts` —
+    `normalizeRoundFiltersFromSearchParams`,
+    `normalizeCloseCallRoundFiltersFromSearchParams`,
+    `readPageFromSearchParams`, and `buildRoundsQueryString`. Covers
+    empty / whitespace / undefined / array (Next.js repeated-param) inputs,
+    the phase + outcome whitelist falling back to `null` instead of
+    producing a SQL match-nothing filter, the boolean checkbox semantics
+    (`1`/`true`/`on`/`yes`), the Close Call shape never carrying
+    `highAttempts` even if the URL passes `stuckAttempts`, page clamping
+    (`""`, `"   "`, `"0"`, `"-3"`, `"abc"` → `1`), and
+    `buildRoundsQueryString` preserving every filter passthrough,
+    canonically dropping `page=1`, dropping whitespace-only passthroughs,
+    and appending `page=N` when N>1.
+- One small test fix during the run: `screen.getByText("0")` collided with
+  the multiple "0" cells the table renders for a settling row (resultSide,
+  amountLamports). Switched to
+  `screen.getAllByText("0").length).toBeGreaterThan(0)` — same operator
+  signal, doesn't couple to the exact column count.
+- Targeted check (peek): `pnpm lint` ✅, `pnpm typecheck` ✅, `pnpm test
+  --run` ✅ (334/334; +67 tests).
+## Iteration 35 — 2026-04-25T13:20:30Z — OK
+- **Log**: iteration-035.log
+
