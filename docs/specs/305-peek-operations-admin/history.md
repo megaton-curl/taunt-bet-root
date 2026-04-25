@@ -949,3 +949,68 @@ of every iteration to understand prior context.
 ## Iteration 19 — 2026-04-25T11:55:06Z — OK
 - **Log**: iteration-019.log
 
+
+## Iteration 20 — 2026-04-25
+
+- Replaced the 303-era `UserDetailCard` with a new
+  `peek/src/components/user-detail-view.tsx` that renders the FR-6
+  expanded user profile through the iteration-9 `DetailPanel`. Sections
+  (in spec order) are `identity`, `linked-accounts`, `referrals`,
+  `games`, `rewards`, `challenges`, `transactions`, `attention`. The
+  panel renders both the anchor nav (jump-to) and the section bodies, so
+  it covers the spec's "tabs/anchored sections" requirement without
+  introducing client-side state.
+- Above the panel:
+  - `UserHeader` shows the heading (username → user_id fallback), wallet
+    in monospace, and a small `<dl>` with `user_id` + joined date so the
+    most-used identifiers stay visible no matter which section is
+    scrolled to.
+  - `AttentionStrip` renders a tone-coded `StatusChip` for every active
+    attention flag (failed claim, dead queue event, active fraud flag,
+    pending SOL crate payout, suspicious referral self/loop) so
+    operators see the FR-6 attention signals before any section scroll.
+    Hidden entirely when no flags are set, so clean users do not show a
+    misleading warning band.
+- Per-section rendering reuses the iteration-8/9 primitives (no new
+  component contracts):
+  - `Identity` — `<dl>` of profile fields (user_id, username, wallet,
+    joined, avatar_url, heat_multiplier, profile_points_balance), with a
+    shared `EmptyState` if every value is null.
+  - `Linked accounts` — telegram link state `<dl>` + a sortless table of
+    every `linked_accounts` row + a recent-tokens table from
+    `telegram_link_tokens`. `StatusChip` tones reflect provider status
+    (active=positive, revoked=negative) and token redemption state.
+  - `Referrals` — inbound referrer card + referral-code metadata + KOL
+    rate block (or empty state) + earnings/rebate summary + recent
+    claims (status-chipped: paid=positive, failed/error=negative,
+    processing=info) + outbound referees (each linkified to their own
+    `/users/[userId]`).
+  - `Games` — recent `game_entries` rows; match_id is a Link to
+    `/games/${game}/rounds/${roundPda}` for the upcoming round-detail
+    pages; `is_winner` renders as `win`/`loss`/`—`.
+  - `Rewards` — points balance `<dl>` (`player_points`) + recent
+    `point_grants` table + recent `crate_drops` table with status
+    chip (granted=positive, pending=warning, failed=negative).
+  - `Challenges` — read-only assignment summary (active/completed/
+    expired/total). Per FR-9, challenge definition editing remains out
+    of scope.
+  - `Transactions` — recent `transactions` table with `tx_type` chip
+    (payout=positive, refund=warning, deposit=neutral).
+  - `Attention` — repeats the attention chips inline with their
+    descriptions, then renders the open-fraud-flags table and the
+    user-related queue-events table. Queue status chip surfaces dead
+    (negative) / failed (warning) / processed (positive) tone for
+    operator triage.
+- Page wiring: `peek/app/users/[userId]/page.tsx` now reads an optional
+  `?section=` URL param and forwards it to `UserDetailView` so a deep
+  link can pre-highlight the active anchor (FR-4 URL-addressability),
+  while the page still renders all sections (anchored sections, not a
+  client-state tab switcher). The `UserDetailCard` component file was
+  removed since it is no longer referenced.
+- Targeted check (peek): `pnpm lint` ✅, `pnpm typecheck` ✅,
+  `pnpm test` ✅ (173/173, no regressions; the dedicated FR-6
+  query+component tests land in the next iteration per the checklist
+  split).
+## Iteration 20 — 2026-04-25T12:00:25Z — OK
+- **Log**: iteration-020.log
+
