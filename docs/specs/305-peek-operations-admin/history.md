@@ -196,3 +196,40 @@ of every iteration to understand prior context.
 ## Iteration 6 — 2026-04-25T10:46:50Z — OK
 - **Log**: iteration-006.log
 
+## Iteration 7 — 2026-04-25
+
+- Extended `peek/src/lib/types/peek.ts` with the foundational FR-11 audit and
+  FR-12 export contracts (browser-safe, fully serializable, no server imports):
+  - `PeekAuditEventType` union: `peek.search`, `peek.user.view_sensitive`,
+    `peek.export`, `peek.access.denied`, `peek.change.applied`,
+    `peek.change.rejected` — paired with `PEEK_AUDIT_EVENT_TYPES` const list +
+    `isPeekAuditEventType` guard for parsing rows back from `operator_events`.
+  - `PEEK_AUDIT_REDACTED = "[REDACTED]"` sentinel for the writer to substitute
+    in place of any redacted value before persisting; the audit-view UI will
+    render the token verbatim so reviewers see that a field was redacted (not
+    silently absent), per FR-11 (no JWTs, access tokens, DB URLs, private keys,
+    or raw secrets in payload).
+  - `PeekAuditScalar`, `PeekAuditChange { field, before, after }`, and
+    `PeekAuditPayload` capturing every FR-11 field: `actorEmail`, `route`,
+    `actionId`, `resourceType`, `resourceId`, `filterSummary`, `resultCount`,
+    `requestId`, `rejectionReason`, `changes` (mutation before/after diff).
+  - `PeekAuditEvent { id, eventType, createdAt, payload }` view model for the
+    audit page table.
+  - `PEEK_EXPORT_ROW_CAP_DEFAULT = 5000` baseline cap; `PeekExportEntity` union
+    enumerating the entities expected to ship CSV exports (users, referrers,
+    KOL, claims, rounds, transactions, queue, audit).
+  - `PeekExportRow = Record<string, string>` keyed by table column id so export
+    rows track the rendered table view-model fields (FR-12 row-mapping rule).
+  - `PeekExportFilenameInput { entity, date, filterSlug }` and
+    `PeekExportResult { filename, rowCount, rowCap, rowCapApplied, columns,
+    rows }` so the export helper (later iteration) can return both the bounded
+    rows and a cap-applied indicator the UI surfaces to the operator.
+- Per-feature view models (queue payload redaction, audit filter view models,
+  per-entity export row aliases) get added inside their respective feature
+  iterations.
+- Targeted check (peek): `pnpm lint` ✅, `pnpm typecheck` ✅,
+  `pnpm test` ✅ (75/75, no regressions).
+
+## Iteration 7 — 2026-04-25T10:50:01Z — OK
+- **Log**: iteration-007.log
+

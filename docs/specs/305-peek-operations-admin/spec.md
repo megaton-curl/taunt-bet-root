@@ -7,7 +7,7 @@
 | Status | Ready |
 | Priority | P1 |
 | Track | Core |
-| NR_OF_TRIES | 6 |
+| NR_OF_TRIES | 7 |
 
 ---
 
@@ -467,7 +467,7 @@ Keep the implementation close to existing `peek` conventions and cheap to operat
 
 #### Foundational view models (FR-4)
 - [x] [engine] View models part A: extend `peek/src/lib/types/peek.ts` (and `peek/src/lib/access-policy.ts` for browser-safe role names if needed) with shared metric metadata, table-filter, pagination, and table-row primitives. Per-feature shapes get added inside their feature iterations. (done: iteration 6)
-- [ ] [engine] View models part B: add audit-event and export contracts (event-type union, payload shape, redaction marker; export-row, filename slug, row-cap result types).
+- [x] [engine] View models part B: add audit-event and export contracts (event-type union, payload shape, redaction marker; export-row, filename slug, row-cap result types). (done: iteration 7)
 
 #### Foundational UI primitives (FR-3, FR-4)
 - [ ] [frontend] UI primitives part A — layout/data: dense sortable table, metric strip with definition/source/as-of, filter bar with URL-addressable filters. Component tests for populated/sparse/error.
