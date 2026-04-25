@@ -1344,3 +1344,78 @@ of every iteration to understand prior context.
 ## Iteration 31 — 2026-04-25T12:50:02Z — OK
 - **Log**: iteration-031.log
 
+
+
+## Iteration 32 — 2026-04-25
+
+- FR-8 test pair for `/games`: query coverage for `getGamesOverview()`,
+  component coverage for `GamesOverviewTable`, and a small refactor to lift
+  the deferred-games placeholder list out of `app/games/page.tsx` so it can
+  be tested directly.
+- Refactor — `peek/src/lib/deferred-games.ts` (new):
+  - Exports `PEEK_DEFERRED_GAMES` (typed `ReadonlyArray<PeekDeferredGame>`)
+    and a `PeekDeferredGameId` union covering Crash, Game of Trades, Chart
+    the Course, Slots Utopia, and Tug of Earn.
+  - `app/games/page.tsx` now imports `PEEK_DEFERRED_GAMES` instead of
+    declaring the local `DEFERRED_GAMES` constant. Page render is byte-
+    identical (same labels, same reasons, same render order); only the
+    source of the constant moved. No new prop surface, no behaviour change
+    for the page itself.
+- New `peek/src/lib/__tests__/deferred-games.test.ts` (5 tests):
+  - Stable display order matches the expected 5 phase-2 ids.
+  - Every entry has a non-empty operator-readable label + reason and no
+    `undefined`/`TODO` strings leak into the UI.
+  - Deferred ids do not overlap with active `PEEK_GAME_IDS` — enforces
+    System Invariant 13 at the type level (active games own their
+    counters; deferred games are placeholders only).
+  - Crash entry is flagged as Phase-2 (the spec-distinguished case).
+  - Ids are unique.
+- New `peek/src/server/db/queries/__tests__/get-games-overview.test.ts`
+  (8 tests):
+  - Populated path: 3 games returned by SQL → 3 normalized perGame rows in
+    stable `PEEK_GAME_IDS` order, all 6 `PEEK_GAME_OVERVIEW_METRIC_IDS`
+    emitted with FR-4 bookkeeping (label, definition, source
+    `game_entries`, windowLabel "All time", asOf, freshness `live`,
+    drilldownHref `/games`). Cross-game totals are sanity-checked against
+    the per-game inputs (entries, settled, refund, wagered, payout).
+    Asserts the unique-players metric reads the platform-wide DISTINCT
+    count rather than naively summing per-game distincts (would double-
+    count a player who played multiple games — the iteration 30 design
+    note). Asserts the SQL emits the per-game GROUP BY + the FILTER
+    clauses for refund detection (`is_winner is null`).
+  - Sparse (no rows): both queries return zero, the per-game table still
+    zero-fills every `PEEK_GAME_ID`, and the metric strip emits all 6
+    metrics with `0`/`"0"` values rather than dropping the strip.
+  - Sparse (one game only): a single populated game row coexists with
+    zero-filled siblings; cross-game totals equal the populated row.
+  - String count coercion: postgres ::text counts (e.g. `"9"`) parse to
+    real numbers in the view model.
+  - Unknown game ids: a bogus `"crash"` row from the DB is filtered by the
+    `PEEK_GAME_IDS` allowlist so deferred/out-of-band rows cannot leak
+    into the UI or distort totals.
+  - BigInt sum precision: two near-MAX_SAFE_INTEGER lamport sums add to
+    `"18014398509481984"` (Number addition would round) — verifies the
+    `BigInt`-based `sumLamports()` chosen in iteration 30.
+  - Load error (aggregate): a rejected per-game query propagates so the
+    page can render the alert state.
+  - Load error (DISTINCT count): a rejected unique-users query also
+    propagates.
+- New `peek/src/components/__tests__/games-overview-table.test.tsx`
+  (4 tests):
+  - Populated: all 9 columns render (Game, Entries, Unique users,
+    Wagered (lamports), Settled, Refunds, Paid out (lamports), Wins,
+    Losses); friendly labels (`FlipYou` / `Pot Shot` / `Close Call`) sit
+    next to the raw id sublabels (`· flipyou` etc.); thousands-separator
+    formatting applies to both counts and lamports; `"0"` stays bare.
+  - Zero-filled row: a fully-zero per-game row renders literal `"0"`
+    across all 8 numeric cells (preserves measured-zero semantics — FR-4
+    forbids em-dashes for measured zeros).
+  - Empty state: `rows={[]}` renders the operator status block pointing
+    at `game_entries`; no `<table>` element rendered.
+  - Error state: an `error` prop renders the alert and suppresses both
+    the table and the empty status.
+- Targeted check (peek): `pnpm test --run` ✅ (267/267, +17 from
+  iteration 31's 250), `pnpm lint` ✅, `pnpm typecheck` ✅.
+## Iteration 32 — 2026-04-25T12:56:49Z — OK
+- **Log**: iteration-032.log
+
