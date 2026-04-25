@@ -1965,3 +1965,53 @@ of every iteration to understand prior context.
 ## Iteration 39 — 2026-04-25T13:56:43Z — OK
 - **Log**: iteration-039.log
 
+
+## Iteration 40 — 2026-04-25
+
+- FR-9 economy/rewards frontend: shipped `/economy/rewards` against the
+  iteration-39 query layer. No public backend changes; the page reuses the
+  rewards queries already exposed by `peek/src/server/db/queries/get-rewards.ts`.
+- New page `peek/app/economy/rewards/page.tsx`:
+  - Role-gated via `getPeekActorContext` + `isRouteAllowedForRole("/economy/rewards", role)`,
+    matching the existing pattern in `/games`, `/games/[game]`, `/growth/referrals`,
+    `/growth/kol`. Inaccessible roles render the same `role="alert"` access-denied
+    panel without leaking section titles.
+  - Each query (`getRewardsOverview`, `getRewardPool`, `listRewardConfig`,
+    `listRewardPoolFundings`) is wrapped in its own try/catch so a single failure
+    does not blank the whole page; per-section error messages flow into each
+    component's `error` prop.
+  - Four anchored sections with stable heading ids (`overview-heading`,
+    `pool-heading`, `config-heading`, `fundings-heading`) so the FR-4 metric
+    drilldowns (`/economy/rewards#pool`, `/economy/rewards#fundings`) point at
+    real anchors.
+  - Recent-fundings hint surfaces the server-side default cap by importing
+    `PEEK_REWARD_POOL_FUNDINGS_DEFAULT_LIMIT` from the query module — keeping the
+    "Default 50 rows" copy in sync with the actual server clamp.
+- Three new browser-safe components in `peek/src/components/`:
+  - `reward-pool-card.tsx` — singleton `reward_pool` accounting card. Lamport
+    fields keep the raw u64 string in `title=` for hover audit (FR-4 monetary
+    precision); the visible value uses thousands-separator formatting. Null
+    pool surfaces as the operator empty state pointing at `id = 1`.
+  - `reward-config-table.tsx` — read-only dense table over `PeekRewardConfigRow`.
+    Each row shows the key (monospace), an expected-type chip, the raw value
+    (monospace, right-aligned), the inline definition (or a warning hint when
+    the registry has no entry — `expectedType: "unknown"` fronts with the
+    `warning` chip tone for the same reason), and `updated_at`.
+  - `reward-pool-fundings-table.tsx` — append-only ledger view. Drill-down to
+    the source round uses the universal-search entry point
+    (`/?query=<round_id>`) because `reward_pool_fundings.round_id` is a
+    free-form text identifier that may be a flipyou/potshot match_id (hex) or
+    a closecall round PDA. Universal search resolves to the matching round
+    row and exposes the direct `/games/[game]/rounds/[roundId]` link.
+- Drill-down rationale captured in the table component's header comment so a
+  future reader does not assume we forgot to wire a direct route. The fundings
+  ledger has no game column, so a single-link drill-down is intentionally
+  routed through the search resolver instead of fabricating a game guess.
+- Targeted check (peek): `pnpm lint` ✅, `pnpm typecheck` ✅, `pnpm test --run`
+  ✅ (370/370, no regressions). Component tests for the three new tables/cards
+  and a query/page test for the page belong to the next FR-9 checklist item
+  ("Rewards query + page tests for sparse/populated/empty/funding-source linkage").
+
+## Iteration 40 — 2026-04-25T14:04:19Z — OK
+- **Log**: iteration-040.log
+
