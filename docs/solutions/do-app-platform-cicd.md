@@ -16,8 +16,9 @@ Current deployable repos:
 - `telegram`
 - `waitlist`
 - `webapp`
+- `peek` (production only — `app-prod.yaml` / tag deploy; no dev App Platform app)
 
-Each of those repos owns this shape:
+Most repos own this shape:
 
 ```text
 .github/workflows/ci.yml
@@ -27,6 +28,8 @@ Each of those repos owns this shape:
 .do/app-prod.yaml
 .do/README.md
 ```
+
+`peek` omits `deploy-dev.yml` and `app-dev.yaml` because it deploys to prod only.
 
 ## Deploy Flow
 

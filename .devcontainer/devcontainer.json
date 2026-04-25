@@ -1,5 +1,5 @@
 {
-  "name": "taunt-bet",
+  "name": "rng-utopia",
   "build": {
     "dockerfile": "Dockerfile",
     "args": {

@@ -101,7 +101,7 @@ In `db.ts`:
 
 - [ ] **Step 3: Typecheck**
 
-Run: `cd /workspaces/rng-utopia/backend && pnpm typecheck`
+Run: `cd backend && pnpm typecheck`
 Expected: All packages pass with zero errors.
 
 - [ ] **Step 4: Commit**
@@ -137,7 +137,7 @@ Import `postgres` for `sql.json()`.
 
 - [ ] **Step 3: Typecheck**
 
-Run: `cd /workspaces/rng-utopia/backend && pnpm typecheck`
+Run: `cd backend && pnpm typecheck`
 
 - [ ] **Step 4: Commit**
 
@@ -168,7 +168,7 @@ Import, re-export, spread, remove moved code.
 
 - [ ] **Step 3: Typecheck**
 
-Run: `cd /workspaces/rng-utopia/backend && pnpm typecheck`
+Run: `cd backend && pnpm typecheck`
 
 - [ ] **Step 4: Commit**
 
@@ -198,7 +198,7 @@ Import, re-export, spread, remove moved code.
 
 - [ ] **Step 3: Typecheck**
 
-Run: `cd /workspaces/rng-utopia/backend && pnpm typecheck`
+Run: `cd backend && pnpm typecheck`
 
 - [ ] **Step 4: Commit**
 
@@ -250,7 +250,7 @@ Import, re-export, spread, remove moved code.
 
 - [ ] **Step 3: Typecheck**
 
-Run: `cd /workspaces/rng-utopia/backend && pnpm typecheck`
+Run: `cd backend && pnpm typecheck`
 
 - [ ] **Step 4: Commit**
 
@@ -283,7 +283,7 @@ Import, re-export, spread, remove moved code. `RoundPhase` must be re-exported s
 
 - [ ] **Step 3: Typecheck**
 
-Run: `cd /workspaces/rng-utopia/backend && pnpm typecheck`
+Run: `cd backend && pnpm typecheck`
 
 - [ ] **Step 4: Commit**
 
@@ -331,7 +331,7 @@ Import, re-export, spread, remove moved code. Remove `import { generateUserId, g
 
 - [ ] **Step 3: Typecheck**
 
-Run: `cd /workspaces/rng-utopia/backend && pnpm typecheck`
+Run: `cd backend && pnpm typecheck`
 
 - [ ] **Step 4: Commit**
 
@@ -381,7 +381,7 @@ Import, re-export, spread, remove moved code.
 
 - [ ] **Step 3: Typecheck**
 
-Run: `cd /workspaces/rng-utopia/backend && pnpm typecheck`
+Run: `cd backend && pnpm typecheck`
 
 - [ ] **Step 4: Commit**
 
@@ -412,12 +412,12 @@ Verify no leftover types, normalizers, or implementations remain.
 
 - [ ] **Step 2: Full verification**
 
-Run: `cd /workspaces/rng-utopia/backend && pnpm typecheck && pnpm lint`
+Run: `cd backend && pnpm typecheck && pnpm lint`
 Expected: Zero errors. Warnings should be identical to pre-refactor (all pre-existing `no-explicit-any` in test files).
 
 - [ ] **Step 3: Run tests**
 
-Run: `cd /workspaces/rng-utopia/backend && pnpm test`
+Run: `cd backend && pnpm test`
 Expected: All existing tests pass (no behavioral changes).
 
 - [ ] **Step 4: Commit**
