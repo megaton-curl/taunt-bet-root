@@ -1245,3 +1245,49 @@ of every iteration to understand prior context.
 ## Iteration 29 — 2026-04-25T12:38:16Z — OK
 - **Log**: iteration-029.log
 
+
+
+## Iteration 30 — 2026-04-25
+
+- FR-8 engine: cross-game `game_entries` overview queries that back the
+  upcoming `/games` page. No frontend wiring this iteration; the next two
+  checklist items add the page and dedicated tests.
+- New `peek/src/server/db/queries/get-games-overview.ts`:
+  - `getGamesOverview()` runs two queries in parallel:
+    1. one `GROUP BY game` aggregate over `game_entries` producing per-game
+       counters via FILTER aggregates — `entries`, `unique_users`,
+       `wagered_lamports`, `settled_entries` (settled_at IS NOT NULL),
+       `refund_entries` (settled_at IS NOT NULL AND is_winner IS NULL — the
+       migration's documented refund sentinel), `payout_lamports`, `wins`
+       (is_winner = TRUE), and `losses` (is_winner = FALSE).
+    2. a platform-wide `count(distinct user_id)` so the metric strip's
+       "Unique players" total counts a player exactly once even when they
+       played multiple games (different from naively summing per-game
+       distincts).
+  - Normalises results to one row per `PeekGameId` in stable order,
+    zero-filling games that have no entries yet so the UI never has to
+    special-case missing rows.
+  - Builds six FR-4 metrics for the overview strip: total entries,
+    unique players, wagered lamports, settled entries, refunded entries,
+    payout lamports. Each carries label, definition, source
+    (`game_entries`), windowLabel ("All time"), asOf, freshness `live`,
+    and drilldown to `/games`.
+  - Lamport sums round-trip as `text`; cross-game totals are computed
+    via `BigInt` so u64 precision is preserved across multi-game sums.
+- View-model contracts in `peek/src/lib/types/peek.ts`:
+  - Added `PeekGameId` (mirrors `game_entries.game` CHECK constraint),
+    `PEEK_GAME_IDS` const tuple, `PeekGameOverviewRow`,
+    `PeekGameOverviewMetricId` (6 ids),
+    `PEEK_GAME_OVERVIEW_METRIC_IDS` const array, and
+    `PeekGameOverview { generatedAt, metrics, perGame }`. All
+    browser-safe; no server imports introduced.
+  - Per FR-8 + system-invariant 13, deferred games (Crash, Game of
+    Trades, Chart the Course, Slots Utopia, Tug of Earn) are
+    intentionally NOT part of the data shape — they have no persisted
+    source. The `/games` frontend will render them as documented
+    placeholders only (next iteration).
+- Targeted check (peek): `pnpm lint` ✅, `pnpm typecheck` ✅,
+  `pnpm test --run` ✅ (250/250, no regressions).
+## Iteration 30 — 2026-04-25T12:43:29Z — OK
+- **Log**: iteration-030.log
+
