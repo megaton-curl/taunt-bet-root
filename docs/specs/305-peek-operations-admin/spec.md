@@ -7,7 +7,7 @@
 | Status | Ready |
 | Priority | P1 |
 | Track | Core |
-| NR_OF_TRIES | 33 |
+| NR_OF_TRIES | 34 |
 
 ---
 
@@ -505,7 +505,7 @@ Keep the implementation close to existing `peek` conventions and cheap to operat
 - [x] [frontend] `/games` overview page with cross-game activity + documented placeholders for deferred games (Crash, Game of Trades, Chart the Course, Slots Utopia, Tug of Earn). (done: iteration 31)
 - [x] [test] `/games` overview query + page tests for activity metrics, deferred-game placeholders, sparse data. (done: iteration 32)
 - [x] [engine] Per-game round queries: FlipYou + Pot Shot from `rounds` (phase, pda, match id, creator, target slot, settle attempts, settle tx, result side, winner, timestamps); Close Call from `closecall_rounds` (phase, pda, prices, outcome, pools, fee, settle tx, timestamps); stuck-state filters (nonterminal beyond age threshold, high settle attempts, settled entries without expected tx, refunds). (done: iteration 33)
-- [ ] [frontend] `/games/[game]` route handling FlipYou + Pot Shot + Close Call via the `[game]` param, with stuck-state filters and shared layout.
+- [x] [frontend] `/games/[game]` route handling FlipYou + Pot Shot + Close Call via the `[game]` param, with stuck-state filters and shared layout. (done: iteration 34)
 - [ ] [test] `/games/[game]` query + page tests for all 3 games + stuck-state filters + refunds + sparse data.
 - [ ] [engine] Round detail queries joining round + entries from `game_entries` + transactions from `transactions`.
 - [ ] [frontend] `/games/[game]/rounds/[roundId]` detail with participant + transaction audit.

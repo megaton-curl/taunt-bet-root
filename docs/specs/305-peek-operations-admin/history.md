@@ -1506,3 +1506,87 @@ of every iteration to understand prior context.
 ## Iteration 33 — 2026-04-25T13:04:43Z — OK
 - **Log**: iteration-033.log
 
+
+
+## Iteration 34 — 2026-04-25
+
+- FR-8 frontend half: the `/games/[game]` route. One Next.js dynamic
+  segment that resolves `flipyou`, `potshot`, and `closecall` and
+  notFounds anything else (validated against `PEEK_GAME_IDS`). Page is
+  role-gated through `getPeekActorContext` + `isRouteAllowedForRole`
+  the same way `/games` is, so unknown roles render the existing
+  access-denied alert without leaking the table.
+- Two server-side branches inside the page:
+  - FlipYou + Pot Shot share `listRounds({ game })` and render
+    `GameRoundsTable`. The `[game]` param is statically narrowed to
+    `'flipyou' | 'potshot'` before the call so TypeScript enforces the
+    `PeekRoundsGameId` constraint introduced in iteration 33; Close
+    Call cannot be passed to `listRounds` even by accident.
+  - Close Call calls `listCloseCallRounds()` and renders
+    `CloseCallRoundsTable`. Different table because the column set
+    (open/close prices, expo, green/red pools, total fee, outcome) and
+    the lifecycle (`open` -> `settled`/`refunded`) differ from the
+    shared `rounds` table.
+- New `peek/src/lib/games-search-params.ts`:
+  - `normalizeRoundFiltersFromSearchParams` produces a
+    `PeekRoundFilters` from raw Next.js search params (`phase`,
+    `search`, `fromDate`, `toDate`, plus the four stuck booleans
+    `stuckAged`, `stuckAttempts`, `stuckNoTx`, `stuckRefunds`).
+    Phase passes through only if it matches `PEEK_ROUND_PHASES` so
+    a bogus URL value falls back to "any phase" instead of producing
+    a SQL match-nothing filter.
+  - `normalizeCloseCallRoundFiltersFromSearchParams` mirrors the same
+    shape minus `stuckAttempts` (closecall has no settle_attempts
+    column) and adds an `outcome` field validated against
+    `PEEK_CLOSECALL_OUTCOMES`.
+  - `readPageFromSearchParams` clamps non-numeric / non-positive page
+    params to `1`. The query module already clamps server-side; this
+    keeps the link the navigation renders honest.
+  - `buildRoundsQueryString` rebuilds the query string for pagination
+    links and preserves every passthrough filter so navigating to page
+    2 does not silently drop the operator's filter state.
+- New `peek/src/components/game-rounds-filter-bar.tsx`:
+  - Discriminated-union props on the `game` literal so the same form
+    component renders the right shape for FlipYou+Pot Shot vs Close
+    Call without a runtime conditional. The `outcome` dropdown only
+    renders when `game === 'closecall'`; the `stuckAttempts` checkbox
+    only renders for FlipYou+Pot Shot. Default values are reflected
+    from the parsed filter object so the form is shareable via URL.
+  - Stuck filters render as a `<fieldset>` with a labelled
+    `<legend>` ("Stuck-state filters") so screen readers and inline
+    HTML inspection both make the grouping obvious.
+- New `peek/src/components/game-rounds-table.tsx`
+  (FlipYou + Pot Shot) and
+  `peek/src/components/closecall-rounds-table.tsx` (Close Call):
+  - Dense tables with columns matching the FR-8 acceptance criteria:
+    `rounds` (phase, pda, match id, creator, target slot, settle
+    attempts, settle tx, result side, winner, timestamps) and
+    `closecall_rounds` (phase, outcome, pda, prices, pools, fee,
+    settle tx, timestamps). Lamports / u64 strings format with
+    thousands separators while preserving the `"0"` literal for
+    measured zeros (FR-4).
+  - Phase + outcome render through the existing `StatusChip` so
+    refunded / expired / settled states pop visually without a
+    chart library; tone mapping mirrors the spec's exception-first
+    framing (settled => positive, refund/expired => warning).
+  - Long pubkeys (pda, creator, winner, settle_tx, match_id, round_id)
+    truncate with a unicode ellipsis and keep the full string in the
+    `title` attribute so an operator can read the full value on hover
+    without exporting the row.
+  - Empty + error states render inline (`role="status"` /
+    `role="alert"`), matching the existing `GamesOverviewTable` and
+    `GrowthClaimsTable` conventions.
+- The page assembles a small page header with a `← Games` breadcrumb,
+  a `Filters` section, a `Rounds` section with row/total/page hint and
+  `Previous`/`Next` pagination links, and surfaces query errors inline
+  so a transient DB failure does not nuke the route. The pagination
+  links go through `buildRoundsQueryString` so filter state survives
+  page navigation.
+- Targeted check (peek): `pnpm lint` ✅, `pnpm typecheck` ✅, `pnpm
+  test --run` ✅ (267/267, no regressions). The dedicated query +
+  page tests for `/games/[game]` (FR-8 stuck filters, refunds, sparse
+  data, all 3 games) are the next checklist item.
+
+## Iteration 34 — 2026-04-25T13:11:26Z — OK
+- **Log**: iteration-034.log
+
