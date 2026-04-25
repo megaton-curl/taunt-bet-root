@@ -7,7 +7,7 @@
 | Status | Ready |
 | Priority | P1 |
 | Track | Core |
-| NR_OF_TRIES | 8 |
+| NR_OF_TRIES | 9 |
 
 ---
 
@@ -471,7 +471,7 @@ Keep the implementation close to existing `peek` conventions and cheap to operat
 
 #### Foundational UI primitives (FR-3, FR-4)
 - [x] [frontend] UI primitives part A — layout/data: dense sortable table, metric strip with definition/source/as-of, filter bar with URL-addressable filters. Component tests for populated/sparse/error. (done: iteration 8)
-- [ ] [frontend] UI primitives part B — state: status chip, empty state with operator copy, detail panel (tabs/anchored sections). Component tests for the same states.
+- [x] [frontend] UI primitives part B — state: status chip, empty state with operator copy, detail panel (tabs/anchored sections). Component tests for the same states. (done: iteration 9)
 
 #### Admin shell (FR-3)
 - [ ] [frontend] Persistent admin shell with actor email + resolved role badge, role-aware navigation (Users, Growth, Games, Economy, Operations, Audit, Access), hidden links for inaccessible routes, and access-denied + missing-config states that do not leak sensitive data.

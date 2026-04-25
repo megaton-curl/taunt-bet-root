@@ -285,3 +285,57 @@ of every iteration to understand prior context.
 ## Iteration 8 — 2026-04-25T10:55:14Z — OK
 - **Log**: iteration-008.log
 
+## Iteration 9 — 2026-04-25
+
+- Added foundational FR-3/FR-4 UI primitives part B (state primitives) — all
+  server-component-friendly (no client state), browser-safe imports only:
+  - `peek/src/components/status-chip.tsx` — renders a `PeekStatusTone`-toned
+    chip via `<span role="status" data-tone={tone}>`. Default tone is
+    `neutral`; `null`/empty label collapses to a `—` placeholder span with
+    `aria-label="status missing"`; non-null `error` prop renders `role="alert"`
+    instead of the chip. Tones (`neutral | positive | warning | negative |
+    info`) drive the background/foreground/border palette so per-feature
+    status surfaces (claim status, queue state, round phase, fraud flag) get
+    a consistent operator-readable chip.
+  - `peek/src/components/empty-state.tsx` — renders a `PeekEmptyState`
+    `{ title, body }` inside `role="status"` for operator-copy empties (FR-3
+    "Empty states explain the absence of data in operator terms"). `body` is
+    nullable; non-null `error` renders `role="alert"` instead.
+  - `peek/src/components/detail-panel.tsx` — renders a
+    `ReadonlyArray<PeekDetailSection>` (`{ id, label, body: ReactNode }`) as
+    `<nav aria-label>` anchor links + a stack of `<section id={id}
+    aria-labelledby>` blocks with `<h2>` headings. `activeId` toggles
+    `aria-current="true"` + a highlighted style on the active link; empty
+    sections list renders an operator empty state; non-null `error` renders
+    `role="alert"`. Body is `ReactNode` (not a serializable view-model field),
+    so the detail-section type lives in the component module rather than the
+    browser-safe types module.
+- Added component tests covering populated / sparse / error for each:
+  - `status-chip.test.tsx` (4 tests): populated renders label + `data-tone`
+    + forwards `title`; populated default-tone falls back to `neutral`; sparse
+    `label={null}` renders `—` with `aria-label="status missing"` and no
+    `data-tone`; error renders `role="alert"` and suppresses the chip.
+  - `empty-state.test.tsx` (3 tests): populated renders title + body inside
+    `role="status"`; sparse `body=null` renders only the title (single `<p>`);
+    error renders `role="alert"` and suppresses the status region.
+  - `detail-panel.test.tsx` (4 tests): populated renders nav links in section
+    order with correct `href="#…"` anchors, marks `activeId="linked-accounts"`
+    via `aria-current="true"`, and renders each section's body + `<h2>`
+    heading; populated without `activeId` leaves every link non-active;
+    sparse renders the operator empty state with title + body and no nav;
+    error renders `role="alert"` and suppresses both nav and status.
+- Existing 303-era components (`SummaryStrip`, `UsersTable`,
+  `PaginationControls`, `UserDetailCard`) and the iteration-8 layout/data
+  primitives (`PeekTable`, `MetricStrip`, `FilterBar`) are untouched — the
+  state primitives complete the FR-3/FR-4 foundational set used by upcoming
+  feature pages.
+- Targeted check (peek): `pnpm lint` ✅, `pnpm typecheck` ✅,
+  `pnpm test` ✅ (96/96 — was 85/85, +11 new across 3 new component test
+  files).
+
+## Iteration 9 — 2026-04-25T10:58:00Z — OK
+- **Log**: iteration-009.log
+
+## Iteration 9 — 2026-04-25T10:58:58Z — OK
+- **Log**: iteration-009.log
+
