@@ -7,7 +7,7 @@
 | Status | Ready |
 | Priority | P1 |
 | Track | Core |
-| NR_OF_TRIES | 28 |
+| NR_OF_TRIES | 29 |
 
 ---
 
@@ -498,7 +498,7 @@ Keep the implementation close to existing `peek` conventions and cheap to operat
 #### Growth + KOL (FR-7)
 - [x] [engine] Growth/referral queries: overview metrics (referrers, referred users, activated, earnings, rebates, pending claims, failed claims, KOL count); top-referrers; `referral_kol_rates` with linked performance; claim filters by status/user/amount/date/tx/error; graph navigation queries. (done: iteration 27)
 - [x] [frontend] `/growth/referrals` (overview + top-referrers + claims) and `/growth/kol` (KOL table with rate, wallet, set_by, timestamps, performance) with filtered tables, drill-down to user detail, empty states, and access checks. (done: iteration 28)
-- [ ] [test] Growth/referral query + page tests for referrers, KOL rows, claims, filters, drill-down, and empty states.
+- [x] [test] Growth/referral query + page tests for referrers, KOL rows, claims, filters, drill-down, and empty states. (done: iteration 29)
 
 #### Games (FR-8) — split by route
 - [ ] [engine] Games overview queries: cross-game `game_entries` aggregations (entries, unique users, wagered lamports, settled, refunds, payouts, win/loss) per game.

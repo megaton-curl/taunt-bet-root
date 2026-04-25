@@ -1193,3 +1193,55 @@ of every iteration to understand prior context.
 ## Iteration 28 — 2026-04-25T12:30:06Z — OK
 - **Log**: iteration-028.log
 
+
+## Iteration 29 — 2026-04-25
+
+- FR-7 test coverage: dedicated query + component tests for the iteration
+  27 + 28 growth/referral + KOL surfaces. No production-code changes.
+- New `peek/src/server/db/queries/__tests__/get-growth-referrals.test.ts`
+  (32 tests):
+  - `getGrowthReferralOverview`: populated all 8 metrics with bookkeeping
+    + lamport thousands-separator formatting + sparse zeros + string-count
+    coercion + load-error propagation. Confirms each FR-4 metric carries a
+    label, definition, source, windowLabel, drilldownHref, asOf, and
+    `freshness: "live"`.
+  - `listTopReferrers`: default limit, explicit limit, MAX clamp, non-
+    positive clamps to 1, populated rows, empty rows. Asserts SQL reads
+    `referral_links`, joins `player_profiles` + `referral_codes`, and uses
+    the `(select distinct user_id from game_entries)` subquery to avoid
+    the N×M Cartesian (the iteration 27 fix).
+  - `listKolPerformance`: default limit, MAX clamp, populated, empty.
+    Asserts the SQL joins `referral_kol_rates` against `referral_links` +
+    `referral_earnings` aggregates so the rate sits next to actual
+    production.
+  - `listReferralClaims`: default limit, MAX clamp, every individual
+    filter (status concrete + status='failed' alias widening, userId,
+    min/max amount, requestedFrom/To, txSignature, errorContains ILIKE),
+    populated, empty, and empty-string normalisation.
+  - `getReferralGraphNode`: missing user → null + only one SQL call,
+    populated centre + referees, no-inbound + no-outbound case, default
+    refereeLimit clamps to 200, MAX clamp to 1000.
+- New component tests:
+  - `growth-referrers-table.test.tsx` (4 tests): operator columns + drill-
+    down link to `/users/{userId}` + lamport formatting + username sub-
+    label only when present + empty + error.
+  - `growth-claims-table.test.tsx` (4 tests): all 9 columns + drill-down
+    + lamport formatting + StatusChip text per status + missing tx/error
+    em-dashes + empty + error.
+  - `growth-kol-table.test.tsx` (3 tests): operator columns + drill-down
+    + KOL-side fields (rate, set_by, timestamps) + performance numbers +
+    empty + error.
+  - `growth-claims-filter-bar.test.tsx` (4 tests): empty defaults blank +
+    populated mirror + custom action passthrough + form-name contract
+    smoke-check (claimStatus / claimUserId / claimMin/MaxAmount /
+    claimRequestedFrom/To / claimTxSignature / claimError).
+- New `peek/src/lib/__tests__/growth-search-params.test.ts` (7 tests):
+  the URL-addressable filter normaliser. Empty input → all null, whitespace
+  → null, populated → trimmed-and-typed, status whitelist (rejects unknown
+  values, accepts each PEEK_REFERRAL_CLAIM_STATUSES), array values take the
+  first, undefined acts as missing.
+- Targeted check (peek): `pnpm test --run` ✅ (250/250, +29 from iteration
+  28's 196), `pnpm lint` ✅, `pnpm typecheck` ✅.
+## Iteration 29 — 2026-04-25T12:38:16Z — OK
+- **Log**: iteration-029.log
+
