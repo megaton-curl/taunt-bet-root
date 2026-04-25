@@ -1419,3 +1419,90 @@ of every iteration to understand prior context.
 ## Iteration 32 — 2026-04-25T12:56:49Z — OK
 - **Log**: iteration-032.log
 
+## Iteration 33 — 2026-04-25
+
+- FR-8 per-game round queries (engine half). Two server-only query
+  functions backing the upcoming `/games/[game]` route, one for the
+  shared `rounds` table (FlipYou + Pot Shot) and one for the
+  `closecall_rounds` table — distinct SQL because the columns and
+  lifecycle phases differ. The frontend page and dedicated test pair
+  are the next two checklist items; this iteration ships only the
+  query module + view-model types.
+- New `peek/src/lib/types/peek.ts` types under "Per-game round detail
+  (FR-8)":
+  - `PeekRoundPhase` literal union (`'created' | 'locked' | 'settling' |
+    'settled' | 'expired'`) + `PEEK_ROUND_PHASES` array — pinned to
+    migration 001's CHECK constraint.
+  - `PeekRoundsGameId` derived from `PeekGameId` (`Extract<…,
+    'flipyou' | 'potshot'>`) + `PEEK_ROUNDS_GAME_IDS` — keeps Close
+    Call out of the `rounds`-shaped row type at compile time so a
+    caller cannot ask `listRounds({ game: 'closecall' })`.
+  - `PeekRoundRow` covering the spec-required columns: pda, match id,
+    phase, creator, target slot (text — BIGINT u64), settle attempts,
+    settle tx, result side, winner, amount lamports (text), and
+    timestamps (created/updated/settled).
+  - `PeekCloseCallPhase` (`'open' | 'settled' | 'refunded'`) +
+    `PeekCloseCallOutcome` (`'pending' | 'green' | 'red' | 'refund'`)
+    + their `PEEK_CLOSECALL_*` arrays.
+  - `PeekCloseCallRoundRow` covering pda, round_id, phase, outcome,
+    open/close prices (text), open price expo, green/red pools (text),
+    total fee (text), settle tx, and timestamps.
+  - `PeekRoundStuckFilters` carrying the four FR-8 stuck-state booleans
+    (`nonterminalAged`, `highAttempts`, `settledWithoutTx`, `refunds`).
+    `PeekCloseCallRoundStuckFilters = Omit<…, 'highAttempts'>` because
+    `closecall_rounds` has no `settle_attempts` column — the type system
+    enforces the per-table difference instead of a runtime check.
+  - `PeekRoundFilters` and `PeekCloseCallRoundFilters` adding
+    phase/outcome/search/date filters around the stuck struct;
+    `PeekRoundsListResult<TRow>` couples rows + pagination.
+- New `peek/src/server/db/queries/get-game-rounds.ts`:
+  - `listRounds({ sql?, game, filters?, page?, pageSize?, thresholds? })`
+    returns `PeekRoundsListResult<PeekRoundRow>`. Required `game:
+    PeekRoundsGameId`. Two queries fire in parallel via `Promise.all`:
+    paged rows + `count(*)` for pagination. The four stuck booleans
+    OR together so an operator can combine signals without four
+    separate routes; when no stuck flag is set the predicate
+    short-circuits to `true`. Stuck thresholds default to the same
+    values used by the command-center (`ageMinutes: 5`,
+    `maxSettleAttempts: 3`) and are overridable per-call (matches the
+    `getCommandCenterAttention` shape so the two surfaces stay in
+    lockstep).
+  - `listCloseCallRounds({ sql?, filters?, page?, pageSize?,
+    thresholds? })` returns `PeekRoundsListResult<PeekCloseCallRoundRow>`.
+    Three OR'd stuck flags (no `highAttempts`); the refunds branch
+    treats either `phase = 'refunded'` OR `outcome = 'refund'` as a
+    refund — the migration allows a settled row to carry the `refund`
+    outcome before the phase transition lands, so checking either
+    captures the operator-visible state.
+  - `settledWithoutTx` predicate: `phase = 'settled' AND NOT EXISTS (…)`
+    against `transactions` filtered on `t.game = r.game` (or hard-coded
+    `'closecall'` for the CC variant) and `t.match_id = r.match_id` (or
+    `cc.round_id`) and `t.tx_type IN ('payout','refund')`. Uses the
+    existing `idx_tx_match_id` index from migration 008 so the
+    correlated subquery stays cheap.
+  - Lamport / u64 columns (`amount_lamports`, `target_slot`,
+    `open_price`, `close_price`, `green_pool`, `red_pool`, `total_fee`)
+    cast to `::text` in SQL and hold as strings end-to-end so u64
+    precision survives the postgres-driver Number coercion (the
+    `sumLamports`/`readSum` pattern from iteration 30).
+  - Pagination: `clampPage` + `clampPageSize` (default 50, max 250)
+    mirror the limits used by `listTopReferrers` and
+    `listReferralClaims`. `totalPages` is `max(1, ceil(count/size))`
+    so an empty result still returns 1 logical page (consistent with
+    the existing pagination primitive).
+  - Row normalization: SQL phase/outcome strings cast to the literal
+    unions on the way out; `normalizeRoundRow` filters out unknown
+    `game` values via `isPeekRoundsGameId` so an out-of-band row from
+    a future migration cannot leak into the typed view model — same
+    defense-in-depth pattern `getGamesOverview` uses for
+    `PEEK_GAME_IDS`.
+- Targeted check (peek): `pnpm lint` ✅, `pnpm typecheck` ✅, `pnpm
+  test --run` ✅ (267/267, no regressions). The dedicated query +
+  page tests for `/games/[game]` are scheduled as the third item in
+  the FR-8 per-game block and will exercise the four stuck filters,
+  refunds, sparse data, and all three games end-to-end.
+
+
+## Iteration 33 — 2026-04-25T13:04:43Z — OK
+- **Log**: iteration-033.log
+
