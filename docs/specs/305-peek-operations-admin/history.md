@@ -2015,3 +2015,62 @@ of every iteration to understand prior context.
 ## Iteration 40 — 2026-04-25T14:04:19Z — OK
 - **Log**: iteration-040.log
 
+
+## Iteration 41 — 2026-04-25
+
+- FR-9 economy/rewards test coverage: dedicated query + component tests for the
+  iteration 39 query layer and the iteration 40 page components. No
+  production-code changes.
+- New `peek/src/server/db/queries/__tests__/get-rewards.test.ts` (26 tests):
+  - `listRewardConfig`: known-key annotation from
+    `PEEK_REWARD_CONFIG_KEY_REGISTRY` (definition + expectedType), unknown-key
+    fallback (`definition: null`, `expectedType: "unknown"`), empty result,
+    SQL shape (`from reward_config order by key asc`), and load-error
+    propagation.
+  - `getRewardPool`: populated singleton, null/empty lamport coercion via
+    `readSum`, missing singleton returns `null`, SQL shape
+    (`from reward_pool where id = 1 limit 1`), and load-error propagation.
+  - `listRewardPoolFundings`: default + explicit limit, MAX clamp, non-positive
+    clamps to 1, non-finite limit falls back to default, populated
+    funding-source linkage (`roundId` from `reward_pool_fundings.round_id`),
+    empty result, SQL shape, and load-error propagation.
+  - `getRewardsOverview`: populated four-metric strip with FR-4 bookkeeping
+    (label, definition, source, windowLabel, drilldownHref, asOf,
+    `freshness: "live"`); large-count thousands-separator formatting; sparse
+    empty pool + zero-fundings (no metric dropped); string-count coercion;
+    default vs caller-provided `recentFundingsWindowHours` (window label +
+    `since` cutoff); load-error propagation; parallel-query order
+    (`reward_pool` then `reward_pool_fundings`).
+- New `peek/src/components/__tests__/reward-pool-card.test.tsx` (4 tests):
+  populated four-cell card with thousands-separator lamports + raw u64 in
+  `title=` (FR-4 monetary precision); zero pool renders bare `0`; null pool
+  renders the operator empty state pointing at `id = 1`; error renders an
+  alert and hides data + empty status.
+- New `peek/src/components/__tests__/reward-config-table.test.tsx` (4 tests):
+  populated columns + key/value/type chip/definition/updated rendering;
+  unknown key surfaces the `Unregistered key — extend
+  PEEK_REWARD_CONFIG_KEY_REGISTRY` warning hint; empty state references
+  `reward_config`; error renders alert and hides table + empty status.
+- New `peek/src/components/__tests__/reward-pool-fundings-table.test.tsx`
+  (6 tests): populated columns + thousands-separator lamports;
+  funding-source linkage drills into universal search (`/?query=<roundId>`)
+  for both flipyou/potshot match-id-style and closecall PDA-style round ids
+  (FR-9 funding-source linkage); zero-funded rows render bare `0`; empty
+  state references `reward_pool_fundings`; error renders alert and hides
+  table + empty status.
+- Targeted check (peek): `pnpm lint` ✅, `pnpm typecheck` ✅, `pnpm test --run`
+  ✅ (410/410 — +40 new tests vs iteration 40's 370). The next FR-9 checklist
+  item is the points + crates engine query layer.
+
+## Iteration 41 — 2026-04-25T14:10:28Z — COMPLETE
+- **Result**: All checklist items done, verification passed
+- **Log**: iteration-041.log
+
+## Devnet E2E — 2026-04-25T14:10:29Z
+- **Result**: PASS
+
+## Gap Analysis — 2026-04-25T14:22:18Z
+- **Result**: Gap analysis report generated
+- **Report**: gap-analysis.md
+- **Log**: gap-analysis.log
+
