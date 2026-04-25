@@ -7,7 +7,7 @@
 | Status | Ready |
 | Priority | P1 |
 | Track | Core |
-| NR_OF_TRIES | 37 |
+| NR_OF_TRIES | 38 |
 
 ---
 
@@ -509,7 +509,7 @@ Keep the implementation close to existing `peek` conventions and cheap to operat
 - [x] [test] `/games/[game]` query + page tests for all 3 games + stuck-state filters + refunds + sparse data. (done: iteration 35)
 - [x] [engine] Round detail queries joining round + entries from `game_entries` + transactions from `transactions`. (done: iteration 36)
 - [x] [frontend] `/games/[game]/rounds/[roundId]` detail with participant + transaction audit. (done: iteration 37)
-- [ ] [test] Round detail query + page tests across the 3 games (full, sparse, refunded, stuck).
+- [x] [test] Round detail query + page tests across the 3 games (full, sparse, refunded, stuck). (done: iteration 38)
 
 #### Economy (FR-9) — split into 4 feature pairs
 - [ ] [engine] Rewards queries: `reward_config` (key/value/updated_at/definition/expected type) + `reward_pool` (balance/lifetime funded/lifetime paid) + `reward_pool_fundings` (recent + source round ids).

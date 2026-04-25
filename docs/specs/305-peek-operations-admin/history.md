@@ -1793,3 +1793,104 @@ of every iteration to understand prior context.
 ## Iteration 37 — 2026-04-25T13:30:31Z — OK
 - **Log**: iteration-037.log
 
+
+
+## Iteration 38 — 2026-04-25
+
+- FR-8 test gate: dedicated round-detail query + page (view) tests across
+  FlipYou, Pot Shot, and Close Call. Closes the last open FR-8 item; suite
+  now 370/370 (+36 from iteration 37's 334).
+- Small refactor — `peek/src/components/round-detail-view.tsx` (new):
+  - Lifts the inline `RoundDetailSections`/`RoundSummary`/`CloseCallSummary`/
+    `EntriesTable`/`TransactionsTable` rendering helpers out of
+    `app/games/[game]/rounds/[roundId]/page.tsx` into an exported
+    `RoundDetailView` component so the view can be tested directly with
+    `@testing-library/react`. Behaviour identical to iteration 37; only the
+    helpers moved. The page now imports `RoundDetailView` and keeps the
+    breadcrumb, role-gate, and load-error alert. Same pattern iteration 32
+    used for `PEEK_DEFERRED_GAMES` (lift constants/components out of
+    `app/**/page.tsx` so they are testable without spinning up the full
+    route).
+- New `peek/src/server/db/queries/__tests__/get-round-detail.test.ts`
+  (19 tests):
+  - Re-uses the `createSqlMock`/queued-response pattern from
+    `get-game-rounds.test.ts` so query test ergonomics stay consistent
+    across the FR-8 surface.
+  - FlipYou/Pot Shot branch covers: full populated round + entries +
+    transactions (incl. a `9007199254740992` lamport amount > MAX_SAFE_INTEGER
+    so u64 strings round-trip), the `flipyou` vs `potshot` SQL pivot
+    (different game predicate, same SQL), sparse (entries + transactions
+    both empty → empty arrays), refunded (`phase = 'expired'` + a refund
+    transaction), stuck (`phase = 'settling'`, `settleAttempts = '12'`
+    string coercion, no winner), `null` returned when the round is not
+    found (and no follow-up entries/transactions queries fire), the
+    defense-in-depth `PEEK_ROUNDS_GAME_IDS` filter (a bogus `crash` row
+    cannot leak), `isWinner = null` staying null (not coerced to false),
+    transactions with null `user_id` keeping `userId` null (no fabricated
+    link), and load-error propagation from either parallel query.
+  - Close Call branch covers: full populated round (settled / green) with
+    the CC-specific column shape (`outcome`, `roundId`, `openPriceExpo`,
+    pools, fee), the SQL contract that joins transactions through
+    `round_id` (not `match_id`) and hard-codes `t.game = 'closecall'`,
+    sparse (open + pending with empty pools), refunded (`phase =
+    'refunded'` + `outcome = 'refund'` + a refund transaction), stuck
+    (open round with empty entries + transactions still drillable), null
+    when not found, the Pyth `openPriceExpo` integer coercion from a
+    postgres string, and load-error propagation.
+- New `peek/src/components/__tests__/round-detail-view.test.tsx`
+  (18 tests):
+  - FlipYou (full): every spec-required summary field renders; phase
+    `StatusChip`s carry the right tone; u64 lamport > MAX_SAFE_INTEGER
+    formats with thousands separators (preserves underlying digits);
+    entries table user-link drills to `/users/[userId]` (FR-6); singular
+    "1 participant" / "1 on-chain SOL movement" hint pluralises correctly.
+  - FlipYou (sparse): both empty states render; pluralised count hints
+    swap to "0 participants" / "0 on-chain SOL movements".
+  - FlipYou (em-dashes): null `targetSlot`/`settleTx`/`resultSide`/
+    `winner`/`settledAt` all surface as `—` so sparse columns don't get
+    mistaken for measured zeros.
+  - FlipYou (entries): `isWinner` renders `yes`/`no`/`—` per row; the
+    truncated user id (12-char ellipsis) shows when `username` is null
+    and the full id stays in `title=` for hover audit.
+  - FlipYou (lamports): `0` literal stays bare for measured zeros (FR-4).
+  - Pot Shot: same shared summary + tables; FR-6 drill-down works.
+  - Close Call (full): `Outcome`/`Round ID`/`Open price`/`Close price`/
+    `Green pool`/`Red pool`/`Total fee` render; the Pyth `· expo -8`
+    sublabel renders inline; phase + outcome chips both carry their
+    label values; lamport / price values format with thousands
+    separators.
+  - Close Call (open + pending): phase `open` + outcome `pending` chips
+    render; null `closePrice`/`settleTx`/`settledAt` produce em-dashes.
+  - Close Call (refunded + refund): the composite refund state surfaces
+    both chips and the empty-entries state; the refund transaction
+    amount formats correctly.
+  - Close Call (transactions): null `user_id` produces an em-dash and
+    no fabricated user link.
+  - Stuck states (cross-game): FlipYou `settling`/12 attempts, FlipYou
+    `expired`+refund, Pot Shot `settling` with both empty states, Close
+    Call settled-without-tx (the `settledWithoutTx` filter's underlying
+    pattern) — all render correctly so an operator arriving from a
+    stuck-state filter on `/games/[game]` can audit the round.
+  - Section structure: 3 `<section aria-labelledby>` blocks with stable
+    heading ids (`round-summary-heading`, `entries-heading`,
+    `transactions-heading`) so anchored navigation works (FR-3).
+- Test fixes during the run:
+  - `getByText("Amount (lamports)")` collided with the same label in the
+    summary `<dt>` and the entries-table column header — switched the
+    duplicates to `getAllByText` while keeping the summary-only labels
+    on the strict `getByText`. Same fix for `Phase`, `Winner`, `Created`,
+    `Settled`.
+  - `getByText(/the .*game_entries.* table has no rows/i)` failed because
+    the `<code>game_entries</code>` element splits the text node — switched
+    to `getByText(/table has no rows joined to this round PDA/i)` (the
+    suffix lives in a single text node).
+  - `getByText("9,007,199,254,740,992")` collided when the lamport amount
+    appears in both the summary and the entries row — switched to
+    `getAllByText(...).length).toBeGreaterThanOrEqual(1)`.
+- Targeted check (peek): `pnpm lint` ✅, `pnpm typecheck` ✅, `pnpm test
+  --run` ✅ (370/370; +36 tests).
+
+
+## Iteration 38 — 2026-04-25T13:50:04Z — OK
+- **Log**: iteration-038.log
+
