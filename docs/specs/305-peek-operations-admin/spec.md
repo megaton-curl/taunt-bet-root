@@ -7,7 +7,7 @@
 | Status | Ready |
 | Priority | P1 |
 | Track | Core |
-| NR_OF_TRIES | 17 |
+| NR_OF_TRIES | 18 |
 
 ---
 
@@ -488,7 +488,7 @@ Keep the implementation close to existing `peek` conventions and cheap to operat
 #### Universal search (FR-5)
 - [x] [engine] Universal search query functions accepting `user_id`, username, wallet, referral code, Telegram username, Telegram provider id, round PDA, match id, tx signature, queue event id. Bounded server-side; grouped by entity type; emits `peek.search` audit events with no secrets. (done: iteration 16)
 - [x] [frontend] Universal search UI grouped by entity type (user, referral, linked account, round, transaction, queue event) with disambiguating context per result. (done: iteration 17)
-- [ ] [test] Universal search tests: every supported identifier class, bounded-query enforcement, no-result behavior, audit-event emission.
+- [x] [test] Universal search tests: every supported identifier class, bounded-query enforcement, no-result behavior, audit-event emission. (done: iteration 18)
 
 #### Expanded user detail (FR-6)
 - [ ] [engine] Expand user-detail queries with linked accounts (`linked_accounts`), latest Telegram link tokens (`telegram_link_tokens`), referral code/inbound referrer/outbound referees/KOL rate/earnings/claims, points balance/lifetime/grants/crates, challenge assignment summary, recent game entries + transactions across all 3 games, fraud flags, and user-related queue events.

@@ -753,3 +753,91 @@ of every iteration to understand prior context.
 ## Iteration 17 — 2026-04-25T11:40:46Z — OK
 - **Log**: iteration-017.log
 
+## Iteration 18 — 2026-04-25
+
+- Added `peek/src/server/db/queries/__tests__/universal-search.test.ts` (38
+  tests) covering the FR-5 universal-search surface end-to-end without
+  touching live Postgres:
+  - **classifyPeekSearchQuery** (12 cases via `it.each`): every supported
+    `PeekSearchQueryClass` label gets at least one positive case — `empty`,
+    `free_text` (general text + UUIDs), `queue_event_id` (short numeric),
+    `telegram_provider_id` (≥19 digits), `match_id` (16-char hex),
+    `round_pda` (32–44 base58), `tx_signature` (≥80 base58),
+    `telegram_username` (`@…`), `referral_code` (`[A-Z0-9]{4,12}`), and
+    `username` (`[A-Za-z0-9_]{3,32}`). A separate test asserts that a leading
+    `@` is stripped before classification but the surrounding `telegram_username`
+    label survives.
+  - **Empty query**: short-circuits the query module — no SQL calls — and
+    returns six empty groups in the `PEEK_SEARCH_ENTITY_TYPES` order with
+    `truncated=false`, `totalResults=0`, `queryClass="empty"`, and
+    `perGroupLimit` defaulting to `PEEK_SEARCH_DEFAULT_PER_GROUP_LIMIT`.
+  - **Per-identifier shape tests** (one per entity class): `user_id` shapes a
+    `player_profiles` row into the user group result with `label=username`
+    fallback to `userId`, `sublabel=wallet`, `context="joined ${joinedAt}"`,
+    and `href=/users/${id}`; `referral_code` shapes a `referral_codes` row;
+    `telegram_username` strips the leading `@` before binding it to the SQL
+    exact-match and ILIKE predicates and labels with `@username` when the
+    Telegram metadata exposes one; `telegram_provider_id` falls back to the
+    `providerAccountId` label when `telegramUsername` is null; `round_pda`
+    merges flipyou/potshot rounds + closecall_rounds into the round group
+    with the right per-game drill-down (`/games/${game}/rounds/${pda}`);
+    `match_id` and `tx_signature` shape `transactions` rows; `queue_event_id`
+    shapes the `event_queue` row with `label=#${id}` + drill-down
+    `/operations/queue?id=${id}`.
+  - **Query-class derivation across entities**: each test also asserts the
+    `response.queryClass` value so the audit summary remains pinned to the
+    classified label even when the matched row comes from a different entity
+    class than the heuristic predicted (the search still runs every lookup
+    regardless of the audit label).
+  - **Bounded-query enforcement** — every entity-class SQL emits a `LIMIT ?`
+    clause and the bound value is the configured `perGroupLimit + 1` (the
+    extra row enables truncation detection without leaking another row to the
+    UI). Tests exercise the default `5+1=6` bound, a custom `3+1=4` bound,
+    oversized `9999` clamping down to `PEEK_SEARCH_MAX_PER_GROUP_LIMIT+1=26`,
+    `0`/negative clamping up to `1+1=2`, and fractional limits flooring
+    before clamping.
+  - **Truncation flag**: when an entity-class query returns
+    `perGroupLimit + 1` rows, the response `slice`s back to `perGroupLimit`
+    *and* sets that group's `truncated=true`; sibling groups stay
+    `truncated=false`.
+  - **No-result behavior**: if every entity-class query returns `[]`,
+    `totalResults` collapses to `0` but the response still carries six
+    groups (one per `PEEK_SEARCH_ENTITY_TYPES` entry) with empty
+    `results` arrays so the UI can render group headers consistently.
+  - **Non-numeric short-circuit**: `searchQueueEvents` checks
+    `/^\d+$/.test(query)` before issuing SQL, so a `username`-shaped query
+    like `alice_99` produces only 6 mock calls and zero `from event_queue`
+    appearances in the captured SQL text.
+  - **Numeric path** runs 7 mock calls (the additional one is the
+    `event_queue` lookup); call ordering documented in the test header — the
+    `searchRounds` continuation against `closecall_rounds` happens after the
+    initial-round microtasks resolve, so the closecall row lands at index 5
+    (non-numeric) or 6 (numeric) in the captured calls list.
+  - **Audit-event emission** (FR-5 + FR-11): the default writer is invoked
+    with `actorEmail`, `query` (trimmed — leading/trailing whitespace
+    stripped), `queryClass`, `totalResults`, `route`, and `requestId`; the
+    empty-query short-circuit skips the audit emission entirely; an audit
+    handler that throws is swallowed so the search response still renders;
+    explicit `audit: null` disables emission (for unauthenticated paths and
+    tests).
+  - **Entity ordering**: the response `groups` array is always emitted in
+    `PEEK_SEARCH_ENTITY_TYPES` order regardless of which queries returned
+    rows.
+  - **`generatedAt`**: uses the injected `now` so deterministic timestamps
+    can be asserted without freezing the system clock.
+  - **Load-error**: a rejected entity-class query propagates so the
+    page-level try/catch in `app/page.tsx` can render the alert state — the
+    query module must not silently swallow.
+- The mock SQL surface is a typed tagged-template function that captures
+  every call's `text` (for SQL-shape assertions) and `values` (for binding
+  assertions) without touching live Postgres. The mock is passed via the
+  query module's `options.sql` injection seam (the same seam the production
+  code uses when iterations need to thread a transaction).
+- Targeted check (peek): `pnpm lint` ✅, `pnpm typecheck` ✅,
+  `pnpm test` ✅ (173/173 — was 135/135, +38 new).
+
+## Iteration 18 — 2026-04-25 — OK
+
+## Iteration 18 — 2026-04-25T11:48:37Z — OK
+- **Log**: iteration-018.log
+
