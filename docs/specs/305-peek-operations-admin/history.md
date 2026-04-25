@@ -2074,3 +2074,59 @@ of every iteration to understand prior context.
 - **Report**: gap-analysis.md
 - **Log**: gap-analysis.log
 
+
+
+## Iteration 42 — 2026-04-25
+
+- FR-9 economy points + crates engine: server-only query layer for the next
+  two `/economy/*` pages. Reads three migration-011 tables; no public backend
+  changes.
+- New `peek/src/server/db/queries/get-points-and-crates.ts`:
+  - `listPlayerPoints({ sql, limit, filters })` — selects `user_id, balance,
+    lifetime_earned, updated_at` from `player_points` joined with
+    `player_profiles` for the username column. Bounded server-side: default
+    `PEEK_PLAYER_POINTS_DEFAULT_LIMIT = 100`, max
+    `PEEK_PLAYER_POINTS_MAX_LIMIT = 500`. Filters: `userId` (exact) and
+    `wallet` (exact). Ordered by `balance desc, user_id asc` so the top
+    holders surface first when no filter is set. `wallet` comes from
+    `player_points.wallet` directly (NOT NULL in the migration).
+  - `listPointGrants({ sql, limit, filters })` — append-only ledger read
+    from `point_grants` joined with `player_profiles`. Filters: `userId`,
+    `sourceType`, `sourceId`, and a `[createdFrom, createdTo)` half-open
+    date range. Default 100, max 500. Ordered by `created_at desc, id desc`.
+    `wallet` comes from `point_grants.wallet` directly. Source-type and
+    source-id are passed through opaquely — the migration's CHECK
+    constraint (`'wager' | 'challenge_completed' | 'bonus_completed' |
+    'crate_points'`) is the single source of truth for valid values.
+  - `listCrateDrops({ sql, limit, filters })` — per-user crate ledger from
+    `crate_drops` joined with `player_profiles` for both username and
+    wallet. `crate_drops` has no wallet column of its own; the join uses
+    `player_profiles.wallet` and the type marks the result `wallet:
+    string | null` so an orphaned crate-drop row (no FK constraint, but in
+    practice every drop has a profile) renders honestly. Filters:
+    `userId`, `crateType`, `status`, `triggerType`, and the
+    `[createdFrom, createdTo)` window. Default 100, max 500. Ordered by
+    `created_at desc, id desc`.
+- New view-model types in `peek/src/lib/types/peek.ts`:
+  - `PeekPlayerPointsRow` / `PeekPlayerPointsFilters` — cross-user
+    `player_points` row + filter contract (`userId`, `wallet`).
+  - `PeekPointGrantLedgerRow` / `PeekPointGrantFilters` — extends the
+    existing per-user `PeekPointGrantRow` (kept for the user-detail page)
+    with `userId` / `username` / `wallet` so the cross-user grants page can
+    render rows with identity context. Filters cover `userId`, `sourceType`,
+    `sourceId`, and date range.
+  - `PeekCrateDropLedgerRow` / `PeekCrateDropFilters` — extends the existing
+    per-user `PeekCrateDropRow` with the same identity columns; `wallet` is
+    nullable because `crate_drops` has no wallet column. Filters cover
+    `userId`, `crateType`, `status`, `triggerType`, and date range.
+- `clampLimit` mirrors the existing rewards/growth pattern (non-finite →
+  fallback, ≤0 → 1, ≥max → max). `trimOrNull` is the standard filter input
+  normalizer used in the growth claims query so empty strings don't leak
+  past as bogus `=` filters.
+- Targeted check (peek): `pnpm typecheck` ✅, `pnpm lint` ✅, `pnpm test
+  --run` ✅ (410/410, no regressions). Frontend `/economy/points` +
+  `/economy/crates` pages and matching tests are the next two FR-9
+  checklist items.
+## Iteration 42 — 2026-04-25T15:07:15Z — OK
+- **Log**: iteration-042.log
+

@@ -7,7 +7,7 @@
 | Status | Ready |
 | Priority | P1 |
 | Track | Core |
-| NR_OF_TRIES | 41 |
+| NR_OF_TRIES | 42 |
 
 ---
 
@@ -529,7 +529,7 @@ Keep the implementation close to existing `peek` conventions and cheap to operat
 - [x] [engine] Rewards queries: `reward_config` (key/value/updated_at/definition/expected type) + `reward_pool` (balance/lifetime funded/lifetime paid) + `reward_pool_fundings` (recent + source round ids). (done: iteration 39)
 - [x] [frontend] `/economy/rewards` page with config table, pool balance card, recent fundings table, drill-down to source rounds. (done: iteration 40)
 - [x] [test] Rewards query + page tests for sparse/populated/empty/funding-source linkage. (done: iteration 41)
-- [ ] [engine] Points + crates queries: `player_points` + `point_grants` (filterable by user/source type/source id/date) + `crate_drops` (filterable by crate type/status/trigger type/user/date).
+- [x] [engine] Points + crates queries: `player_points` + `point_grants` (filterable by user/source type/source id/date) + `crate_drops` (filterable by crate type/status/trigger type/user/date). (done: iteration 42)
 - [ ] [frontend] Points + crates pages with filterable tables and pending-payout state for crates.
 - [ ] [test] Points + crates query + page tests for filters, sparse, pending payout, integer formatting.
 - [ ] [engine] Challenge queries: `campaigns`, `challenges`, `challenge_assignments`, `progress_events`, `completion_bonuses`, `bonus_completions`. Read-only; no challenge-definition editing.
