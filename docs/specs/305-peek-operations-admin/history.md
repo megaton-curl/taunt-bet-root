@@ -841,3 +841,111 @@ of every iteration to understand prior context.
 ## Iteration 18 — 2026-04-25T11:48:37Z — OK
 - **Log**: iteration-018.log
 
+## Iteration 19 — 2026-04-25
+
+- Expanded `peek/src/server/db/queries/get-peek-user-detail.ts` to load every
+  FR-6 user-profile section in parallel while preserving the iteration-1 SQL
+  contract for `queries[0]` (the linked-account telegram view) — the
+  303-era + iteration-1 telegram-linked-queries test still asserts the same
+  first-query strings:
+  - **Profile identity** — `player_profiles` now also surfaces `avatar_url`,
+    `heat_multiplier::text` (NUMERIC → text to preserve precision), and
+    `points_balance::text` (BIGINT → text). The base `pp.*` join still emits
+    the original 303-era columns so existing callers (`UserDetailCard`,
+    `users` page) keep rendering unchanged.
+  - **Linked accounts** — full `linked_accounts` rows for the user across all
+    providers (id, provider, provider_account_id, status, telegramUsername
+    pulled from `metadata_json->>'telegramUsername'`, raw metadata JSON,
+    linked_at, updated_at). Distinct from the existing single "active
+    telegram" lateral join — now the page sees every linked-provider row
+    including inactive Telegram links.
+  - **Recent Telegram link tokens** — `telegram_link_tokens` ordered by
+    `created_at desc` and capped at `PEEK_USER_DETAIL_TOKEN_LIMIT = 10` so
+    support can audit token redemption state without streaming the full
+    history. The tagged-template runs as a *separate* parallel query, so
+    `queries[0]`'s "no telegram_link_tokens" assertion still holds.
+  - **KOL rate** — `referral_kol_rates` lookup returning rate_bps, set_by,
+    created_at, updated_at, or `null` when the user is not a KOL.
+  - **Referral earnings summary** — `referral_earnings` aggregated across both
+    `referrer_user_id = userId` *and* `referee_user_id = userId` so the user
+    detail page surfaces both inbound rebates and outbound referrer earnings;
+    sums kept as `::text` to preserve BIGINT precision.
+  - **Recent referral claims** — `referral_claims` rows with status, retry
+    count, tx signature, error, and timestamps; bounded by `recentLimit`.
+  - **Player points (canonical ledger)** — `player_points.balance` +
+    `lifetime_earned` (separate from `player_profiles.points_balance` which is
+    surfaced as `profilePointsBalance` on the identity row per FR-6 "profile
+    points slot"). Defaults to a zeroed row if the user has no `player_points`
+    record yet.
+  - **Recent point grants** — `point_grants` rows with source_type/source_id,
+    bounded by `recentLimit` so the detail page can show the most recent
+    rewards without paging through the full ledger.
+  - **Recent crate drops** — `crate_drops` rows with trigger_type, trigger_id,
+    crate_type (`points` or `sol`), contents_amount (TEXT in schema), status,
+    and timestamps.
+  - **Challenge assignment summary** — `challenge_assignments` aggregated as
+    `count(*) filter (where status = …)` for active/completed/expired plus
+    total. Read-only; per FR-9 challenge definition editing remains out of
+    scope.
+  - **Recent game entries** — `game_entries` across all three games (FlipYou,
+    Pot Shot, Close Call) with round_pda, match_id, side, is_winner, payout
+    lamports, and settlement timestamp.
+  - **Recent transactions** — `transactions` rows (`deposit`/`payout`/`refund`)
+    keyed on `user_id`; nullable user_id rows are not surfaced here per the
+    schema.
+  - **Fraud flags** — `fraud_flags` rows with flag_type, status
+    (`open`/`reviewed`/`dismissed`), related_id, and timestamps.
+  - **User-related queue events** — `event_queue` has no `user_id` column, so
+    the join uses `payload->>'userId'`, `payload->>'user_id'`, or
+    `payload->>'wallet'` (covering both backend writer conventions and
+    referral-claim/crate payloads that key on wallet). Bounded by `recentLimit`.
+  - **Self-referral indicator** — single `EXISTS` query against
+    `referral_links` to detect the obvious self-loop (referrer = referee =
+    userId); used purely as the FR-6 "suspicious referral self/loop" attention
+    signal without any heuristic that could leak to production.
+  - **Attention flags** — derived from the loaded sections (no extra DB hit):
+    `failedClaim` (any recent claim with status `failed`/`error`),
+    `deadQueueEvent` (any user-bound queue event with status `dead`),
+    `activeFraudFlag` (any fraud flag with status `open`),
+    `pendingSolCratePayout` (any crate drop with `crate_type='sol'` AND
+    `status='pending'`), and `suspiciousReferralLoop` (the EXISTS result).
+- View-model expansion in `peek/src/lib/types/peek.ts`:
+  - Added `PeekUserDetailUser = PeekUserRow & { avatarUrl, heatMultiplier,
+    profilePointsBalance }` so the detail user object carries the FR-6
+    profile-identity additions without altering the shared `PeekUserRow` used
+    by the users-list table.
+  - Added per-section row types: `PeekLinkedAccountRow`,
+    `PeekTelegramLinkTokenRow`, `PeekKolRate`,
+    `PeekReferralEarningsSummary`, `PeekReferralClaimRow`, `PeekPlayerPoints`,
+    `PeekPointGrantRow`, `PeekCrateDropRow`,
+    `PeekChallengeAssignmentSummary`, `PeekGameEntryRow`, `PeekTransactionRow`,
+    `PeekFraudFlagRow`, `PeekUserQueueEventRow`, and the
+    `PeekUserAttentionFlags` envelope. All browser-safe; no server imports.
+  - Extended `PeekUserDetail` with the new sections + an `attention` flag
+    object so the next iteration's UI can render the FR-6 attention strip
+    without recomputing.
+- **Boundedness** — every per-user query is parameterized by
+  `recentLimit` (default 25) or `tokenLimit` (default 10). The user-detail
+  page is a high-attention single-row admin surface; the limits keep it
+  responsive even for power users with hundreds of game entries / claims.
+  The function accepts `options.sql`/`options.recentLimit`/`options.tokenLimit`
+  injection seams so the next iteration's tests can drive the parallel
+  queries deterministically (matching iteration-12 / iteration-18 patterns).
+- **No frontend wiring this iteration**. The existing `UserDetailCard` reads
+  only `user`, `inboundReferral`, `outboundReferees`, and `telegram` — the new
+  fields are populated but ignored by the current component. The next FR-6
+  checklist item rewires `/users/[userId]` into the tabs/anchored sections
+  layout per the spec; the iteration after that adds the dedicated query +
+  component test coverage.
+- Targeted check (peek): `pnpm lint` ✅, `pnpm typecheck` ✅,
+  `pnpm test` ✅ (173/173, no regressions; the existing
+  `telegram-linked-queries.test.ts` still passes because `queries[0]` is the
+  preserved linked_accounts join — the new `telegram_link_tokens` query runs
+  as a separate parallel query well after `queries[0]`).
+
+## Iteration 19 — 2026-04-25 — OK
+- **Log**: iteration-019.log
+
+## Iteration 19 — 2026-04-25T11:55:06Z — OK
+- **Log**: iteration-019.log
+
