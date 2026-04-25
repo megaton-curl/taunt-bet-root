@@ -161,3 +161,38 @@ of every iteration to understand prior context.
 ## Iteration 5 — 2026-04-25T10:42:46Z — OK
 - **Log**: iteration-005.log
 
+## Iteration 6 — 2026-04-25
+
+- Added `peek/src/lib/access-policy.ts` exposing the browser-safe `PeekRole`
+  literal + `PEEK_ROLES` list + `isPeekRole` guard. Server-only policy details
+  (env loading, route + action rules, actor context, `next/headers` reads) stay
+  in `peek/src/server/access-policy.ts`; the server module now re-exports
+  `PeekRole` from the lib module so existing callers/tests are unchanged.
+- Extended `peek/src/lib/types/peek.ts` with foundational FR-4 view-model
+  primitives, all browser-safe (no server imports, fully serializable):
+  - `PeekActorView` — `{ email, role }` for the admin shell badge.
+  - `PeekMetric` — stable id, label, value, valueDisplay, unit, source,
+    windowLabel, asOf, definition, freshness, drilldownHref. `PeekMetricFreshness`
+    union covers `live | cached | manual | sampled` so pages can declare how
+    fresh the data is per FR-4.
+  - `PeekPagination` — `{ page, pageSize, totalCount, totalPages }`.
+  - `PeekTableSort` + `PeekSortDirection` for URL-addressable sort state.
+  - `PeekTableFilter` + `PeekFilterKind` (`text | select | boolean | date |
+    dateRange`) + `PeekFilterOption` for the URL-addressable filter primitive.
+  - `PeekStatusTone` (`neutral | positive | warning | negative | info`) for the
+    shared status-chip component.
+  - `PeekEmptyState` for the operator-copy empty-state primitive.
+  - `PeekTableColumn` (id/label/align/sortable), `PeekTableRowBase`
+    (`{ id, href }`) which per-feature row types extend, and a generic
+    `PeekTableViewModel<TRow>` envelope (columns, rows, pagination, filters,
+    sort, empty) used by feature pages.
+- Existing 303-era `PeekSummary`, `PeekUserRow`, and `PeekUserDetail` shapes
+  remain unchanged; per-feature view models for users/referrals/games/queue/
+  audit/exports get added inside their respective feature iterations.
+- Targeted check (peek): `pnpm lint` ✅, `pnpm typecheck` ✅,
+  `pnpm test` ✅ (75/75, no regressions).
+
+
+## Iteration 6 — 2026-04-25T10:46:50Z — OK
+- **Log**: iteration-006.log
+

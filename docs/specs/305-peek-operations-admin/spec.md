@@ -7,7 +7,7 @@
 | Status | Ready |
 | Priority | P1 |
 | Track | Core |
-| NR_OF_TRIES | 5 |
+| NR_OF_TRIES | 6 |
 
 ---
 
@@ -466,7 +466,7 @@ Keep the implementation close to existing `peek` conventions and cheap to operat
 - [x] [test] Add `peek/src/server/__tests__/access-policy.test.ts` covering exact email, wildcard domain, case normalization, admin precedence, route allow/deny, action allow/deny, invalid/duplicate policy entries, and actor-context propagation. (done: iteration 5)
 
 #### Foundational view models (FR-4)
-- [ ] [engine] View models part A: extend `peek/src/lib/types/peek.ts` (and `peek/src/lib/access-policy.ts` for browser-safe role names if needed) with shared metric metadata, table-filter, pagination, and table-row primitives. Per-feature shapes get added inside their feature iterations.
+- [x] [engine] View models part A: extend `peek/src/lib/types/peek.ts` (and `peek/src/lib/access-policy.ts` for browser-safe role names if needed) with shared metric metadata, table-filter, pagination, and table-row primitives. Per-feature shapes get added inside their feature iterations. (done: iteration 6)
 - [ ] [engine] View models part B: add audit-event and export contracts (event-type union, payload shape, redaction marker; export-row, filename slug, row-cap result types).
 
 #### Foundational UI primitives (FR-3, FR-4)
