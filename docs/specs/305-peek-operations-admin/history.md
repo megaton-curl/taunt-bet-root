@@ -233,3 +233,55 @@ of every iteration to understand prior context.
 ## Iteration 7 — 2026-04-25T10:50:01Z — OK
 - **Log**: iteration-007.log
 
+## Iteration 8 — 2026-04-25
+
+- Added foundational FR-3/FR-4 UI primitives part A (dense table, metric strip,
+  filter bar) — all server-component-friendly (no client state), browser-safe
+  imports only:
+  - `peek/src/components/peek-table.tsx` — generic `PeekTable<TRow>` rendering a
+    `PeekTableViewModel<TRow>`. Sortable column headers render `next/link`
+    anchors using a caller-supplied `buildSortHref(columnId, nextDirection)`
+    callback (component computes the toggle: currently-sorted desc → asc, else
+    desc); active-sort header carries a `▲`/`▼` indicator and `aria-sort`. Cells
+    are rendered via a typed `renderCell(row, columnId)` callback so per-feature
+    row shapes stay strongly typed without leaking into the table component.
+    Empty rows render the view-model's `empty` operator copy (`role="status"`),
+    and a non-null `error` prop renders `role="alert"` instead of the table.
+  - `peek/src/components/metric-strip.tsx` — renders a `ReadonlyArray<PeekMetric>`
+    grid of cards with the FR-4 bookkeeping visible (label, valueDisplay + unit,
+    definition, source, windowLabel, as-of, freshness chip, optional drill-down
+    `Link`). Empty array renders an operator status; non-null error renders an
+    alert instead of the grid.
+  - `peek/src/components/filter-bar.tsx` — `<form method="get">` with `name=`
+    inputs matching each filter id so applied filters round-trip through the
+    URL. Supports `text` / `select` / `boolean` / `date` / `dateRange` (the last
+    splits on `..` and emits `${id}From` and `${id}To` named inputs). Required
+    filters get a `*` suffix; non-required `select` filters get an empty/Any
+    leading option. Empty filter list renders an operator status; non-null error
+    renders an alert.
+- Added component tests covering populated / sparse / error for each:
+  - `peek-table.test.tsx` (3 tests): populated renders columns, rows via
+    renderCell, toggling sort hrefs (active desc → asc next), `aria-sort`
+    descending on the active column, and `▼` indicator; sparse renders
+    `role="status"` with the empty-state copy and no `<table>`; error renders
+    `role="alert"` and suppresses both the table and the empty state.
+  - `metric-strip.test.tsx` (4 tests): populated renders label/value/unit/
+    definition/source/window/asOf/freshness/drilldown link; sparse-data variant
+    (null asOf, null drilldownHref) renders a `—` and no link; empty array
+    renders operator status; error renders alert.
+  - `filter-bar.test.tsx` (3 tests): populated renders all five filter kinds
+    with default values, the `windowFrom` / `windowTo` split inputs, and the
+    submit button; empty list renders operator status; error renders alert and
+    no `role="search"` form.
+- No changes to existing 303-era components (`SummaryStrip`, `UsersTable`,
+  `PaginationControls`) — those stay as feature-specific surfaces; the new
+  primitives become the default for FR-3/FR-4 feature pages going forward.
+- Targeted check (peek): `pnpm lint` ✅, `pnpm typecheck` ✅,
+  `pnpm test` ✅ (85/85 — was 75/75, +10 new across 3 new component test files).
+
+## Iteration 8 — 2026-04-25T10:55:00Z — OK
+- **Log**: iteration-008.log
+
+## Iteration 8 — 2026-04-25T10:55:14Z — OK
+- **Log**: iteration-008.log
+

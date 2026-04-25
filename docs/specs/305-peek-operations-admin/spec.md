@@ -7,7 +7,7 @@
 | Status | Ready |
 | Priority | P1 |
 | Track | Core |
-| NR_OF_TRIES | 7 |
+| NR_OF_TRIES | 8 |
 
 ---
 
@@ -470,7 +470,7 @@ Keep the implementation close to existing `peek` conventions and cheap to operat
 - [x] [engine] View models part B: add audit-event and export contracts (event-type union, payload shape, redaction marker; export-row, filename slug, row-cap result types). (done: iteration 7)
 
 #### Foundational UI primitives (FR-3, FR-4)
-- [ ] [frontend] UI primitives part A — layout/data: dense sortable table, metric strip with definition/source/as-of, filter bar with URL-addressable filters. Component tests for populated/sparse/error.
+- [x] [frontend] UI primitives part A — layout/data: dense sortable table, metric strip with definition/source/as-of, filter bar with URL-addressable filters. Component tests for populated/sparse/error. (done: iteration 8)
 - [ ] [frontend] UI primitives part B — state: status chip, empty state with operator copy, detail panel (tabs/anchored sections). Component tests for the same states.
 
 #### Admin shell (FR-3)
