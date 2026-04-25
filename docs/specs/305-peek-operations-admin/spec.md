@@ -7,7 +7,7 @@
 | Status | Ready |
 | Priority | P1 |
 | Track | Core |
-| NR_OF_TRIES | 9 |
+| NR_OF_TRIES | 10 |
 
 ---
 
@@ -474,7 +474,7 @@ Keep the implementation close to existing `peek` conventions and cheap to operat
 - [x] [frontend] UI primitives part B — state: status chip, empty state with operator copy, detail panel (tabs/anchored sections). Component tests for the same states. (done: iteration 9)
 
 #### Admin shell (FR-3)
-- [ ] [frontend] Persistent admin shell with actor email + resolved role badge, role-aware navigation (Users, Growth, Games, Economy, Operations, Audit, Access), hidden links for inaccessible routes, and access-denied + missing-config states that do not leak sensitive data.
+- [x] [frontend] Persistent admin shell with actor email + resolved role badge, role-aware navigation (Users, Growth, Games, Economy, Operations, Audit, Access), hidden links for inaccessible routes, and access-denied + missing-config states that do not leak sensitive data. (done: iteration 10)
 
 #### Audit writer (FR-11)
 - [ ] [engine] `peek/src/server/audit/**` audit writer using `operator_events` with `peek.*` event types (`peek.search`, `peek.user.view_sensitive`, `peek.export`, `peek.access.denied`, `peek.change.applied`, `peek.change.rejected`), actor + route + action + resource + filter summary + result-count + request-id; secret redaction; safe-failure (does not leak to browser).

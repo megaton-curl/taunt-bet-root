@@ -339,3 +339,53 @@ of every iteration to understand prior context.
 ## Iteration 9 — 2026-04-25T10:58:58Z — OK
 - **Log**: iteration-009.log
 
+## Iteration 10 — 2026-04-25
+
+- Added the FR-3 persistent admin shell — a server-rendered chrome that wraps
+  every peek route and resolves the verified Cloudflare Access actor against
+  the FR-2 local role policy:
+  - `peek/src/components/admin-shell.tsx` — pure presentational
+    server-component-friendly shell. Takes `actor: PeekActorView | null`,
+    `navItems: ReadonlyArray<AdminShellNavItem>`, optional `accessIssue:
+    "no-identity" | "no-role"`, and `children`. Renders `aria-label="Peek
+    admin shell"` header with brand, primary navigation (`<nav
+    aria-label="Primary">`), and an actor-identity strip with a tone-coded
+    role badge (`data-role`, `aria-label="Resolved role: ..."`). When
+    `accessIssue` is set, the shell suppresses nav, identity, and `children`,
+    and renders an `aria-label="Access denied"` `role="alert"` block with a
+    generic operator-readable title + body — never echoing the verified email
+    so the missing-config / no-identity branches do not leak sensitive data.
+  - `peek/src/server/admin-shell-nav.ts` — server-only nav model. Declares
+    `PEEK_ADMIN_SHELL_NAV` covering the FR-3 groups (Users, Growth, Games,
+    Economy, Operations, Audit, Access) and `getVisibleNavItemsForRole(role)`
+    which filters via `isRouteAllowedForRole` (so `/audit` is admin-only and
+    null roles see nothing), keeping page authorization centralized in the
+    FR-2 policy module.
+  - `peek/app/layout.tsx` — replaced the ad-hoc header with `AdminShell`.
+    Reads the trusted `VERIFIED_ACCESS_EMAIL_HEADER` and `getPeekActorContext`
+    once per request, classifies the access state (`no-identity` when the
+    proxy did not set the verified email; `no-role` when an email is present
+    but no role resolves), and passes the role-filtered nav into the shell so
+    inaccessible routes never appear in the link list.
+- Added shell coverage:
+  - `src/components/__tests__/admin-shell.test.tsx` (6 tests): admin sees
+    every nav group + email + admin-toned badge; business-style filtered nav
+    omits Audit; `accessIssue="no-role"` renders the alert and suppresses
+    nav/identity/children with no `@` characters in the alert text;
+    `accessIssue="no-identity"` renders the generic missing-identity alert
+    with the same suppression; stale-actor + access-issue still hides the
+    email; empty navItems renders identity but no nav.
+  - `src/server/__tests__/admin-shell-nav.test.ts` (4 tests): admin → all
+    7 groups; business → 6 groups (Audit hidden); null role → empty list;
+    declared nav covers the FR-3 group ids in order.
+- Targeted check (peek): `pnpm lint` ✅, `pnpm typecheck` ✅,
+  `pnpm test` ✅ (106/106 — was 96/96, +10 new across 2 new test files;
+  the existing layout was the only modified surface and its consumers
+  (`app/page.tsx`, `app/users/[userId]/page.tsx`) keep their `<main>`
+  wrappers because the shell renders only chrome, not a `<main>` element).
+
+## Iteration 10 — 2026-04-25 — OK
+
+## Iteration 10 — 2026-04-25T11:05:34Z — OK
+- **Log**: iteration-010.log
+
