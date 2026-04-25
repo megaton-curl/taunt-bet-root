@@ -1146,3 +1146,50 @@ of every iteration to understand prior context.
 ## Iteration 27 — 2026-04-25T12:22:12Z — OK
 - **Log**: iteration-027.log
 
+## Iteration 28 — 2026-04-25
+
+- FR-7 frontend pages: wired the growth/referral and growth/kol surfaces on
+  top of iteration 27's queries.
+  - `peek/app/growth/referrals/page.tsx` — server-rendered route. Loads the
+    8-metric overview into `MetricStrip`, the top-50 referrer table, and a
+    URL-addressable claims table. Each section has its own try/catch so a
+    single broken query doesn't blank the page; errors render through the
+    component's `error` prop. Calls `getPeekActorContext` and gates the
+    render with `isRouteAllowedForRole` so a no-role caller sees an
+    "access denied" alert instead of the data shell (the layout still does
+    the outer gate; this is the page-level belt-and-braces).
+  - `peek/app/growth/kol/page.tsx` — same shape, just the KOL table.
+- New components in `peek/src/components/`:
+  - `growth-referrers-table.tsx` — dense table over `PeekTopReferrerRow`
+    with a `<Link href="/users/{userId}">` drill-down, monospace wallet,
+    right-aligned numeric columns, and an inline empty state explaining
+    that `referral_links` is empty rather than rendering a misleading
+    zero row.
+  - `growth-claims-table.tsx` — dense table over `PeekGrowthClaimRow`
+    using the existing `StatusChip` for status (positive/info/negative
+    tones); links the user cell to user-detail; renders monospace tx
+    signatures; collapses null processed_at/error/txSignature to "—".
+  - `growth-kol-table.tsx` — dense table over `PeekKolPerformanceRow`
+    showing rate_bps, set_by, created/updated, and the joined performance
+    columns from the engine query.
+  - `growth-claims-filter-bar.tsx` — `<form action="/growth/referrals">`
+    with status (select), userId (text), min/max amount (numeric),
+    requestedFrom/requestedTo (date), txSignature (text), and error
+    contains (text). All inputs are URL-addressable so an investigation
+    state can be shared internally.
+- New URL-param helper: `peek/src/lib/growth-search-params.ts`
+  (`PEEK_REFERRAL_CLAIM_STATUSES` + `normalizeReferralClaimFiltersFromSearchParams`).
+  Whitelists the status value against the migration's check constraint so
+  an unknown `?claimStatus=foo` collapses to `null` rather than passing
+  through to the engine. Date inputs accept `YYYY-MM-DD`, which Postgres
+  casts cleanly via the `::timestamptz` casts already in `listReferralClaims`.
+- The dedicated FR-7 query + page tests are the next checklist item; this
+  iteration ships the UI scaffolding only. The existing test surface
+  (196 tests) was preserved.
+- Targeted check (peek): `pnpm lint` ✅, `pnpm typecheck` ✅,
+  `pnpm test` ✅ (196/196), `pnpm build` ✅ (Next.js compiles both new
+  routes — `/growth/referrals` and `/growth/kol` — alongside the existing
+  `/` and `/users/[userId]`).
+## Iteration 28 — 2026-04-25T12:30:06Z — OK
+- **Log**: iteration-028.log
+
