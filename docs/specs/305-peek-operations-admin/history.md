@@ -32,3 +32,31 @@ of every iteration to understand prior context.
 - **Blocker**: No file changes detected — agent made no progress.
 - **Log**: iteration-001.log
 
+## Iteration 2 — 2026-04-25
+
+- Expanded `peek/src/server/__tests__/cloudflare-access.test.ts` for the
+  jose-backed verifier: malformed token, expired (`exp` in the past),
+  invalid issuer (signed with `https://other.cloudflareaccess.com`),
+  invalid audience, bad signature (sign with key A, present JWK B with
+  the same `kid`), `alg: "none"` rejection, missing email claim
+  (returns `ok: true, email: null`), and case/whitespace normalization
+  (`"  Admin@Example.COM  "` → `"admin@example.com"`).
+- Lowercased + trimmed in `normalizeEmail` so the verified email
+  identity is canonical for FR-2 role matching.
+- Replaced the implicit `NODE_ENV === "development"` bypass in
+  `peek/proxy.ts` with the spec-required explicit `PEEK_DEV_ACCESS_EMAIL`
+  bypass: dev-only, validates email shape, sets the
+  `VERIFIED_ACCESS_EMAIL_HEADER` so server context still gets a normalized
+  actor identity. Production never honors the bypass; missing CF env in
+  prod still returns 500.
+- Rewrote `peek/src/server/__tests__/cloudflare-access-middleware.test.ts`
+  with `vi.stubEnv` (TS forbids assigning to `process.env.NODE_ENV`) and
+  added: prod blocks without JWT (existing), prod 500 on missing CF env,
+  prod ignores `PEEK_DEV_ACCESS_EMAIL`, dev honors `PEEK_DEV_ACCESS_EMAIL`
+  with case normalization, dev rejects malformed `PEEK_DEV_ACCESS_EMAIL`.
+- Targeted check (peek): `pnpm lint` ✅, `pnpm typecheck` ✅,
+  `pnpm test` ✅ (31/31, +10 new).
+
+## Iteration 2 — 2026-04-25T10:32:41Z — OK
+- **Log**: iteration-002.log
+
