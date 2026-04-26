@@ -7,7 +7,7 @@
 | Status | Ready |
 | Priority | P1 |
 | Track | Core |
-| NR_OF_TRIES | 98 |
+| NR_OF_TRIES | 99 |
 
 ---
 
@@ -537,7 +537,7 @@ Keep the implementation close to existing `peek` conventions and cheap to operat
 - [x] [test] Challenge page tests for read-only guarantees, filters, sparse data, status transitions. (done: iteration 96)
 - [x] [engine] Dogpile + fraud queries: `dogpile_events` (scheduled/active/ended/cancelled with linked campaigns/game_entries/point_grants) + `fraud_flags` (open/reviewed/dismissed read-only). (done: iteration 97)
 - [x] [frontend] `/operations/dogpile` (lifecycle + participation) and fraud review surface (page or user-detail section). (done: iteration 98)
-- [ ] [test] Dogpile + fraud query + page tests for state transitions, sparse, and read-only enforcement.
+- [x] [test] Dogpile + fraud query + page tests for state transitions, sparse, and read-only enforcement. (done: iteration 99)
 
 #### Queue (FR-10)
 - [ ] [engine] Event queue queries: `event_queue` status counts, type counts, age buckets, max-attempts, filtered rows, detail payload (with secret redaction), linked resource ids (user/round/claim).

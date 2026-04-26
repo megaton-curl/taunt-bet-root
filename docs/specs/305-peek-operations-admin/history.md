@@ -2681,3 +2681,71 @@ of every iteration to understand prior context.
 ## Iteration 98 — 2026-04-26T06:33:19Z — OK
 - **Log**: iteration-098.log
 
+
+
+
+## Iteration 99 — 2026-04-26 — OK
+- **Item**: `[test] Dogpile + fraud query + page tests for state transitions, sparse, and read-only enforcement.`
+- **Files added** (5):
+  - `peek/src/server/db/queries/__tests__/get-dogpile-and-fraud.test.ts` —
+    SQL-mock query tests covering `listDogpileEvents`, `listFraudFlags`, and
+    `getDogpileFraudOverview`. State-transition coverage iterates every
+    `PEEK_DOGPILE_STATUSES` value (scheduled / active / ended / cancelled)
+    and every fraud_flags status migration value (open / reviewed /
+    dismissed) through the SQL bindings. Read-only guarantee asserts every
+    call emits SELECT only — no INSERT / UPDATE / DELETE — to lock down the
+    FR-14 mutation boundary. Also covers limit clamps (default / max /
+    non-positive / NaN), filter normalisation (whitespace → null), null
+    column round-trips (sparse campaign join, sparse profile join, JSONB
+    details), parallel Promise.all firing for the overview, custom window
+    hours, sparse / populated / load-error states, and the FR-4 metric
+    bookkeeping (label, source, windowLabel, asOf, freshness, drilldownHref).
+  - `peek/src/components/__tests__/dogpile-events-table.test.tsx` —
+    component tests covering populated / sparse / empty / error states,
+    every chip variant (scheduled / active / ended / cancelled), thousands
+    separators, the `2.5×` multiplier suffix, sparse campaign join
+    rendering an `—`, populated campaign cell with name + type + id, and the
+    read-only assertion that no buttons / inputs / checkboxes / links are
+    rendered (cancellation lives behind the FR-14 `dogpile.cancel` action).
+  - `peek/src/components/__tests__/fraud-flags-table.test.tsx` — component
+    tests covering every status chip variant (open / reviewed / dismissed),
+    the username link drilldown to `/users/[userId]` with userId fallback
+    when the profile join is sparse, the JSONB `details` `<pre>` block
+    round-trip (matched via container.querySelector to bypass
+    testing-library whitespace normalisation), null column rendering as
+    `—`, and the read-only assertion that no mutating affordances exist —
+    only drilldown links are allowed (status transitions live behind the
+    FR-14 `fraud_flag.status.update` action).
+  - `peek/src/lib/__tests__/operations-dogpile-search-params.test.ts` —
+    URL-addressable filter normaliser tests for both prefixed param groups
+    (`dogpFilter*`, `fraudFilter*`). Covers empty / whitespace → null,
+    every state-transition allowlist value passes through verbatim
+    (state-transition coverage), unknown enums → null (no stale-URL chip
+    lying), array values reading only the first element, free-text
+    flagType passthrough (no allowlist on flag_type per migration-011),
+    and trim-on-populated.
+  - `peek/src/components/__tests__/operations-dogpile-filter-bar.test.tsx`
+    — component tests for both filter bars covering the empty + populated
+    states, the `dogpFilter*` / `fraudFilter*` name prefixes (no
+    cross-form collision), every status enum exposed in the select
+    options, ISO-timestamp truncation to YYYY-MM-DD on date inputs, and
+    the custom-action override.
+- **Read-only enforcement**: the query test helper `expectReadOnly`
+  asserts every SQL call only emits SELECT and never INSERT / UPDATE /
+  DELETE; the component tests assert no buttons or editable inputs render
+  on either table (drilldown links allowed on the fraud table only). FR-14
+  `dogpile.cancel` and `fraud_flag.status.update` are still unimplemented;
+  these tests freeze the read-only contract until the mutation framework
+  ships.
+- **Targeted checks** (CLAUDE.md TS rule):
+  - `cd peek && pnpm typecheck` ✅
+  - `cd peek && pnpm lint` ✅
+  - `cd peek && pnpm test --run` ✅ (64 files, 674/674 — added 5 new
+    files, 69 new tests)
+- **Next**: queue (FR-10) — `[engine] Event queue queries: event_queue
+  status counts, type counts, age buckets, max-attempts, filtered rows,
+  detail payload (with secret redaction), linked resource ids
+  (user/round/claim).`
+## Iteration 99 — 2026-04-26T06:42:29Z — OK
+- **Log**: iteration-099.log
+
