@@ -7,7 +7,7 @@
 | Status | Ready |
 | Priority | P1 |
 | Track | Core |
-| NR_OF_TRIES | 149 |
+| NR_OF_TRIES | 150 |
 
 ---
 
@@ -562,8 +562,8 @@ Keep the implementation close to existing `peek` conventions and cheap to operat
 - [x] [engine] `fraud_flags.status` update mutation with allowed-transition matrix and before/after audit. (done: iteration 147)
 - [x] [test] Fraud flag mutation tests: valid transition, invalid transition, unknown flag, unauthorized actor, audit payload. (done: iteration 148)
 - [x] [engine] Scheduled future Dogpile cancellation mutation with state guards (deny active/ended) and before/after audit. (done: iteration 149)
-- [ ] [test] Dogpile cancellation tests: scheduled success, active/ended denial, unknown event, unauthorized actor, audit payload.
-- [ ] [engine] Selected `reward_config` edit mutation with key allowlist, value validation, explicit confirmation flag, and before/after audit.
+- [x] [test] Dogpile cancellation tests: scheduled success, active/ended denial, unknown event, unauthorized actor, audit payload. (done: iteration 150)
+- [x] [engine] Selected `reward_config` edit mutation with key allowlist, value validation, explicit confirmation flag, and before/after audit. (done: iteration 151)
 - [ ] [test] Reward config mutation tests: allowed key success, disallowed key denial, invalid value, missing confirmation, unauthorized actor, audit payload.
 - [ ] [frontend] Wire mutation UIs (KOL rate, fraud flag status, Dogpile cancel, reward config edit) with old/new confirmation, role-aware visibility, and rejection messaging.
 - [ ] [test] Mutation UI tests: authorized success, denied actor hidden, validation error display, rejection feedback.

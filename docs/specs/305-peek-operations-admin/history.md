@@ -4379,3 +4379,152 @@ of every iteration to understand prior context.
 ## Iteration 149 — 2026-04-26T15:47:16Z — OK
 - **Log**: iteration-149.log
 
+
+
+## Iteration 150 — 2026-04-26 — Dogpile cancellation tests
+
+- **Item**: `[test] Dogpile cancellation tests: scheduled success,
+  active/ended denial, unknown event, unauthorized actor, audit
+  payload.`
+
+- **Files added** (1):
+  - `peek/src/server/mutations/__tests__/dogpile.test.ts` — 17 unit
+    tests covering schema, status enum, definition wiring, and the
+    full runner-orchestrated FR-14 path for `dogpile.cancel`.
+
+- **Test groups**:
+  - `dogpileCancelInputSchema`: valid id, trim, non-numeric reject,
+    mixed alphanumeric reject, empty-after-trim reject, strict
+    extra-fields reject (6 tests).
+  - `DOGPILE_EVENT_STATUSES`: enumerates `scheduled`/`active`/`ended`/
+    `cancelled` (1 test).
+  - `dogpileCancelMutation definition`: pins `actionId` and
+    `resourceType` so audit-row contract regressions break a test
+    rather than ship silently (1 test).
+  - `dogpile.cancel via runPeekMutation` (9 tests):
+    - **Scheduled + future starts_at success** — emits
+      `peek.change.applied` with `[{ field: "status", before:
+      "scheduled", after: "cancelled" }]`, transaction begins exactly
+      once, rolls back never, SELECT precedes UPDATE, UPDATE binds the
+      `eventId` and includes the `status = 'cancelled'` literal, audit
+      payload's `requestId` + `actorEmail` + `route` round-trip, and
+      audit is written on the in-tx Sql so the change + audit row are
+      atomic.
+    - **active denial** — `peek.change.rejected` with
+      `execution_failed: invalid_status: active`, transaction rolls
+      back, no UPDATE issued, `payload.changes === null`.
+    - **ended denial** — same shape with `invalid_status: ended`.
+    - **cancelled (no-op) denial** — same shape with
+      `invalid_status: cancelled`, asserting that re-cancelling an
+      already-cancelled row is rejected because FR-14 audit rows must
+      reflect a real movement.
+    - **starts_at in past** — scheduled in DB but `starts_at <= now()`
+      → `execution_failed: starts_at_in_past`. Documents the worker
+      promotion-from-scheduled race so admins cannot win it from the
+      admin UI.
+    - **Unknown event** — empty SELECT result returns
+      `execution_failed: unknown_event: <id>`; transaction still
+      begins (and rolls back) so the SELECT-not-found path is covered
+      end-to-end.
+    - **Non-admin actor (business)** — runner short-circuits before
+      `sql.begin`; `peek.change.rejected` with `rejectionReason:
+      "unauthorized"` and zero SQL calls.
+    - **Null actor role** — same denial path; `rejectionReason:
+      "unauthorized"`.
+    - **Schema rejection** — non-numeric `eventId="abc"` returns
+      `invalid_input` with `fieldErrors.eventId`; no transaction
+      opened; audit row carries `rejectionReason: "invalid_input"`
+      and `payload.changes === null`.
+
+- **Test scaffolding parity with `kol-rate.test.ts` /
+  `fraud-flag.test.ts`**:
+  - `createAuditWriter()` records `eventType` + `payload` + which
+    `Sql` was used.
+  - `createSqlMock()` emulates `sql.begin` and the tagged-template
+    invocation pattern, returning the `existingRow` for SELECTs
+    (shaped as `{id, status, startsInFuture}` to match
+    `dogpile.ts:fetchExistingRow`) and optionally rejecting UPDATEs
+    via `failOnUpdate` (parallel to fraud-flag's `failOnUpdate`).
+  - `REGISTRY` is a frozen single-entry registry holding only
+    `dogpileCancelMutation` so the runner test path doesn't pull in
+    unrelated production mutations.
+
+- **Targeted checks** (CLAUDE.md TS rule):
+  - `cd peek && pnpm lint` ✅
+  - `cd peek && pnpm typecheck` ✅
+  - `cd peek && pnpm test --run` ✅ (82 files, 936/936 — +17 new
+    tests, no regressions; full suite green).
+
+- **Next**: `[engine] Selected reward_config edit mutation with key
+  allowlist, value validation, explicit confirmation flag, and
+  before/after audit.`
+
+## Iteration 151 — 2026-04-26 — Reward config edit mutation
+
+- **Item**: `[engine] Selected reward_config edit mutation with key
+  allowlist, value validation, explicit confirmation flag, and
+  before/after audit.`
+
+- **Files added** (1):
+  - `peek/src/server/mutations/reward-config.ts` — FR-14 mutation for
+    `reward_config.update` (admin-only).
+
+- **Files modified** (2):
+  - `peek/src/server/mutations/registry.ts` — register
+    `rewardConfigUpdateMutation` alongside KOL rate / fraud flag /
+    dogpile.
+  - `peek/src/server/mutations/index.ts` — export the new mutation,
+    schema, allowlist, and value-validation helper.
+
+- **Design choices**:
+  - **Key allowlist**: `PEEK_REWARD_CONFIG_EDITABLE_KEYS` is derived
+    from `PEEK_REWARD_CONFIG_KEY_REGISTRY` (filtering out
+    `expectedType === "unknown"`). Single source of truth so the admin
+    UI dropdown, the schema, and the runtime guard cannot drift.
+  - **Value validation by expected type**: integer (`^-?[0-9]+$`),
+    lamports (`^[0-9]+$`), float (Number.isFinite + must contain a
+    decimal so operators don't slip an integer into a float slot),
+    ratio (Number.isFinite ∈ [0,1]). Validation runs in a zod
+    `superRefine` so failures land on the runner's `invalid_input`
+    path with the expected `fieldErrors.value` shape.
+  - **Explicit confirmation**: `confirm: z.literal(true)` — missing or
+    `false` is rejected before any DB work, matching the FR-14
+    "explicit confirmation and clear display of old/new values"
+    requirement on the engine side. The frontend wiring (separate
+    iteration) renders the old/new pair before submission.
+  - **No-op rejection**: if the new `value` already matches the row,
+    `execute` throws `noop_value` so the audit row reflects a real
+    movement (parity with the dogpile-cancel "real movement" rule).
+  - **Audit diff**: single `[{ field: "value", before, after }]`.
+    `updated_at` is bumped server-side and stays out of the diff
+    (matches the kol-rate `updated_at` precedent).
+
+- **Failure semantics** (surfaced through the runner's execute path):
+  - Disallowed key / malformed value / missing confirmation → schema
+    `invalid_input` before any DB work; `peek.change.rejected` with
+    `rejectionReason: "invalid_input"`.
+  - Allowlisted key missing in DB → `execution_failed: unknown_key:
+    <key>` (only if a registered key was never seeded).
+  - No-op (value unchanged) → `execution_failed: noop_value`.
+  - Non-admin actor → runner short-circuits with
+    `peek.change.rejected` and `rejectionReason: "unauthorized"`.
+
+- **Authorization**: `reward_config.update` is admin-only per
+  `PEEK_ACTION_RULES` already declared in
+  `peek/src/server/access-policy.ts:158`. The runner enforces this
+  before `execute` is called.
+
+- **Targeted checks** (CLAUDE.md TS rule):
+  - `cd peek && pnpm lint` ✅
+  - `cd peek && pnpm typecheck` ✅
+  - `cd peek && pnpm test --run` ✅ (82 files, 936/936 — no
+    regressions; dedicated mutation tests land in the next iteration
+    "[test] Reward config mutation tests").
+
+- **Next**: `[test] Reward config mutation tests: allowed key success,
+  disallowed key denial, invalid value, missing confirmation,
+  unauthorized actor, audit payload.`
+## Iteration 151 — 2026-04-26 — OK
+## Iteration 150 — 2026-04-26T19:18:20Z — OK
+- **Log**: iteration-150.log
+
