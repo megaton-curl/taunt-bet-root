@@ -7,7 +7,7 @@
 | Status | Ready |
 | Priority | P1 |
 | Track | Core |
-| NR_OF_TRIES | 146 |
+| NR_OF_TRIES | 147 |
 
 ---
 
@@ -559,7 +559,7 @@ Keep the implementation close to existing `peek` conventions and cheap to operat
 - [x] [test] Mutation-framework tests: authorized success, unauthorized denial, validation failure, transaction rollback, applied + rejected audit payloads (no secrets, before/after diff). (done: iteration 144)
 - [x] [engine] KOL rate create/update mutation for `referral_kol_rates` with before/after audit and rate validation. (done: iteration 145)
 - [x] [test] KOL rate mutation tests: create, update, invalid rate, unauthorized actor, audit payload. (done: iteration 146)
-- [ ] [engine] `fraud_flags.status` update mutation with allowed-transition matrix and before/after audit.
+- [x] [engine] `fraud_flags.status` update mutation with allowed-transition matrix and before/after audit. (done: iteration 147)
 - [ ] [test] Fraud flag mutation tests: valid transition, invalid transition, unknown flag, unauthorized actor, audit payload.
 - [ ] [engine] Scheduled future Dogpile cancellation mutation with state guards (deny active/ended) and before/after audit.
 - [ ] [test] Dogpile cancellation tests: scheduled success, active/ended denial, unknown event, unauthorized actor, audit payload.

@@ -4144,3 +4144,85 @@ of every iteration to understand prior context.
 ## Iteration 146 — 2026-04-26T15:31:36Z — OK
 - **Log**: iteration-146.log
 
+
+
+## Iteration 147 — 2026-04-26 — Fraud flag status mutation
+
+- **Item**: `[engine] fraud_flags.status update mutation with allowed-
+  transition matrix and before/after audit.`
+
+- **Files added** (1):
+  - `peek/src/server/mutations/fraud-flag.ts` — second concrete FR-14
+    mutation. Definition `fraudFlagStatusUpdateMutation` with
+    `actionId="fraud_flag.status.update"`,
+    `resourceType="fraud_flags"`, a strict zod input schema
+    (`flagId` trimmed text matching `^[0-9]+$`, `nextStatus` enum
+    `open|reviewed|dismissed`), a published transition matrix
+    (`FRAUD_FLAG_ALLOWED_TRANSITIONS`) with helper
+    `isFraudFlagTransitionAllowed`, and an `execute` that runs inside
+    the runner-supplied transactional `Sql` (`SELECT ... FOR UPDATE`,
+    transition guard, then `UPDATE` with `resolved_at` reconciled).
+
+- **Files modified** (2):
+  - `peek/src/server/mutations/registry.ts` — registered
+    `fraudFlagStatusUpdateMutation` in `entries`; updated leading
+    comment to note that fraud flag status update has now landed
+    (dogpile cancel + reward config edit remain).
+  - `peek/src/server/mutations/index.ts` — re-exported
+    `FRAUD_FLAG_ALLOWED_TRANSITIONS`, `FRAUD_FLAG_STATUSES`,
+    `fraudFlagStatusUpdateInputSchema`,
+    `fraudFlagStatusUpdateMutation`, `isFraudFlagTransitionAllowed`,
+    `FraudFlagStatus`, and `FraudFlagStatusUpdateInput` so future
+    UI/route iterations import from a single public surface.
+
+- **FR-14 coverage** for this checklist item:
+  - **"`fraud_flags.status` update mutation"** —
+    `executeFraudFlagStatusUpdate` performs an `UPDATE` against
+    `fraud_flags` keyed on `id::text = ${flagId}` and writes only the
+    `status` column (plus the derived `resolved_at` reconciliation).
+    No row is ever inserted; unknown ids fail closed via a thrown
+    `unknown_flag:` error that the runner classifies as
+    `execution_failed` and emits as `peek.change.rejected`.
+  - **"allowed-transition matrix"** —
+    `FRAUD_FLAG_ALLOWED_TRANSITIONS` enumerates the five admitted
+    `(from, to)` tuples:
+      - `open      -> reviewed`
+      - `open      -> dismissed`
+      - `reviewed  -> open`
+      - `reviewed  -> dismissed`
+      - `dismissed -> open`
+    Disallowed: `dismissed -> reviewed` (must reopen first) and any
+    no-op `X -> X` (audit rows must reflect a real movement). The
+    guard runs after the `SELECT ... FOR UPDATE` and before the
+    `UPDATE`, so a denied transition never mutates the row and surfaces
+    as `peek.change.rejected` with `rejectionReason` starting
+    `execution_failed: invalid_transition: <from> -> <to>`.
+  - **"before/after audit"** — the mutation returns
+    `[{ field: "status", before: <from>, after: <to> }]` so the
+    runner-emitted `peek.change.applied` payload's `changes` array
+    pins both ends of the state movement. `resolved_at` is operator/
+    derived metadata (mirrors the kol-rate `set_by`/`updated_at`
+    precedent) and is intentionally excluded from the diff.
+  - **`resolved_at` semantics** — `nextStatus = "open"` clears
+    `resolved_at` to `NULL`; `reviewed` and `dismissed` set it to
+    `now()`. This keeps the column truthful with respect to the
+    lifecycle without leaking through the audit diff.
+  - **Authorization** — `fraud_flag.status.update` is admin-only per
+    the FR-2 `PEEK_ACTION_RULES` rule already declared in
+    `peek/src/server/access-policy.ts:156`. The runner enforces this
+    before `execute` is called, so a non-admin actor sees
+    `peek.change.rejected` with `rejectionReason: "unauthorized"` and
+    no SQL is issued.
+
+- **Targeted checks** (CLAUDE.md TS rule):
+  - `cd peek && pnpm lint` ✅
+  - `cd peek && pnpm typecheck` ✅
+  - `cd peek && pnpm test --run` ✅ (80 files, 901/901 — no
+    regressions; dedicated mutation tests land in the next iteration
+    "[test] Fraud flag mutation tests").
+
+- **Next**: `[test] Fraud flag mutation tests: valid transition,
+  invalid transition, unknown flag, unauthorized actor, audit payload.`
+## Iteration 147 — 2026-04-26T15:37:31Z — OK
+- **Log**: iteration-147.log
+
