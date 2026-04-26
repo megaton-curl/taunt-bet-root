@@ -2556,3 +2556,63 @@ of every iteration to understand prior context.
 ## Iteration 96 — 2026-04-26T06:20:30Z — OK
 - **Log**: iteration-096.log
 
+
+
+## Iteration 97 — 2026-04-26 — OK
+- **Item**: `[engine] Dogpile + fraud queries: dogpile_events (scheduled/active/ended/cancelled with linked campaigns/game_entries/point_grants) + fraud_flags (open/reviewed/dismissed read-only).`
+- **Files added** (1):
+  - `peek/src/server/db/queries/get-dogpile-and-fraud.ts` — three exports
+    matching the FR-9 read-only contract:
+    - `listDogpileEvents` reads `dogpile_events` with optional `status`
+      ('scheduled' / 'active' / 'ended' / 'cancelled') + `startsFrom` /
+      `startsTo` filters, left-joins `campaigns` for the parent campaign
+      name + type (campaign_id is nullable), and annotates each row with
+      scalar-subquery counts of `game_entries` and `point_grants` whose
+      `created_at` falls within the event's `[starts_at, ends_at)`
+      window. There is no FK from those ledgers to `dogpile_events`; the
+      points-grant queue handler (`backend/src/queue/handlers/points-grant.ts`)
+      applies the multiplier purely by time-window match, so a window count
+      is the closest operator-meaningful "linked" set the spec calls for.
+    - `listFraudFlags` reads `fraud_flags` with optional `status`
+      ('open' / 'reviewed' / 'dismissed') + `userId` + `flagType` +
+      `createdFrom` / `createdTo` filters, left-joins `player_profiles`
+      for username + wallet context, and round-trips the JSONB `details`
+      column verbatim so the operator UI can show whatever metadata the
+      writer attached. Order is `open → reviewed → dismissed` then
+      `created_at desc` so the review queue surfaces the actionable rows
+      first.
+    - `getDogpileFraudOverview` produces the FR-4 metric strip:
+      scheduled count, active count, ended-in-window count, cancelled-in-
+      window count, open fraud-flag count. Window defaults to 24h
+      (`PEEK_DOGPILE_FRAUD_OVERVIEW_WINDOW_HOURS = 24`); five queries fan
+      out via `Promise.all`. Each metric carries the FR-4 bookkeeping
+      (id, label, value, source table, window label, "as of",
+      definition, drilldown href).
+- **Files updated** (1):
+  - `peek/src/lib/types/peek.ts` — added the FR-9 dogpile + fraud view
+    models alongside the existing challenge engine block:
+    `PeekDogpileStatus` + `PEEK_DOGPILE_STATUSES`, `PeekDogpileEventRow`,
+    `PeekDogpileEventFilters`, `PeekFraudFlagListRow` (extends the
+    existing per-user `PeekFraudFlagRow` shape with the username + wallet +
+    JSONB details columns the global fraud table needs),
+    `PeekFraudFlagFilters`, `PeekDogpileFraudOverviewMetricId` +
+    `PEEK_DOGPILE_FRAUD_OVERVIEW_METRIC_IDS`, `PeekDogpileFraudOverview`.
+    Status / flag-type values stay loosely typed (`string`) so the
+    migration's CHECK constraints (`dogpile_events.status` and
+    `fraud_flags.status`) remain the single source of truth.
+- **Read-only guarantee**: only `select` statements; no INSERT / UPDATE /
+  DELETE anywhere. Every dogpile or fraud-flag mutation already lives behind
+  the FR-14 action ids (`dogpile.cancel`, `fraud_flag.status.update`)
+  declared in `peek/src/server/access-policy.ts:154-159`, with no
+  implementation yet (FR-14 framework not built — separate checklist
+  item).
+- **Targeted checks** (CLAUDE.md TS rule):
+  - `cd peek && pnpm typecheck` ✅
+  - `cd peek && pnpm lint` ✅
+  - `cd peek && pnpm test --run` ✅ (59 files, 605/605, no regressions)
+- **Next**: matching frontend `/operations/dogpile` page + fraud-review
+  surface.
+- **Log**: iteration-097.log
+## Iteration 97 — 2026-04-26T06:27:25Z — OK
+- **Log**: iteration-097.log
+

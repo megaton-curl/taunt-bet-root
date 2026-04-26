@@ -7,7 +7,7 @@
 | Status | Ready |
 | Priority | P1 |
 | Track | Core |
-| NR_OF_TRIES | 96 |
+| NR_OF_TRIES | 97 |
 
 ---
 
@@ -535,7 +535,7 @@ Keep the implementation close to existing `peek` conventions and cheap to operat
 - [x] [engine] Challenge queries: `campaigns`, `challenges`, `challenge_assignments`, `progress_events`, `completion_bonuses`, `bonus_completions`. Read-only; no challenge-definition editing. (done: iteration 94)
 - [x] [frontend] `/economy/challenges` with campaign + challenge + assignment + progress views and clear "edit out of scope" affordances. (done: iteration 95)
 - [x] [test] Challenge page tests for read-only guarantees, filters, sparse data, status transitions. (done: iteration 96)
-- [ ] [engine] Dogpile + fraud queries: `dogpile_events` (scheduled/active/ended/cancelled with linked campaigns/game_entries/point_grants) + `fraud_flags` (open/reviewed/dismissed read-only).
+- [x] [engine] Dogpile + fraud queries: `dogpile_events` (scheduled/active/ended/cancelled with linked campaigns/game_entries/point_grants) + `fraud_flags` (open/reviewed/dismissed read-only). (done: iteration 97)
 - [ ] [frontend] `/operations/dogpile` (lifecycle + participation) and fraud review surface (page or user-detail section).
 - [ ] [test] Dogpile + fraud query + page tests for state transitions, sparse, and read-only enforcement.
 
