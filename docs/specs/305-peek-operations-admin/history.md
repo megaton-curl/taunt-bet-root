@@ -4528,3 +4528,95 @@ of every iteration to understand prior context.
 ## Iteration 150 — 2026-04-26T19:18:20Z — OK
 - **Log**: iteration-150.log
 
+
+## Iteration 151 — 2026-04-26 — Reward config mutation tests
+
+- **Item**: `[test] Reward config mutation tests: allowed key success,
+  disallowed key denial, invalid value, missing confirmation,
+  unauthorized actor, audit payload.`
+
+- **Files added** (1):
+  - `peek/src/server/mutations/__tests__/reward-config.test.ts` — 32
+    unit tests across allowlist derivation, value validator, schema,
+    definition wiring, and full runner-orchestrated FR-14 path for
+    `reward_config.update`.
+
+- **Test groups**:
+  - `PEEK_REWARD_CONFIG_EDITABLE_KEYS` (2 tests): every editable key
+    is registered with a non-`unknown` expected type; the seed list
+    includes `points_per_dollar`, `reward_pool_fee_share`, and
+    `sol_crate_min_value`.
+  - `validateRewardConfigValueForKey` (9 tests): integer happy/sad,
+    lamports happy / negative / non-numeric, float (decimal accepted,
+    pure-integer rejected as `expected_float_with_decimal`,
+    non-finite rejected), ratio in-range / out-of-range, unknown key
+    short-circuits.
+  - `rewardConfigUpdateInputSchema` (8 tests): valid shape, trim,
+    disallowed key reject, malformed value reject (with field error
+    on `value`), missing `confirm` reject, `confirm: false` reject,
+    empty value after trim reject, strict extra-fields reject.
+  - `rewardConfigUpdateMutation definition` (1 test): pins
+    `actionId="reward_config.update"` and
+    `resourceType="reward_config"` so audit-row contract regressions
+    fail a test rather than ship silently.
+  - `reward_config.update via runPeekMutation` (12 tests):
+    - **Allowed integer key success** — emits
+      `peek.change.applied` with `[{ field: "value", before: "100",
+      after: "200" }]`, transaction begins exactly once, never rolls
+      back, SELECT precedes UPDATE, UPDATE binds
+      `["200", "points_per_dollar"]` and includes
+      `update reward_config` + `updated_at = now()` in the SQL,
+      audit's `requestId` + `actorEmail` + `route` round-trip, and
+      audit is written on the in-tx Sql so the change + audit row are
+      atomic.
+    - **Allowed ratio key success** — applied audit emitted with the
+      0.1 → 0.25 diff for `reward_pool_fee_share`.
+    - **Disallowed key** — schema-layer reject;
+      `peek.change.rejected` with `rejectionReason: "invalid_input"`,
+      `fieldErrors.key` populated, transaction never opened.
+    - **Malformed integer value (1.5)** — schema-layer reject;
+      `fieldErrors.value` populated, transaction never opened.
+    - **Out-of-range ratio (1.5)** — schema-layer reject via
+      `superRefine`; `fieldErrors.value` populated, transaction
+      never opened.
+    - **Missing confirm** — schema-layer reject;
+      `fieldErrors.confirm` populated, transaction never opened.
+    - **Confirm: false** — schema-layer reject; transaction never
+      opened.
+    - **No-op (value unchanged)** — `execution_failed: noop_value`;
+      transaction begins once + rolls back, SELECT runs, UPDATE
+      never runs, `payload.changes === null`.
+    - **Allowlisted key missing in DB** —
+      `execution_failed: unknown_key: points_per_dollar`; transaction
+      begins + rolls back, SELECT runs, UPDATE never runs.
+    - **Non-admin (business) actor** — runner short-circuits before
+      `sql.begin`; `peek.change.rejected` with `rejectionReason:
+      "unauthorized"` and zero SQL calls.
+    - **Null actor role** — same denial path; `rejectionReason:
+      "unauthorized"`.
+
+- **Test scaffolding parity with `kol-rate.test.ts` /
+  `fraud-flag.test.ts` / `dogpile.test.ts`**:
+  - `createAuditWriter()` records `eventType` + `payload` + which
+    `Sql` was used.
+  - `createSqlMock()` emulates `sql.begin` and the tagged-template
+    invocation pattern, returning the `existingRow` for SELECTs
+    (shaped as `{key, value}` to match
+    `reward-config.ts:fetchExistingRow`) and optionally rejecting
+    UPDATEs via `failOnUpdate`.
+  - `REGISTRY` is a frozen single-entry registry holding only
+    `rewardConfigUpdateMutation` so the runner test path doesn't pull
+    in unrelated production mutations.
+
+- **Targeted checks** (CLAUDE.md TS rule):
+  - `cd peek && pnpm lint` ✅
+  - `cd peek && pnpm typecheck` ✅
+  - `cd peek && pnpm test --run` ✅ (83 files, 968/968 — +32 new
+    tests, no regressions; full suite green).
+
+- **Next**: `[frontend] Wire mutation UIs (KOL rate, fraud flag
+  status, Dogpile cancel, reward config edit) with old/new
+  confirmation, role-aware visibility, and rejection messaging.`
+## Iteration 151 — 2026-04-26T19:24:46Z — OK
+- **Log**: iteration-151.log
+
