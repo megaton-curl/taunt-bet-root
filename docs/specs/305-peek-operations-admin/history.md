@@ -3297,3 +3297,151 @@ of every iteration to understand prior context.
 ## Iteration 104 — 2026-04-26T07:23:12Z — OK
 - **Log**: iteration-104.log
 
+
+## Iteration 105 — 2026-04-26 — OK
+- **Item**: `[test] /audit tests for role gating, filters, sensitive
+  payload redaction at render time, empty/error.`
+
+- **Files added** (4):
+  - `peek/src/lib/__tests__/audit-search-params.test.ts` (12 tests) —
+    URL-addressable filter normaliser:
+    - empty / whitespace / populated trimming;
+    - state-transition coverage (every `PeekAuditEventType` passes
+      through verbatim);
+    - unknown event type → `null` so a stale URL chip cannot lie;
+    - short-form `?eventType=` precedence over the long-form
+      `auditFilterEventType` (so command-center metric drilldowns
+      override stale form state) but a bogus short-form does NOT
+      silently fall through to long-form;
+    - array values pick the first element;
+    - `PEEK_AUDIT_FILTER_PARAM_NAMES` matches the form fields;
+    - `PEEK_AUDIT_EVENT_TYPE_VALUES` mirrors `PEEK_AUDIT_EVENT_TYPES`.
+
+  - `peek/src/components/__tests__/audit-events-filter-bar.test.tsx`
+    (7 tests) — query-string GET form coverage:
+    - default action `/audit` + GET method;
+    - every input/select uses its `auditFilter*` name;
+    - event-type select exposes "Any peek.\*" plus every
+      `PEEK_AUDIT_EVENT_TYPES` value;
+    - populated filters pre-fill every field including the date
+      inputs (ISO timestamps truncated to YYYY-MM-DD);
+    - custom `action` prop overrides the default;
+    - no hidden short-form `eventType` input — submitting clears
+      stale chip state so the in-form selection wins;
+    - state-transition coverage of the select for every event type.
+
+  - `peek/src/components/__tests__/audit-events-table.test.tsx`
+    (15 tests) — read-only render coverage:
+    - all operator columns rendered + chip per `PeekAuditEventType`;
+    - actor / created / route / resource / filter / result columns
+      surface payload values verbatim;
+    - empty `actorEmail` falls back to em-dash;
+    - rejected change row surfaces the rejection reason and uses the
+      negative tone; applied row shows changes count; requestId
+      surfaces in the notes column;
+    - **redaction at render time**: a redacted route / actionId /
+      resourceType / resourceId / filterSummary / requestId /
+      rejectionReason all surface the `PEEK_AUDIT_REDACTED` sentinel
+      verbatim (FR-11 "renders verbatim so reviewers can see that a
+      field was scrubbed, not silently absent");
+    - non-redacted rows never invent the sentinel (no false-positive
+      redaction signal);
+    - read-only enforcement: zero buttons / textboxes / checkboxes;
+    - sparse rows render em-dash fallbacks for every nullable cell;
+    - **empty state**: scoped `role="status"` block, no table;
+    - **error state**: scoped `role="alert"` block, neither table nor
+      empty status surfaced (error wins over data);
+    - `auditEventTone()` mapping: positive / negative / negative /
+      warning / info / neutral for the six event types, neutral
+      fallback for an unknown value.
+
+  - `peek/src/server/db/queries/__tests__/get-audit-events.test.ts`
+    (30 tests) — query-layer coverage:
+    - bounded SQL: default / max / non-positive / non-finite limit
+      clamps; `PEEK_AUDIT_DEFAULT_LIMIT` / `PEEK_AUDIT_MAX_LIMIT`;
+    - read-only enforcement on every SQL call (no INSERT / UPDATE /
+      DELETE);
+    - filter-binding state-transition coverage: every
+      `PeekAuditEventType` binds verbatim, the broad `peek.%`
+      fallback fires only when no eventType is set, and the
+      `eventType !== null` toggle disables the fallback when an
+      explicit type is bound (no double-match risk);
+    - actor email is normalised to lowercase before binding
+      (`Alice@Example.COM` → `alice@example.com`); the original
+      mixed-case value never reaches the bound parameters;
+    - `resourceId`, `route`, `createdFrom`, `createdTo` all bind via
+      the right `payload->>'…'` path with `::timestamptz` casting;
+    - whitespace-only filters normalise to `null`;
+    - unknown event-type filter falls back to `peek.%` (a stale URL
+      chip cannot drop the result count to zero);
+    - row mapping: typed `PeekAuditEvent` recovery, `changes` array
+      round-trip, defensive coercion when `changes` is not array-like,
+      defensive normalisation when `payload` is `null`;
+    - rows whose `event_type` is not in `PEEK_AUDIT_EVENT_TYPES` are
+      dropped (defensive — a bypass insert cannot leak through);
+    - **redaction defensively re-applied on read**: a route / action /
+      resourceType / resourceId / filterSummary / requestId /
+      rejectionReason that contains a JWT or DB URL round-trips as
+      `PEEK_AUDIT_REDACTED`; the original token never reaches the
+      surface;
+    - empty result set returns `[]`; a rejected SQL call propagates;
+    - `getAuditOverview`: emits the FR-4 metric strip with the five
+      canonical metric ids, `source = "operator_events"`, populated
+      definitions, `freshness = "live"`, drilldown hrefs back into
+      `/audit?eventType=…`;
+    - sparse-data discipline: every `PeekAuditEventType` appears in
+      the breakdown with `count = 0` even when the SQL row set is
+      partial;
+    - empty result set surfaces zero counts everywhere (no broken
+      sparse render);
+    - default 24h window binds the rolling start instant as
+      `::timestamptz`; a custom `windowHours` flows into both the
+      bound start instant and the metric window label.
+
+- **Files modified** (0). All new tests sit alongside existing
+  patterns (`get-event-queue.test.ts`, `event-queue-table.test.tsx`,
+  `event-queue-filter-bar.test.tsx`, `operations-queue-search-params.
+  test.ts`); no production code changes.
+
+- **Spec coverage** (against the spec line "/audit tests for role
+  gating, filters, sensitive payload redaction at render time,
+  empty/error"):
+  - **role gating**: covered by the existing
+    `access-policy.test.ts` block "denies business on /audit but
+    allows admin" (line 257-260) plus
+    `getRequiredRolesForRoute("/audit")` returning `["admin"]` for
+    the route and its subpaths (line 214-218). The audit page
+    itself reads the same source of truth via
+    `isRouteAllowedForRole("/audit", role)` so no separate gating
+    tests are needed at the page level.
+  - **filters**: covered across three layers — the URL parser
+    (`audit-search-params.test.ts`), the form bar
+    (`audit-events-filter-bar.test.tsx`), and the SQL query
+    (`get-audit-events.test.ts`). State-transition coverage for
+    every `PeekAuditEventType` value at every layer.
+  - **sensitive payload redaction at render time**: covered at
+    both layers — the table component renders the
+    `PEEK_AUDIT_REDACTED` sentinel verbatim across every redactable
+    payload slot; the query layer defensively re-applies
+    `redactNullableString` so a row that bypassed the writer cannot
+    leak.
+  - **empty / error**: scoped `role="status"` empty state, scoped
+    `role="alert"` error state for the table; `getAuditOverview`
+    handles a zero-row response with zero-count metrics; rejected
+    SQL calls propagate so the page can render its scoped error
+    block.
+
+- **Targeted checks** (CLAUDE.md TS rule):
+  - `cd peek && pnpm typecheck` ✅
+  - `cd peek && pnpm lint` ✅ (no output)
+  - `cd peek && pnpm test --run` ✅ (73 files, 820/820 — was 756,
+    now +64 new tests; no regressions).
+
+- **Next**: `[engine] Server-side CSV export helpers for approved
+  filtered tables with required filters, server-side row caps,
+  view-model field mapping, filename slug (entity + date + filter),
+  and pre-return peek.export audit emission. Disabled in production
+  when audit logging is unavailable.`
+## Iteration 105 — 2026-04-26T07:32:18Z — OK
+- **Log**: iteration-105.log
+

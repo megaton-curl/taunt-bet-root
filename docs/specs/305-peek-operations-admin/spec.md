@@ -7,7 +7,7 @@
 | Status | Ready |
 | Priority | P1 |
 | Track | Core |
-| NR_OF_TRIES | 104 |
+| NR_OF_TRIES | 105 |
 
 ---
 
@@ -547,7 +547,7 @@ Keep the implementation close to existing `peek` conventions and cheap to operat
 #### Audit view (FR-11)
 - [x] [engine] Audit-log queries filtering `operator_events` by `peek.*` event type, actor email, resource id, route, date; bounded. (done: iteration 103)
 - [x] [frontend] `/audit` page (admin-only via FR-2 page-level allowlist), filters, bounded table, safe empty/error states. (done: iteration 104)
-- [ ] [test] `/audit` tests for role gating, filters, sensitive payload redaction at render time, empty/error.
+- [x] [test] `/audit` tests for role gating, filters, sensitive payload redaction at render time, empty/error. (done: iteration 105)
 
 #### Exports (FR-12)
 - [ ] [engine] Server-side CSV export helpers for approved filtered tables with required filters, server-side row caps, view-model field mapping, filename slug (entity + date + filter), and pre-return `peek.export` audit emission. Disabled in production when audit logging is unavailable.
