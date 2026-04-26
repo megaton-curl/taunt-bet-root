@@ -4959,3 +4959,22 @@ of every iteration to understand prior context.
 ## Iteration 156 — 2026-04-26T20:14:40Z — OK
 - **Log**: iteration-156.log
 
+
+
+## Iteration 157 — 2026-04-26 — OK
+
+- **Item**: `[test] If external provider/oracle/VRF integration is in scope, add devnet real-provider E2E coverage in e2e/devnet/** with env validation + retry/backoff (or mark N/A with reason).`
+
+- **Action**: Marked N/A and ticked the checkbox. Iteration 156's history entry assumed this item was already pre-checked, but the source line was still `- [ ]` — the inline rationale was present but the box was unchecked. This iteration toggles the box (`[x]`) and appends `(done: iteration 157)` so the spec reflects reality.
+
+- **N/A reason** (preserved from spec): peek is server-rendered DB-reads + scoped DB writes only; it has no on-chain, oracle, or VRF integration, so devnet E2E offers no coverage signal. The acceptable evidence per the checklist item is exactly this — a documented N/A.
+
+- **Files modified** (1):
+  - `docs/specs/305-peek-operations-admin/spec.md` — line 575 `- [ ]` → `- [x]` with the existing N/A rationale preserved verbatim.
+
+- **Targeted check**: docs-only edit (single checkbox toggle in the spec markdown); no lint/typecheck/test required per project rules ("Docs-only changes: no verification needed" — `CLAUDE.md` Verification Cadence + Definition of Done #1).
+
+- **Next**: `[test] Run cd peek && pnpm verify and fix any lint, typecheck, unit-test, or production-build failures.` — final two items left in the checklist (this one and the root `./scripts/verify`).
+## Iteration 157 — 2026-04-26T20:16:30Z — OK
+- **Log**: iteration-157.log
+
