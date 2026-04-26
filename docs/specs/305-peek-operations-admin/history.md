@@ -3989,3 +3989,66 @@ of every iteration to understand prior context.
 ## Iteration 144 — 2026-04-26T15:19:39Z — OK
 - **Log**: iteration-144.log
 
+
+## Iteration 145 — 2026-04-26 — KOL rate create/update mutation
+
+- **Item**: `[engine] KOL rate create/update mutation for
+  referral_kol_rates with before/after audit and rate validation.`
+
+- **Files added** (1):
+  - `peek/src/server/mutations/kol-rate.ts` — first concrete FR-14
+    mutation. Definition `kolRateUpdateMutation` with
+    `actionId="kol_rate.update"`, `resourceType="referral_kol_rates"`,
+    a strict zod input schema (`userId`/`wallet` trimmed and
+    non-empty; `rateBps` integer in `[0, 10000]`), and an `execute`
+    that runs inside the transactional `Sql` handed to it by the
+    runner (`SELECT ... FOR UPDATE` then either `UPDATE` or `INSERT`).
+
+- **Files modified** (2):
+  - `peek/src/server/mutations/registry.ts` — registered
+    `kolRateUpdateMutation` in `entries`; updated leading comment to
+    note that approved mutations now begin to land (KOL rate first;
+    fraud flag, dogpile cancel, reward config edit follow).
+  - `peek/src/server/mutations/index.ts` — re-exported
+    `KOL_RATE_BPS_MIN`, `KOL_RATE_BPS_MAX`,
+    `kolRateUpdateInputSchema`, `kolRateUpdateMutation`, and
+    `KolRateUpdateInput` so future UI/route iterations import from a
+    single public surface.
+
+- **FR-14 coverage** for this checklist item:
+  - **"create/update KOL rate in referral_kol_rates"** —
+    `executeKolRateUpdate` performs `INSERT` when no row exists for
+    the given `user_id` and `UPDATE` otherwise. The wallet `UNIQUE`
+    constraint protects cross-row collisions; on collision the
+    runner's `sql.begin` rollback path classifies the error as
+    `execution_failed` and emits `peek.change.rejected`.
+  - **"with before/after audit"** — `diffForCreate` returns
+    `[{wallet, before:null, after}, {rate_bps, before:null, after}]`
+    so the audit row carries full new-state context for inserts.
+    `diffForUpdate` only includes fields whose values actually
+    changed (no spurious `set_by`/`updated_at` rows). The runner
+    serializes this list into `peek.change.applied.changes`.
+  - **"rate validation"** — `kolRateUpdateInputSchema` enforces
+    `z.number().int().min(0).max(10_000)`; invalid values short-circuit
+    to `peek.change.rejected` with `rejectionReason="invalid_input"`
+    via the runner's existing schema-validation path. `userId` and
+    `wallet` are also trimmed and required.
+  - **"set_by reflects the actor"** — `set_by` is server-set to
+    `actor.email` (verified Cloudflare email from the runner's actor
+    context) and is intentionally excluded from the audit diff: it is
+    operator metadata, not user-facing config.
+
+- **Targeted checks** (CLAUDE.md TS rule):
+  - `cd peek && pnpm lint` ✅
+  - `cd peek && pnpm typecheck` ✅
+  - `cd peek && pnpm test --run` ✅ (79 files, 886/886 — no
+    regressions; the runner test file already covers this mutation
+    shape via local test factories, so the registry entry does not
+    perturb any existing assertion. Dedicated mutation tests land in
+    the next iteration "[test] KOL rate mutation tests").
+
+- **Next**: `[test] KOL rate mutation tests: create, update, invalid
+  rate, unauthorized actor, audit payload.`
+## Iteration 145 — 2026-04-26T15:25:36Z — OK
+- **Log**: iteration-145.log
+
