@@ -2464,3 +2464,95 @@ of every iteration to understand prior context.
 ## Iteration 95 — 2026-04-26T06:09:54Z — OK
 - **Log**: iteration-095.log
 
+
+## Iteration 96 — 2026-04-26 — OK
+- **Item**: `[test] Challenge page tests for read-only guarantees, filters, sparse data, status transitions.`
+- **Files added** (8):
+  - `peek/src/server/db/queries/__tests__/get-challenges.test.ts` — 55 query
+    tests across `listCampaigns`, `listChallenges`,
+    `listChallengeAssignments`, `listProgressEvents`,
+    `listCompletionBonuses`, `listBonusCompletions`, and
+    `getChallengesOverview`. Mirrors the SQL-mock pattern from
+    `get-rewards.test.ts` / `get-points-and-crates.test.ts`. Covers limit
+    clamping (default, MAX, ≤0, NaN), empty / whitespace / populated /
+    unknown-enum filters, the `::timestamptz` cast on every date filter,
+    `readInt` string→number coercion for `count(*)::int` columns, status
+    transitions (`active` / `completed` / `expired`) flowing through to
+    bound values, and the **read-only guarantee** — every SQL call is
+    asserted via `expectReadOnly()` to be a SELECT only (no INSERT /
+    UPDATE / DELETE). The overview test asserts the 5-call Promise.all
+    ordering, the `since` cutoff binding for the windowed metrics, and
+    sparse / load-error states.
+  - `peek/src/components/__tests__/campaigns-table.test.tsx` — populated
+    columns + type / state chip rendering (`daily` / `onboarding` /
+    `dogpile`), thousands-separator `1,234` count, `'—'` fallback for
+    null start/end dates, **read-only assertion** (no buttons / inputs /
+    checkboxes), empty + error states.
+  - `peek/src/components/__tests__/challenges-table.test.tsx` — all 10
+    operator columns, threshold thousands-separator (`1,000,000,000`),
+    reward chip with optional `· N` suffix, conditional description
+    sub-row (only renders when present, omits the literal `null`),
+    read-only assertion, filter-aware empty + error states.
+  - `peek/src/components/__tests__/challenge-assignments-table.test.tsx` —
+    all 10 columns, **status-transition coverage** (active → completed →
+    expired with each status rendered in isolation so chip lookups stay
+    unambiguous), `progress / target` thousands-separator,
+    `/users/[userId]` drill-down with username preference + userId
+    fallback, `'—'` fallback for null challengeTitle / campaignName /
+    expiresAt / completedAt, read-only assertion, filter-aware empty +
+    error states.
+  - `peek/src/components/__tests__/progress-events-table.test.tsx` — all
+    7 columns, roundId rendered verbatim (operators paste it into
+    universal search), thousands-separator delta, user link with
+    fallback, null challenge id/title fallback to `'—'`, **read-only
+    append-only ledger assertion**, filter-aware empty + error states.
+  - `peek/src/components/__tests__/completion-bonuses-table.test.tsx` —
+    all 8 columns, type/state/reward chips, optional `· N` reward
+    suffix that disappears when `rewardAmount === null`, thousands-
+    separator counts, conditional description sub-row, `'—'` fallback,
+    read-only assertion, source-table-name empty state, error state.
+  - `peek/src/components/__tests__/bonus-completions-table.test.tsx` —
+    all 6 columns, user link with username/userId fallback, `'—'`
+    fallback for null bonusTitle / campaignName, read-only append-only
+    ledger assertion, filter-aware empty + error states.
+  - `peek/src/components/__tests__/economy-challenges-filter-bar.test.tsx` —
+    all four bars: `ChallengesFilterBar`, `ChallengeAssignmentsFilterBar`,
+    `ProgressEventsFilterBar`, `BonusCompletionsFilterBar`. Asserts each
+    form posts to `/economy/challenges` via GET, every input uses its
+    prefixed name (`chFilter*` / `asgFilter*` / `progFilter*` /
+    `bcFilter*`) so the four forms can co-exist on the same page,
+    populated filters pre-fill every field, the status + isActive selects
+    surface every allowlist value, ISO timestamps in date filters
+    truncate to `YYYY-MM-DD`, and the custom `action` prop overrides the
+    default form target.
+  - `peek/src/lib/__tests__/economy-challenges-search-params.test.ts` —
+    URL-addressable filter normaliser tests for all four prefix groups.
+    Empty/whitespace → null; allowlisted enum values pass through;
+    unknown enum values normalise to null (so a stale URL chip cannot
+    lie about the filter state); array values read only the first
+    element; trimming applied across every text filter; status
+    transition allowlist tested against `active` / `completed` /
+    `expired`; `isActive` allowlist tested against `true` / `false`.
+- **Page-level coverage**: same pattern as iterations 29 / 32 / 35 / 41 /
+  93 — the `app/economy/challenges/page.tsx` route only orchestrates
+  `getPeekActorContext` → `isRouteAllowedForRole` → 4 normalisers →
+  6 list queries → existing tables + filter bars, all of which are
+  exercised here. Adding a direct page test would require mocking
+  `headers()` + `getSqlClient` and would duplicate already-covered
+  behavior.
+- **Read-only enforcement**: the SQL test pass uses `expectReadOnly()` to
+  assert no INSERT / UPDATE / DELETE statements ship in any of the seven
+  challenge engine queries; every component test asserts no edit
+  affordances render (`screen.queryAllByRole("button")` is `[]`,
+  `queryByRole("textbox")` and `queryByRole("checkbox")` are null).
+- **Targeted checks** (CLAUDE.md TS rule):
+  - `cd peek && pnpm test --run` ✅ (59 files, 605/605, +132 new vs.
+    iteration 95's 473)
+  - `cd peek && pnpm lint` ✅
+  - `cd peek && pnpm typecheck` ✅
+- **Next**: `[engine] Dogpile + fraud queries` — 7 unchecked items
+  remain in the Implementation Checklist.
+- **Log**: iteration-096.log
+## Iteration 96 — 2026-04-26T06:20:30Z — OK
+- **Log**: iteration-096.log
+
