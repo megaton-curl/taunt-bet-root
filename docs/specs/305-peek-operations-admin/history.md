@@ -2414,3 +2414,53 @@ of every iteration to understand prior context.
 ## Iteration 94 — 2026-04-26T06:02:29Z — OK
 - **Log**: iteration-094.log
 
+
+## Iteration 95 — 2026-04-26 — OK
+- **Item**: `[frontend] /economy/challenges with campaign + challenge + assignment + progress views and clear "edit out of scope" affordances.`
+- **Files added** (8):
+  - `peek/app/economy/challenges/page.tsx` — server-rendered route. Mirrors
+    the `/economy/rewards` and `/economy/points` pattern: role gate via
+    `getPeekActorContext` + `isRouteAllowedForRole`, force-dynamic, awaits
+    `searchParams` and runs four normalisers, then composes the metric strip
+    + six sections (Campaigns, Challenges, Assignments, Progress events,
+    Completion bonuses, Bonus completions). Read-only — lead copy + every
+    section hint state that challenge / campaign / completion-bonus
+    definition editing is out of scope per FR-9 / FR-14.
+  - `peek/src/lib/economy-challenges-search-params.ts` — four URL-param
+    normalisers (`chFilter*` for challenges, `asgFilter*` for assignments,
+    `progFilter*` for progress events, `bcFilter*` for bonus completions).
+    Empty/whitespace → null; status + isActive use an allowlist so a stale
+    URL chip cannot lie about the table's filter state.
+  - `peek/src/components/economy-challenges-filter-bar.tsx` — four prefixed
+    `<form action="/economy/challenges" method="get">` bars sharing the same
+    submit destination so each table can be filtered independently and the
+    URL stays shareable.
+  - `peek/src/components/campaigns-table.tsx` — type / state chips, per-row
+    challenge + active-assignment counts.
+  - `peek/src/components/challenges-table.tsx` — per-template config columns
+    (action, scope, condition, threshold, reward) with state + scope +
+    reward chips.
+  - `peek/src/components/challenge-assignments-table.tsx` — status chip +
+    `progress / target` cell + user-detail link.
+  - `peek/src/components/progress-events-table.tsx` — append-only ledger
+    with user-detail link and round id rendered verbatim for paste-into-
+    universal-search workflows.
+  - `peek/src/components/completion-bonuses-table.tsx` — meta-quest defs
+    annotated with completion counts.
+  - `peek/src/components/bonus-completions-table.tsx` — per-player per-period
+    meta-quest payout ledger.
+- **Read-only guarantee**: page only renders existing tables and filter bars;
+  no mutations, no form actions writing to the DB, no edit affordances. All
+  six sections (campaigns, challenges, assignments, progress events,
+  completion bonuses, bonus completions) include the explicit "Read-only"
+  hint, and the lead paragraph repeats the FR-9 / FR-14 boundary.
+- **Targeted checks** (CLAUDE.md TS rule):
+  - `cd peek && pnpm typecheck` ✅
+  - `cd peek && pnpm lint` ✅
+  - `cd peek && pnpm test --run` ✅ (50 files, 473/473, no regressions)
+- **Next**: matching test pair (`Challenge page tests for read-only
+  guarantees, filters, sparse data, status transitions`).
+- **Log**: iteration-095.log
+## Iteration 95 — 2026-04-26T06:09:54Z — OK
+- **Log**: iteration-095.log
+
