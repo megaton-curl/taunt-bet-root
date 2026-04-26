@@ -2749,3 +2749,112 @@ of every iteration to understand prior context.
 ## Iteration 99 — 2026-04-26T06:42:29Z — OK
 - **Log**: iteration-099.log
 
+
+
+
+## Iteration 100 — 2026-04-26 — OK
+- **Item**: `[engine] Event queue queries: event_queue status counts, type
+  counts, age buckets, max-attempts, filtered rows, detail payload (with
+  secret redaction), linked resource ids (user/round/claim).`
+- **Files added** (1):
+  - `peek/src/server/db/queries/get-event-queue.ts` — three exports backing
+    `/operations/queue` (page lands in the next iteration). All read-only;
+    every queue mutation (retry / cancel / replay) is explicitly out of
+    scope per spec FR-10 line 342 ("page is read-only; retry, cancel, or
+    replay actions require a separate mutation spec").
+
+    - `getEventQueueOverview` — bounded counts for the FR-4 metric strip.
+      Runs four heterogeneous count queries in one `Promise.all` (status
+      counts, type counts top-50 by frequency, at-max-attempts,
+      aged-pending) plus a second `Promise.all` over the five age-bucket
+      counts. Status counts project the migration's full check-constraint
+      set (`PEEK_EVENT_QUEUE_STATUSES` = pending / processing / completed
+      / failed / dead) so a missing status surfaces a `0` row instead of
+      silently disappearing. Six metrics surface to the metric strip:
+      `queue.pending`, `queue.processing`, `queue.failed`, `queue.dead`
+      (status snapshot, drilldown to `?status=…`), `queue.at_max_attempts`
+      (non-completed rows whose `attempts >= max_attempts` — exhausted
+      retry budget), and `queue.aged_pending` (pending rows older than the
+      configurable threshold, default 6h via
+      `PEEK_EVENT_QUEUE_AGED_PENDING_HOURS`).
+
+    - `listEventQueue` — bounded filtered list (default 100, max 500 via
+      `PEEK_EVENT_QUEUE_DEFAULT_LIMIT` / `…_MAX_LIMIT`). Filters mirror
+      the spec line "status, event type, id, payload user id when
+      present, scheduled_at, created_at, and age". The `payloadUserId`
+      filter reads `payload->>'userId'` — backend handlers in
+      `backend/src/queue/handlers/{points-grant,referral-claim,crate-drop,
+      crate-sol-payout,reward-pool-fund,game-settled,profile-username-set}`
+      all write the key in camelCase, confirmed via grep. The age filter
+      maps a `PeekEventQueueAgeBucketId` value (`lt_1h` / `lt_6h` /
+      `lt_24h` / `lt_7d` / `gte_7d`) onto its
+      `[minHoursInclusive, maxHoursExclusive)` window over `created_at`.
+      Each row carries an `errorPreview` (head-truncated to 240 chars +
+      redacted) and best-effort `linked: { userId, roundId, claimId }`
+      ids extracted server-side from the JSONB payload.
+
+    - `getEventQueueDetail` — single-row detail. Returns the full JSONB
+      `payload` and `error` text run through the audit redactor: every
+      string scalar matching the existing `looksLikeSecret` patterns
+      (JWT, DB URL, private key, Bearer, Cloudflare access header) is
+      replaced by `PEEK_AUDIT_REDACTED` before the value reaches the
+      browser. This satisfies FR-10's "Payload rendering redacts known
+      secrets if any ever appear" criterion and reuses the audit module
+      so the redaction policy stays single-sourced.
+
+- **Files modified** (3):
+  - `peek/src/lib/types/peek.ts` — added the FR-10 view-model types:
+    `PeekEventQueueStatus` + `PEEK_EVENT_QUEUE_STATUSES`,
+    `PeekEventQueueAgeBucketId` + `PEEK_EVENT_QUEUE_AGE_BUCKETS`
+    (with `minHoursInclusive` / `maxHoursExclusive` boundaries that
+    pages and tests can read instead of duplicating the math),
+    `PeekEventQueueOverviewMetricId` +
+    `PEEK_EVENT_QUEUE_OVERVIEW_METRIC_IDS`, `PeekEventQueueOverview`,
+    `PeekEventQueueFilters`, `PeekEventQueueLinkedIds`,
+    `PeekEventQueueListRow`, `PeekEventQueueDetail`,
+    `PeekEventQueueStatusCount`, `PeekEventQueueTypeCount`,
+    `PeekEventQueueAgeBucketCount`. All bigint identity ids round-trip
+    as `text`; the JSONB `payload` is typed `unknown` so the redactor's
+    output (which can be primitives, arrays, or nested objects) flows
+    through to the browser without losing the structure.
+  - `peek/src/server/audit/redact.ts` — added `redactJsonValue(value)`
+    + private `redactJsonValueInner(value, seen)` walker. Recursively
+    redacts every string scalar inside a JSON-shaped tree (object,
+    array, primitive). Cycles cannot occur in a JSONB row but a
+    `WeakSet<object>` guards defensively so a malformed input cannot
+    stall the renderer. The walker reuses the existing
+    `looksLikeSecret` predicate so the redaction policy stays
+    single-sourced — adding a new pattern (e.g. an internal API key
+    shape) automatically applies to audit payloads, queue detail
+    payloads, and any future surface that pipes through this helper.
+  - `peek/src/server/audit/index.ts` — re-export `redactJsonValue`
+    alongside the other redact helpers so consumers import from the
+    audit module index rather than reaching into `./redact`.
+
+- **Read-only guarantee**: every SQL fragment in `get-event-queue.ts`
+  is `select` only. No INSERT / UPDATE / DELETE anywhere. Queue
+  mutations live behind action ids that have not yet been declared in
+  `peek/src/server/access-policy.ts` (FR-10 line 342 + FR-14
+  framework not built).
+
+- **PostgreSQL short-circuit pattern**: filter predicates use the
+  same `(${nullableCheck} or column = ${value ?? ""})` shape as
+  `get-dogpile-and-fraud.ts` and `get-points-and-crates.ts`. PostgreSQL
+  short-circuits `OR` (per docs), so `${flag === null}` resolving to
+  `true` skips the right-hand cast — `''::timestamptz` would otherwise
+  raise.
+
+- **Targeted checks** (CLAUDE.md TS rule):
+  - `cd peek && pnpm typecheck` ✅
+  - `cd peek && pnpm lint` ✅ (no output)
+  - `cd peek && pnpm test --run` ✅ (64 files, 674/674, no regressions —
+    new query module has no tests yet; tests land in checklist line 545
+    "Queue query + page tests for pending, failed, dead, aged, filtered,
+    redacted-payload states").
+
+- **Next**: `[frontend] /operations/queue with overview + filters +
+  detail panel + redacted payload rendering + dead/failed attention
+  links.`
+## Iteration 100 — 2026-04-26T06:52:40Z — OK
+- **Log**: iteration-100.log
+
