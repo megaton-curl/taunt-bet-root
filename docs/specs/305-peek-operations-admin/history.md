@@ -4890,3 +4890,33 @@ of every iteration to understand prior context.
 ## Iteration 154 — 2026-04-26T20:03:53Z — OK
 - **Log**: iteration-154.log
 
+
+## Iteration 155 — 2026-04-26 — OK
+
+- **Item**: `[test] Add local deterministic E2E coverage for primary user flow(s) in e2e/local/** (or mark N/A with reason for non-web/non-interactive specs).`
+
+- **Files added** (1):
+  - `e2e/local/peek-smoke.spec.ts` — Playwright spec under the existing `[local]` project (matches `e2e/playwright.config.ts` `testDir: ./local`). Four tests targeting peek's primary operator flow:
+    1. **`home renders the admin shell and command center sections`** — asserts the `header[aria-label="Peek admin shell"]` brand renders the literal "Peek" text (FR-3 admin shell), the `Command center` `<h1>`, the five home `<h2>`s (`Global search`, `Attention queue`, `Platform summary`, `Recent activity`, `Users`), and the verified-actor strip (`[aria-label="Verified actor"]`) with the `[data-role="admin"]` badge so the FR-3 actor identity strip + FR-2 admin role resolution are exercised together.
+    2. **`admin actor sees every primary navigation group`** — scopes its query to `nav[aria-label="Primary"]` and asserts seven nav links: `Users`, `Growth`, `Games`, `Economy`, `Operations`, `Audit`, `Access` (FR-3 navigation groups + FR-2 role-aware visibility — `Audit` only renders when the resolved role is `admin`).
+    3. **`global search is URL-addressable so investigations are shareable`** — fills the `searchbox[name="Global search"]`, presses `Enter`, then asserts the post-submit URL matches `/\?.*query=smoke-test-no-match/` and the input retains the typed value (FR-4 URL-addressable filters; FR-5 universal-search entry point).
+    4. **`operator routes render their primary headings`** — visits `/games` (`Games`), `/growth/referrals` (`Growth · Referrals`), `/operations/queue` (`Operations · Event queue`), and `/audit` (`Audit · operator_events`) and asserts each `<h1>` renders. The `/audit` route doubles as the FR-2 admin-route gate proof — a non-admin actor would see the access-denied panel instead. Headings were verified against the source via grep before commit (`peek/app/games/page.tsx:34`, `peek/app/growth/referrals/page.tsx:41`, `peek/app/operations/queue/page.tsx:64`, `peek/app/audit/page.tsx:59`).
+
+- **Determinism strategy**: every assertion targets shell/page chrome that renders regardless of database content (`<h1>`/`<h2>` headings, navigation `<a>`s, the actor-identity strip, the search form). No row-level data is asserted, so the spec stays green on an empty Postgres or against seeded fixtures. The route-coverage test asserts only the page heading (always rendered, including under the access-denied branch which still emits the `<h1>` per `peek/app/audit/page.tsx:59` and friends), so it does not depend on whether `operator_events` / `event_queue` / `game_entries` have rows.
+
+- **Prerequisites documented in the spec header**:
+  - Postgres reachable via `DATABASE_URL`.
+  - peek dev server running with `NODE_ENV=development`, `PEEK_DEV_ACCESS_EMAIL=dev@example.com`, `PEEK_ACCESS_POLICY='[{"match":"dev@example.com","role":"admin"}]'`, default port `3000` (overridable via `PEEK_URL`).
+  - These mirror the dev-bypass + role-policy contract documented in `peek/README.md` "Local dev identity" + "Local roles (FR-2)".
+
+- **Targeted check**: this is an additive Playwright spec under `e2e/local/` — it doesn't modify any TypeScript/Rust app code. The CLAUDE.md rule "Docs-only changes: no verification needed" doesn't quite fit, but the closest meaningful targeted check is Playwright's own parser/test-discovery (which validates ESM imports, test signatures, and locator expression typing through the Playwright runtime).
+  - `cd e2e && pnpm exec playwright test --list local/peek-smoke.spec.ts` — lists 4 tests, no parse errors.
+  - `cd e2e && pnpm exec playwright test --list local/` — lists all 9 tests across `peek-smoke` (4) + `waitlist-smoke` (5), confirming the new spec coexists with the existing local smoke without breaking discovery.
+  - Full execution requires a running peek dev server with `PEEK_DEV_ACCESS_EMAIL` + `PEEK_ACCESS_POLICY` configured; this is a prerequisite documented in the spec header per the same pattern `e2e/local/waitlist-smoke.spec.ts` uses (the existing local smoke also assumes its services are up before `pnpm test` runs).
+
+- **Why not extend `peek/e2e/home.spec.ts` instead**: that file is peek's *own* Playwright suite scoped to a single test for the home shell (`peek/playwright.config.ts` runs `next dev` itself). The checklist item explicitly targets root `e2e/local/**`, which is the cross-service integration tier (`waitlist-smoke.spec.ts` already lives there). Adding the peek smoke to the root tier keeps the convention consistent: `e2e/local/` is the place an operator runs `cd e2e && pnpm test --project=local` against the full local stack.
+
+- **Next**: `[test] Add visual route/state coverage in e2e/visual/**; run pnpm test:visual and update baselines only for intentional UI changes.`
+## Iteration 155 — 2026-04-26T20:09:01Z — OK
+- **Log**: iteration-155.log
+
