@@ -3914,3 +3914,78 @@ of every iteration to understand prior context.
 ## Iteration 143 — 2026-04-26T15:12:54Z — OK
 - **Log**: iteration-143.log
 
+
+## Iteration 144 — 2026-04-26 — Mutation-framework tests
+
+- **Item**: `[test] Mutation-framework tests: authorized success,
+  unauthorized denial, validation failure, transaction rollback,
+  applied + rejected audit payloads (no secrets, before/after diff).`
+
+- **Files added** (1):
+  - `peek/src/server/mutations/__tests__/runner.test.ts` — 11 tests
+    covering the FR-14 framework end to end with mocked `Sql`,
+    audit writer, action rules, and registry. No DB or network I/O.
+
+- **Test plan vs. checklist clauses**:
+  - **authorized success**: 3 tests
+    - "runs execute inside a transaction and emits peek.change.applied"
+      verifies `sql.begin` is called once, `executeFn` receives the
+      parsed input + transactional `Sql` + actor, the result carries
+      `actionId/resourceId/changes`, and the single audit emit is
+      `peek.change.applied` on the *transactional* sql (so the change
+      and its audit row commit/rollback together).
+    - "populates the applied payload with FR-14 fields and forwards
+      the before/after diff" pins every required `PeekAuditPayload`
+      field and confirms `changes` round-trip from execute.
+    - "supports null resourceId / null changes (pure create)"
+      covers the create-shaped mutation contract.
+  - **unauthorized denial**: 2 tests — role mismatch + null role.
+    Both confirm `sql.begin` is NOT called, no `executeFn` call, and
+    that `peek.change.rejected` is written on the **main** sql (not
+    a transactional one — there is no transaction yet).
+  - **validation failure**: 2 tests — invalid input rejected with
+    field errors surfaced to the caller; second test passes a
+    JWT-shaped smuggled value and proves the runner does not echo
+    raw input or field-level errors into the audit `changes` array
+    (FR-14 "no submitted secrets").
+  - **transaction rollback (execution_failed)**: 1 test — execute
+    throws, `sqlMock.rolledBack` is true, runner returns
+    `{ ok: false, reason: "execution_failed" }` with the underlying
+    error message preserved, and the rejected audit row writes on
+    the main connection.
+  - **audit emit failure inside the transaction**: 1 test —
+    auditWriter returns `{ ok: false, reason: "insert_failed" }`
+    on the in-tx applied write; runner throws to roll back, returns
+    `{ ok: false, reason: "audit_emit_failed" }`, and emits a second
+    `peek.change.rejected` write on the main connection with
+    `rejectionReason` starting with `peek_audit_emit_failed:insert_failed`.
+  - **unknown action**: 1 test — registry miss never opens a tx,
+    audit-rejected payload has `resourceType=null` (no leak when no
+    definition exists), and rejection reason is `unknown_action`.
+  - **payload safety (no secrets)**: 1 test — proves the runner +
+    audit writer contract: the runner forwards changes verbatim,
+    the writer's `redactPayload` strips JWT-shaped values from the
+    diff while preserving the structural before/after pair for
+    non-secret fields.
+
+- **Mocking**:
+  - `createSqlMock()` — sentinel transactional Sql, counts
+    `begin` calls, flips `rolledBack` when callback throws.
+  - `createAuditWriter()` — captures every audit call's
+    `eventType`, `payload`, and the `sql` argument used (so tests
+    can assert in-tx vs. main-connection writes).
+  - `makeMutation()` / `makeRegistry()` — local test factories so
+    each test owns its definition + rules; no global
+    `PEEK_MUTATIONS` mutation.
+
+- **Targeted checks** (CLAUDE.md TS rule):
+  - `cd peek && pnpm lint` ✅
+  - `cd peek && pnpm typecheck` ✅
+  - `cd peek && pnpm test --run` ✅ (79 files, 886/886 — +11 new,
+    no regressions).
+
+- **Next**: `[engine] KOL rate create/update mutation for
+  referral_kol_rates with before/after audit and rate validation.`
+## Iteration 144 — 2026-04-26T15:19:39Z — OK
+- **Log**: iteration-144.log
+

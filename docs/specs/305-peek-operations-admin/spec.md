@@ -7,7 +7,7 @@
 | Status | Ready |
 | Priority | P1 |
 | Track | Core |
-| NR_OF_TRIES | 143 |
+| NR_OF_TRIES | 144 |
 
 ---
 
@@ -556,7 +556,7 @@ Keep the implementation close to existing `peek` conventions and cheap to operat
 
 #### Mutations (FR-14)
 - [x] [engine] Mutation framework under `peek/src/server/mutations/**`: action-id registry, role-check, input schema, transaction handling for multi-statement mutations, typed success/failure results, audit hooks for `peek.change.applied` / `peek.change.rejected`. (done: iteration 143)
-- [ ] [test] Mutation-framework tests: authorized success, unauthorized denial, validation failure, transaction rollback, applied + rejected audit payloads (no secrets, before/after diff).
+- [x] [test] Mutation-framework tests: authorized success, unauthorized denial, validation failure, transaction rollback, applied + rejected audit payloads (no secrets, before/after diff). (done: iteration 144)
 - [ ] [engine] KOL rate create/update mutation for `referral_kol_rates` with before/after audit and rate validation.
 - [ ] [test] KOL rate mutation tests: create, update, invalid rate, unauthorized actor, audit payload.
 - [ ] [engine] `fraud_flags.status` update mutation with allowed-transition matrix and before/after audit.
