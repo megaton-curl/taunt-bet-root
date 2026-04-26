@@ -7,7 +7,7 @@
 | Status | Ready |
 | Priority | P1 |
 | Track | Core |
-| NR_OF_TRIES | 157 |
+| NR_OF_TRIES | 158 |
 
 ---
 
@@ -573,7 +573,7 @@ Keep the implementation close to existing `peek` conventions and cheap to operat
 - [x] [test] Add local deterministic E2E coverage for primary user flow(s) in e2e/local/** (or mark N/A with reason for non-web/non-interactive specs). (done: iteration 155)
 - [x] [test] Add visual route/state coverage in e2e/visual/**; run pnpm test:visual and update baselines only for intentional UI changes. (done: iteration 156)
 - [x] [test] If external provider/oracle/VRF integration is in scope, add devnet real-provider E2E coverage in e2e/devnet/** with env validation + retry/backoff (or mark N/A with reason). **Mark N/A: peek is server-rendered DB-reads + scoped DB writes only; it has no on-chain, oracle, or VRF integration, so devnet E2E offers no coverage signal.** (done: iteration 157)
-- [ ] [test] Run `cd peek && pnpm verify` and fix any lint, typecheck, unit-test, or production-build failures.
+- [x] [test] Run `cd peek && pnpm verify` and fix any lint, typecheck, unit-test, or production-build failures. (done: iteration 158)
 - [ ] [test] Run root `./scripts/verify` if required before commit/PR and confirm no public backend API or OpenAPI changes were introduced.
 
 ### Testing Requirements

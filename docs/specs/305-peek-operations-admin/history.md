@@ -4978,3 +4978,25 @@ of every iteration to understand prior context.
 ## Iteration 157 — 2026-04-26T20:16:30Z — OK
 - **Log**: iteration-157.log
 
+
+
+## Iteration 158 — 2026-04-26 — OK
+
+- **Item**: `[test] Run cd peek && pnpm verify and fix any lint, typecheck, unit-test, or production-build failures.`
+
+- **Action**: Ran `cd peek && pnpm verify` end-to-end (lint → typecheck → test → build). All four phases exited clean on the first try; no fixes required.
+
+- **Results**:
+  - **lint** (`eslint .`) ✅ — exit 0, no warnings.
+  - **typecheck** (`tsc --noEmit -p tsconfig.typecheck.json`) ✅ — exit 0.
+  - **test** (`vitest run`) ✅ — 88 test files, 1008/1008 passing in 158.85s.
+  - **build** (`next build` with Turbopack) ✅ — compiled in 8.7s, TypeScript phase finished in 15.6s, all 16 server-rendered routes generated cleanly:
+    `/`, `/audit`, `/economy/{challenges,crates,points,rewards}`, `/exports/[entity]`, `/games`, `/games/[game]`, `/games/[game]/rounds/[roundId]`, `/growth/{kol,referrals}`, `/operations/{dogpile,queue}`, `/users/[userId]`.
+  - All routes are correctly marked `ƒ (Dynamic) server-rendered on demand` (force-dynamic per FR-13 — no static caching of operator data).
+
+- **Targeted check**: this item *is* the targeted check; the spec line literally asks for `cd peek && pnpm verify`. Exit 0 ⇒ no fixes needed ⇒ check the box.
+
+- **Next**: `[test] Run root ./scripts/verify if required before commit/PR and confirm no public backend API or OpenAPI changes were introduced.` — the final checklist item.
+## Iteration 158 — 2026-04-26T20:21:36Z — OK
+- **Log**: iteration-158.log
+
