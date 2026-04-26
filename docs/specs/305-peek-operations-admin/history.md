@@ -2362,3 +2362,55 @@ of every iteration to understand prior context.
 ## Iteration 93 — 2026-04-26T05:56:28Z — OK
 - **Log**: iteration-093.log
 
+## Iteration 94 — 2026-04-26 — OK
+- **Item**: `[engine] Challenge queries: campaigns, challenges, challenge_assignments, progress_events, completion_bonuses, bonus_completions. Read-only; no challenge-definition editing.`
+- **Files added** (1):
+  - `peek/src/server/db/queries/get-challenges.ts` — six read-only list
+    functions plus an FR-4 `getChallengesOverview` metric strip. Mirrors
+    the `get-rewards.ts` / `get-points-and-crates.ts` pattern: tagged
+    template SQL, server-only `getSqlClient` default, optional `sql`
+    injection for tests, `clampLimit` (default 100, max 500), `trimOrNull`
+    for whitespace-only filter values, `::timestamptz` casts on date
+    range filters.
+    - `listCampaigns` joins per-campaign challenge counts and active
+      assignment counts so an operator spots empty / stalled campaigns
+      without a follow-up query.
+    - `listChallenges` filters by campaignId / isActive (string `"true"` /
+      `"false"` to mirror URL-addressable filter conventions).
+    - `listChallengeAssignments` filters by userId / challengeId /
+      campaignId / periodKey / status / assignedFrom / assignedTo and
+      joins `challenges`, `campaigns`, `player_profiles` for context.
+    - `listProgressEvents` filters by assignmentId / challengeId / userId /
+      roundId / created date range — operator-facing anti-gaming audit.
+    - `listCompletionBonuses` joins per-bonus completion counts.
+    - `listBonusCompletions` filters by userId / bonusId / campaignId /
+      periodKey / completed date range.
+    - `getChallengesOverview` returns 5 FR-4 metrics (active campaigns,
+      active challenges, active assignments, completed assignments in
+      window, bonus completions in window) with `definition`, `source`,
+      `windowLabel`, `asOf`, and `drilldownHref` populated.
+- **Files updated** (1):
+  - `peek/src/lib/types/peek.ts` — added 9 browser-safe types: 6 row
+    shapes (`PeekCampaignRow`, `PeekChallengeRow`,
+    `PeekChallengeAssignmentRow`, `PeekProgressEventRow`,
+    `PeekCompletionBonusRow`, `PeekBonusCompletionRow`), 4 filter
+    shapes, the metric-id union (5 values) +
+    `PEEK_CHALLENGES_OVERVIEW_METRIC_IDS` array constant, and
+    `PeekChallengesOverview`. Bigint identity ids round-trip as `text`;
+    enum values (`campaign_type`, `status`, `scope`, `condition`,
+    `reward_type`) stay loosely typed (`string`) so the migration's CHECK
+    constraints remain the single source of truth.
+- **Read-only guarantee**: only `select` statements; no INSERT / UPDATE /
+  DELETE anywhere. Challenge / campaign / completion-bonus definition
+  editing is explicitly out of scope per FR-9 / FR-14.
+- **Targeted checks** (CLAUDE.md TS rule):
+  - `cd peek && pnpm typecheck` ✅
+  - `cd peek && pnpm lint` ✅
+  - `cd peek && pnpm test --run` ✅ (50 files, 473/473, no regressions)
+- **Next**: matching frontend `/economy/challenges` page (next checklist
+  item) then the test pair.
+- **Log**: iteration-094.log
+
+## Iteration 94 — 2026-04-26T06:02:29Z — OK
+- **Log**: iteration-094.log
+
