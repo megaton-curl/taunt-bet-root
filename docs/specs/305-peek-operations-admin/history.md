@@ -2312,3 +2312,53 @@ of every iteration to understand prior context.
 ## Iteration 92 — 2026-04-26T05:49:26Z — OK
 - **Log**: iteration-092.log
 
+## Iteration 93 — 2026-04-26 — OK
+- **Item**: `[test] Points + crates query + page tests for filters, sparse, pending payout, integer formatting.`
+- **Files added** (5):
+  - `peek/src/server/db/queries/__tests__/get-points-and-crates.test.ts` — query
+    tests for `listPlayerPoints`, `listPointGrants`, `listCrateDrops`. Uses the
+    same SQL-mock pattern as `get-rewards.test.ts`: limit clamping (default,
+    explicit, MAX, ≤0, NaN); filter binding for empty + populated +
+    whitespace-only + every supported filter dimension; `::timestamptz` cast
+    presence on date filters; bigint amounts round-tripping as text past
+    `Number.MAX_SAFE_INTEGER`; sparse `[]` results; load-error propagation.
+  - `peek/src/components/__tests__/player-points-table.test.tsx` — populated
+    columns + integer thousands-separator, raw bigint preserved in `title=`,
+    user-detail link with username/userId fallback, sparse `[]` empty status,
+    error alert state.
+  - `peek/src/components/__tests__/point-grants-table.test.tsx` — populated
+    columns + thousands-separator, raw bigint in `title=`, source-type chip
+    rendering across `wager` / `challenge_completed` / `crate_points`,
+    user-detail link with username/userId fallback, sparse + error states.
+  - `peek/src/components/__tests__/crate-drops-table.test.tsx` — covers the
+    FR-9 pending-payout state explicitly: pending+sol row renders the
+    `pending · payout` chip with the SOL-payout title hint, pending+points
+    stays bare `pending`, granted/failed paths, `—` fallback for null
+    wallet/grantedAt, integer formatting + raw `title=` precision recovery,
+    sparse + error states.
+  - `peek/src/components/__tests__/economy-points-filter-bar.test.tsx` and
+    `peek/src/components/__tests__/economy-crates-filter-bar.test.tsx` — both
+    filter bars: default form action + method, `Any` baseline + every
+    migration-011 allowlist value as a select option, prefixed input names
+    (`pointsUserId` / `grantUserId` / `crateUserId` etc.), populated value
+    pre-fill, ISO-timestamp truncation to `YYYY-MM-DD` for the date inputs,
+    custom action override.
+- **Page-level coverage**: chosen by mirroring iteration-29/-32/-35/-41 — the
+  existing pattern composes per-component tests rather than running the
+  Next.js server route directly. The route files (`app/economy/points/page.tsx`,
+  `app/economy/crates/page.tsx`) only orchestrate `getPeekActorContext` →
+  `isRouteAllowedForRole` → `normalize*FromSearchParams` → `list*` → existing
+  table+filter components, all of which are exercised here. Adding direct
+  `page.tsx` tests would require mocking `headers()` + `getSqlClient` and
+  duplicate already-covered behavior, so per-component coverage is what
+  ships.
+- **Targeted checks** (CLAUDE.md TS rule):
+  - `cd peek && pnpm test --run` ✅ (50 files, 473 tests, +63 new vs.
+    iteration 92's 410)
+  - `cd peek && pnpm lint` ✅
+  - `cd peek && pnpm typecheck` ✅
+- **Log**: iteration-093.log
+
+## Iteration 93 — 2026-04-26T05:56:28Z — OK
+- **Log**: iteration-093.log
+
