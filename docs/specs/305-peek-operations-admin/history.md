@@ -3886,3 +3886,31 @@ of every iteration to understand prior context.
 ## Iteration 142 — 2026-04-26T15:05:31Z — OK
 - **Log**: iteration-142.log
 
+
+## Iteration 143 — 2026-04-26 — Mutation framework
+
+- **Item**: `[engine] Mutation framework under peek/src/server/mutations/**: action-id registry, role-check, input schema, transaction handling, typed success/failure, audit hooks.`
+
+- **Files added** (3):
+  - `peek/src/server/mutations/registry.ts` — `PeekMutationDefinition` (actionId, resourceType, zod schema, transactional execute), frozen `PEEK_MUTATIONS` registry (empty in this iteration; concrete mutations land in subsequent FR-14 iterations), `getPeekMutation` lookup.
+  - `peek/src/server/mutations/runner.ts` — `runPeekMutation` orchestration: registry lookup (unknown_action → `peek.change.rejected`), `isActionAllowedForRole` check (unauthorized → `peek.change.rejected`), zod validation (invalid_input → `peek.change.rejected` with field errors surfaced to caller), `sql.begin(...)` transaction with audit insert on the same transactional `Sql` so mutation + audit commit/rollback together. Audit-emit failure inside the tx throws `peek_audit_emit_failed:<reason>` to roll back. Execution failures roll back and emit `peek.change.rejected` on the main connection.
+  - `peek/src/server/mutations/index.ts` — public surface re-exporting registry + runner.
+
+- **Files modified** (1):
+  - `peek/src/server/mutations/README.md` — replaced the v1 placeholder with a description of the framework (registry / runner / index responsibilities) and a note that approved mutations ship in subsequent iterations.
+
+- **FR-14 coverage** (framework-only; concrete mutations come in following iterations):
+  - "stable action id, required role list, input schema, success result, failure result" — `PeekMutationDefinition.actionId`, `isActionAllowedForRole(actionId, role, PEEK_ACTION_RULES)` from FR-2, `PeekMutationDefinition.schema` (zod), `PeekMutationSuccess` / `PeekMutationFailure` discriminated union with `PeekMutationFailureReason` = `unknown_action | unauthorized | invalid_input | execution_failed | audit_emit_failed`.
+  - "runs server-side, inside a transaction when multiple statements are required" — `runner.ts` wraps `definition.execute` in `sql.begin(...)`; the transactional `Sql` is passed into the execute context so multi-statement work shares the transaction.
+  - "writes peek.change.applied with actor email, action id, resource type/id, before/after values, and request context" — `buildAppliedPayload` populates all fields; the audit insert uses the transactional `sql`, atomic with the mutation.
+  - "denied or validation-failed mutation writes peek.change.rejected" — `buildRejectedPayload` is emitted on unknown_action, unauthorized, invalid_input, execution_failed, and audit_emit_failed paths.
+
+- **Targeted checks** (CLAUDE.md TS rule):
+  - `cd peek && pnpm lint` ✅
+  - `cd peek && pnpm typecheck` ✅
+  - `cd peek && pnpm test --run` ✅ (78 files, 875/875 — confirms no regressions; framework tests land in next iteration "[test] Mutation-framework tests").
+
+- **Next**: `[test] Mutation-framework tests: authorized success, unauthorized denial, validation failure, transaction rollback, applied + rejected audit payloads (no secrets, before/after diff).`
+## Iteration 143 — 2026-04-26T15:12:54Z — OK
+- **Log**: iteration-143.log
+
