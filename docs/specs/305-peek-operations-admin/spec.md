@@ -7,7 +7,7 @@
 | Status | Ready |
 | Priority | P1 |
 | Track | Core |
-| NR_OF_TRIES | 101 |
+| NR_OF_TRIES | 102 |
 
 ---
 
@@ -542,7 +542,7 @@ Keep the implementation close to existing `peek` conventions and cheap to operat
 #### Queue (FR-10)
 - [x] [engine] Event queue queries: `event_queue` status counts, type counts, age buckets, max-attempts, filtered rows, detail payload (with secret redaction), linked resource ids (user/round/claim). (done: iteration 100)
 - [x] [frontend] `/operations/queue` with overview + filters + detail panel + redacted payload rendering + dead/failed attention links. (done: iteration 101)
-- [ ] [test] Queue query + page tests for pending, failed, dead, aged, filtered, redacted-payload states.
+- [x] [test] Queue query + page tests for pending, failed, dead, aged, filtered, redacted-payload states. (done: iteration 102)
 
 #### Audit view (FR-11)
 - [ ] [engine] Audit-log queries filtering `operator_events` by `peek.*` event type, actor email, resource id, route, date; bounded.

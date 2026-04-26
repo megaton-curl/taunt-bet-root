@@ -2982,3 +2982,123 @@ of every iteration to understand prior context.
 ## Iteration 101 — 2026-04-26T06:59:51Z — OK
 - **Log**: iteration-101.log
 
+
+## Iteration 102 — 2026-04-26 — OK
+- **Item**: `[test] Queue query + page tests for pending, failed, dead, aged,
+  filtered, redacted-payload states.`
+
+- **Files added** (4):
+  - `peek/src/server/db/queries/__tests__/get-event-queue.test.ts` — query
+    tests for `listEventQueue`, `getEventQueueDetail`, `getEventQueueOverview`
+    (38 tests). Mirrors the existing SQL-mock pattern from
+    `get-points-and-crates.test.ts` / `get-dogpile-and-fraud.test.ts`. State
+    coverage spans pending / processing / failed / dead / completed; bound
+    values verify limit clamps (DEFAULT / MAX / clamp-to-1 / NaN-fallback) and
+    every filter (status / eventType / id / payloadUserId / scheduledFrom /
+    scheduledTo / createdFrom / createdTo / ageBucket). Age windows are
+    asserted by binding the boundary ISO strings (`lt_1h` upper bound,
+    `gte_7d` open lower bound, unknown bucket falls back to null). Redaction
+    tests cover all three surface paths: an oversized error truncated to
+    `PEEK_EVENT_QUEUE_ERROR_PREVIEW_CHARS + 1` chars (with the trailing `…`),
+    a JWT-shaped error preview swapped for `PEEK_AUDIT_REDACTED`, a
+    payload-derived linked id that looks like a postgres URL also redacted, a
+    Bearer token nested in JSONB redacted via `redactJsonValue`, and a cyclic
+    JSONB payload broken with the same sentinel. Overview tests assert the
+    SQL fan-out order (5 age-bucket queries dispatched eagerly via `.map`,
+    then status / type / atMax / agedPending in the Promise.all array
+    literal), the full migration status set is projected even when empty (so
+    a missing state is rendered as a 0 row), aged-pending boundary respects
+    caller-supplied hours, and every overview query is SELECT-only.
+
+  - `peek/src/lib/__tests__/operations-queue-search-params.test.ts` —
+    URL-parser tests for `normalizeEventQueueFiltersFromSearchParams` and
+    `readSelectedQueueIdFromSearchParams` (14 tests). Covers empty input,
+    whitespace-only normalisation, allowlist narrowing (every status enum and
+    every age-bucket id pass through verbatim; unknown values normalise to
+    `null` so a stale URL chip cannot lie), array-value handling (only the
+    first element is read), undefined input handling, and the
+    `PEEK_EVENT_QUEUE_FILTER_PARAM_NAMES` map round-trips the same literals
+    the filter bar form fields submit.
+
+  - `peek/src/components/__tests__/event-queue-filter-bar.test.tsx` — filter
+    bar tests (7 tests). Asserts the form posts to `/operations/queue` via
+    GET, every input/select uses its `queueFilter*` name, the status +
+    age-bucket selects expose every allowlisted enum value (state-transition
+    coverage), populated filters pre-fill every field, ISO timestamps in
+    date filters truncate to YYYY-MM-DD, the custom `action` prop overrides
+    the default form target, and the `selectedId` param is intentionally
+    NOT a hidden input (so submitting the filter form clears the detail
+    panel rather than reopening the same row).
+
+  - `peek/src/components/__tests__/event-queue-table.test.tsx` — table tests
+    (13 tests). Covers state-transition rendering for every lifecycle status
+    (pending / processing / failed / dead / completed), thousands-separator
+    formatting on the attempts cell, the user-detail drilldown, the
+    detail-panel anchor (`?selectedId=<encoded id>`), the
+    `selectedIdHrefBuilder` override path, the aria-current marker on the
+    selected row, the `—` fallback for rows with no linked ids, the empty
+    state, the error state, and the read-only invariant (no buttons / inputs
+    / checkboxes — only drilldown links). The redacted-error preview is
+    asserted to round-trip the `PEEK_AUDIT_REDACTED` sentinel verbatim. A
+    dedicated `queueStatusTone` test covers every migration status plus the
+    unknown-status fallback.
+
+  - `peek/src/components/__tests__/event-queue-detail-panel.test.tsx` —
+    detail panel tests (10 tests). Covers the hint state (no selectedId),
+    not-found state, error state, populated rendering (status chip +
+    attempts ratio + lifecycle timestamps + user-detail drilldown), the
+    `<pre>` rendering for both the error block and the JSON-stringified
+    payload, the redacted-payload state (the `PEEK_AUDIT_REDACTED` sentinel
+    appears in BOTH the error block and the payload JSON; original secrets
+    like `Bearer …`, `eyJ…`, and `postgres://…` never reach the rendered
+    output), the `—` fallback when error is null, the read-only invariant
+    (no mutating controls), and the FR-10 line 342 "out of scope" notice.
+
+- **Files modified** (0): no implementation changed; this iteration is
+  test-only.
+
+- **Total new tests**: 82 (38 query + 14 search-params + 7 filter bar + 13
+  table + 10 detail panel). Combined with the 674 previously-passing tests,
+  the suite is now 756/756.
+
+- **Spec coverage** (against the spec line "Queue query + page tests for
+  pending, failed, dead, aged, filtered, redacted-payload states"):
+  - **pending**: status enum coverage in `listEventQueue`,
+    `normalizeEventQueueFiltersFromSearchParams`, `EventQueueTable` row
+    fixtures, and `queueStatusTone` mapping.
+  - **failed**: status enum coverage across the same surfaces; failed-state
+    drilldown link asserted against the `?status=failed` href.
+  - **dead**: status enum coverage; dead-state row fixture surfaces the
+    `PEEK_AUDIT_REDACTED` error preview verbatim.
+  - **aged**: age-bucket boundary ISO strings asserted for both endpoints
+    (lt_1h upper bound, gte_7d open lower bound, unknown bucket fallback);
+    aged-pending caller-supplied hours flows into the SQL bind value; the
+    overview metric carries the right `windowLabel`.
+  - **filtered**: every filter (status / eventType / id / payloadUserId /
+    scheduled[from,to) / created[from,to) / ageBucket) flows from URL →
+    parser → query → bind value; whitespace-only and unknown-enum cases
+    normalise to `null`.
+  - **redacted-payload**: secret redaction asserted at every surfacing path
+    (error preview truncation, JWT-shaped error, postgres URL in linked id,
+    Bearer token in JSONB, cycle in JSONB, render-time round-trip of the
+    `PEEK_AUDIT_REDACTED` sentinel through the table and the detail panel
+    without leaking any of the secret patterns the redactor knows about).
+
+- **Read-only enforcement**: every component test asserts
+  `screen.queryAllByRole("button")` is empty, `queryByRole("textbox")` /
+  `queryByRole("checkbox")` are null, and only drilldown `<Link>` elements
+  remain. Every query test passes `expectReadOnly(call)` which rejects any
+  SQL containing `INSERT INTO` / `UPDATE \w` / `DELETE FROM`. This freezes
+  the FR-10 line 342 contract: queue mutations live behind a future spec.
+
+- **Targeted checks** (CLAUDE.md TS rule):
+  - `cd peek && pnpm typecheck` ✅
+  - `cd peek && pnpm lint` ✅ (no output)
+  - `cd peek && pnpm test --run` ✅ (69 files, 756/756, +82 new tests over
+    iteration 101's 674 baseline; no pre-existing tests regressed).
+
+- **Next**: `[engine] Audit-log queries filtering operator_events by peek.*
+  event type, actor email, resource id, route, date; bounded.`
+## Iteration 102 — 2026-04-26T07:10:18Z — OK
+- **Log**: iteration-102.log
+
