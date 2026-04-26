@@ -4226,3 +4226,83 @@ of every iteration to understand prior context.
 ## Iteration 147 — 2026-04-26T15:37:31Z — OK
 - **Log**: iteration-147.log
 
+
+
+## Iteration 148 — 2026-04-26 — Fraud flag mutation tests
+
+- **Item**: `[test] Fraud flag mutation tests: valid transition,
+  invalid transition, unknown flag, unauthorized actor, audit payload.`
+
+- **Files added** (1):
+  - `peek/src/server/mutations/__tests__/fraud-flag.test.ts` — 18
+    tests modelled on the existing `kol-rate.test.ts` harness.
+
+- **Coverage**:
+  - **Schema** (`fraudFlagStatusUpdateInputSchema`): valid input,
+    non-numeric flagId reject, empty flagId reject, whitespace trim,
+    unknown nextStatus reject, strict (extra field reject).
+  - **Transition matrix**
+    (`FRAUD_FLAG_ALLOWED_TRANSITIONS` /
+    `isFraudFlagTransitionAllowed`): exact tuple inventory, explicit
+    `dismissed -> reviewed` denial, every no-op `X -> X` denied for
+    each status.
+  - **Definition wiring**: `actionId === "fraud_flag.status.update"`
+    and `resourceType === "fraud_flags"`.
+  - **End-to-end via `runPeekMutation`**:
+    - **Valid transition** — `open -> reviewed` succeeds, returns
+      `resourceId="42"` and `changes=[{field:"status", before:"open",
+      after:"reviewed"}]`. SELECT + UPDATE issued in tx; UPDATE binds
+      `[nextStatus, flagId]`. Single audit row
+      (`peek.change.applied`) with full FR-11 payload (actorEmail,
+      route, actionId, resourceType, resourceId, requestId,
+      `rejectionReason: null`) emitted on the in-tx Sql.
+    - **Reopen branch** — `dismissed -> open` succeeds and the
+      UPDATE statement contains the literal `resolved_at = null`
+      (and not `now()`), confirming the open-branch SQL fragment
+      clears the resolution timestamp.
+    - **Invalid transition** — `dismissed -> reviewed` rolls the tx
+      back, never UPDATEs, returns `execution_failed` with
+      `message` containing `invalid_transition`/`dismissed`/
+      `reviewed`, and emits `peek.change.rejected` with
+      `rejectionReason` matching
+      `^execution_failed: invalid_transition: dismissed -> reviewed$`.
+    - **No-op transition** — `open -> open` rolls back, never
+      UPDATEs, audit row carries
+      `invalid_transition: open -> open`.
+    - **Unknown flag** — empty `SELECT ... FOR UPDATE` returns
+      no row; mutation throws `unknown_flag: 999`, transaction
+      rolls back, audit row matches
+      `^execution_failed: unknown_flag: 999$`.
+    - **Unauthorized actor** — `business` role denied (action rule
+      is admin-only); no `sql.begin()` and no SQL issued; single
+      `peek.change.rejected` audit row with
+      `rejectionReason: "unauthorized"`.
+    - **Null actor role** — same denial path; `rejectionReason:
+      "unauthorized"`.
+    - **Schema rejection** — non-numeric `flagId="abc"` returns
+      `invalid_input` with `fieldErrors.flagId`; no transaction
+      opened; audit row carries `rejectionReason: "invalid_input"`
+      and `payload.changes === null`.
+
+- **Test scaffolding parity with `kol-rate.test.ts`**:
+  - `createAuditWriter()` records `eventType` + `payload` + which
+    `Sql` was used.
+  - `createSqlMock()` emulates `sql.begin` and the tagged-template
+    invocation pattern, returning the `existingRow` for SELECTs and
+    optionally rejecting UPDATEs (`failOnUpdate` parameter, parallel
+    to kol-rate's `failOnInsert`).
+  - `REGISTRY` is a frozen single-entry registry holding only
+    `fraudFlagStatusUpdateMutation` so the runner test path doesn't
+    pull in unrelated production mutations.
+
+- **Targeted checks** (CLAUDE.md TS rule):
+  - `cd peek && pnpm lint` ✅
+  - `cd peek && pnpm typecheck` ✅
+  - `cd peek && pnpm test --run` ✅ (81 files, 919/919 — +18 new
+    tests, no regressions; full suite green).
+
+- **Next**: `[engine] Scheduled future Dogpile cancellation mutation
+  with state guards (deny active/ended) and before/after audit.`
+## Iteration 148 — 2026-04-26T15:42:42Z — OK
+- **Log**: iteration-148.log
+
