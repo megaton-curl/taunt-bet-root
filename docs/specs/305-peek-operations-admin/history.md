@@ -4620,3 +4620,117 @@ of every iteration to understand prior context.
 ## Iteration 151 — 2026-04-26T19:24:46Z — OK
 - **Log**: iteration-151.log
 
+
+
+## Iteration 152 — 2026-04-26 — Mutation UI wiring
+
+- **Item**: `[frontend] Wire mutation UIs (KOL rate, fraud flag
+  status, Dogpile cancel, reward config edit) with old/new
+  confirmation, role-aware visibility, and rejection messaging.`
+
+- **Files added** (5):
+  - `peek/src/server/actions/peek-mutations.ts` — four
+    `"use server"` Next.js Server Actions
+    (`kolRateUpdateAction`, `fraudFlagStatusUpdateAction`,
+    `dogpileCancelAction`, `rewardConfigUpdateAction`) and the
+    shared `PeekMutationActionState` shape consumed by
+    `useActionState`. Each action resolves the verified actor
+    via `getPeekActorContext()`, reads the `x-request-id`
+    header, dispatches through `runPeekMutation` (so the
+    FR-2 role check + FR-14 audit pipeline runs identically
+    to a direct invocation), and `revalidatePath`s the source
+    admin route on success. Errors round-trip with their
+    runner reason (`unauthorized` / `invalid_input` /
+    `execution_failed` / ...) plus zod `fieldErrors`.
+  - `peek/src/components/mutations/mutation-feedback.tsx` —
+    pure presenter that maps `PeekMutationActionState` to
+    operator-friendly status / alert lines with reason-specific
+    copy and per-field error bullets.
+  - `peek/src/components/mutations/kol-rate-mutation-form.tsx` —
+    inline form with editable `wallet` + `rateBps` inputs,
+    `old: …` adjacent to each input for visual diff, and
+    submit button. Wires `useActionState(kolRateUpdateAction)`.
+  - `peek/src/components/mutations/fraud-flag-mutation-form.tsx`
+    — inline form whose `nextStatus` `<select>` exposes only
+    matrix-allowed transitions for the row's current status
+    (mirrors `FRAUD_FLAG_ALLOWED_TRANSITIONS`); renders
+    nothing when no transitions are admissible.
+  - `peek/src/components/mutations/dogpile-cancel-mutation-form.tsx`
+    — single-button form rendered only for rows whose status
+    is exactly `scheduled`; shows the implicit
+    `scheduled → cancelled` diff inline.
+  - `peek/src/components/mutations/reward-config-mutation-form.tsx`
+    — inline value editor with explicit confirmation checkbox
+    (FR-14: `confirm: literal(true)`); the submit button stays
+    disabled until the operator types a value that differs
+    from the current row and checks the confirmation box, so
+    the UI mirrors the engine's no-op rejection rule.
+
+- **Files modified** (7):
+  - `peek/src/components/growth-kol-table.tsx` — accepts
+    `canMutateKolRate` (default false). When true, appends an
+    "Edit rate" column rendering `KolRateMutationForm` per row.
+  - `peek/src/components/dogpile-events-table.tsx` — accepts
+    `canCancelDogpile` (default false). When true, appends a
+    "Cancel" column; non-`scheduled` rows render an empty cell.
+  - `peek/src/components/fraud-flags-table.tsx` — accepts
+    `canTransitionFraudFlag` (default false). When true,
+    appends a "Transition" column.
+  - `peek/src/components/reward-config-table.tsx` — accepts
+    `canEditRewardConfig` (default false) and `editableKeys`
+    (default `[]`). When admin and key is in the allowlist
+    (and `expectedType \!== "unknown"`), renders the edit form;
+    otherwise the cell is empty so an operator cannot submit
+    a request the engine would reject.
+  - `peek/app/growth/kol/page.tsx` — computes
+    `isActionAllowedForRole("kol_rate.update", actor.role)`
+    and threads it as `canMutateKolRate` into the table.
+  - `peek/app/operations/dogpile/page.tsx` — computes the
+    `dogpile.cancel` and `fraud_flag.status.update` admin
+    gates and threads them into both tables; lead/hint copy
+    updated to reflect mutation availability.
+  - `peek/app/economy/rewards/page.tsx` — computes
+    `reward_config.update` gate, imports
+    `PEEK_REWARD_CONFIG_EDITABLE_KEYS`, and threads both into
+    the table; reward-config hint copy updated.
+
+- **Design choices**:
+  - **Server-side gate is canonical**: `canMutate*` booleans
+    are computed at the page layer via `isActionAllowedForRole`
+    (server-only `PEEK_ACTION_RULES`). Tables receive the
+    boolean — they never re-derive role rules. The server
+    runner re-checks on dispatch, so even a tampered client
+    cannot bypass the gate; the prop is purely a visibility
+    optimization.
+  - **No-op disablement on reward_config**: `expectedType` and
+    the FR-14 allowlist are both checked at render time so the
+    operator UI cannot offer rows the engine would reject; the
+    submit button additionally disables on no-op input, mirroring
+    the runner's `noop_value` rule before sending.
+  - **Form parsing in actions, not in runner**: server actions
+    coerce `FormData` → typed shape (e.g. `rateBps` to number,
+    `confirm` to literal `true`) and hand it to
+    `runPeekMutation` raw so the same zod schema validates UI
+    and direct callers identically. Coercion failures still
+    reach the runner as `invalid_input` and emit the
+    `peek.change.rejected` audit row — the UI cannot silently
+    drop a failed change.
+  - **`revalidatePath` per route**: each action revalidates only
+    its own admin route (`/growth/kol`, `/operations/dogpile`,
+    `/economy/rewards`) so the post-mutation page reflects the
+    new DB state without a full reload.
+
+- **Targeted checks** (CLAUDE.md TS rule):
+  - `cd peek && pnpm lint` ✅
+  - `cd peek && pnpm typecheck` ✅
+  - `cd peek && pnpm test --run` ✅ (83 files, 968/968 — no
+    regressions; existing table tests still pass because the
+    new props default to false / `[]`).
+
+- **Next**: `[test] Mutation UI tests: authorized success,
+  denied actor hidden, validation error display, rejection
+  feedback.`
+## Iteration 152 — 2026-04-26 — OK
+## Iteration 152 — 2026-04-26T19:44:17Z — OK
+- **Log**: iteration-152.log
+
