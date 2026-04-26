@@ -7,7 +7,7 @@
 | Status | Ready |
 | Priority | P1 |
 | Track | Core |
-| NR_OF_TRIES | 105 |
+| NR_OF_TRIES | 106 |
 
 ---
 
@@ -550,7 +550,7 @@ Keep the implementation close to existing `peek` conventions and cheap to operat
 - [x] [test] `/audit` tests for role gating, filters, sensitive payload redaction at render time, empty/error. (done: iteration 105)
 
 #### Exports (FR-12)
-- [ ] [engine] Server-side CSV export helpers for approved filtered tables with required filters, server-side row caps, view-model field mapping, filename slug (entity + date + filter), and pre-return `peek.export` audit emission. Disabled in production when audit logging is unavailable.
+- [x] [engine] Server-side CSV export helpers for approved filtered tables with required filters, server-side row caps, view-model field mapping, filename slug (entity + date + filter), and pre-return `peek.export` audit emission. Disabled in production when audit logging is unavailable. (done: iteration 106)
 - [ ] [frontend] Wire export actions into approved growth/admin tables with disabled states + tooltip when audit logging is unavailable; export routes inherit page-level access.
 - [ ] [test] Export tests for required filters, row caps, filenames, role checks, audit events, and prod-disabled-without-audit-config behavior.
 

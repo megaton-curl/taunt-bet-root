@@ -3445,3 +3445,145 @@ of every iteration to understand prior context.
 ## Iteration 105 — 2026-04-26T07:32:18Z — OK
 - **Log**: iteration-105.log
 
+
+
+## Iteration 106 — 2026-04-26 — OK
+- **Item**: `[engine] Server-side CSV export helpers for approved filtered
+  tables with required filters, server-side row caps, view-model field
+  mapping, filename slug (entity + date + filter), and pre-return
+  peek.export audit emission. Disabled in production when audit logging is
+  unavailable.`
+
+- **Files added** (8) — new server-only `peek/src/server/exports/` module:
+
+  - `peek/src/server/exports/filename.ts` — `slugForFilename(value)` and
+    `buildPeekExportFilename({entity, date, filterSlug})`. Slug rules:
+    lowercased, anything outside `[a-z0-9_-]` collapses to `-`, repeated
+    dashes collapse, leading/trailing dashes trimmed. Filename pattern:
+    `peek-{entity}-{YYYY-MM-DD}[-{filterSlug}].csv`. Defensive fallbacks
+    for empty entity (`export`) and empty date (`undated`) so a malformed
+    input cannot produce `peek--.csv`.
+
+  - `peek/src/server/exports/csv.ts` — `serializePeekCsv(columns, rows)`
+    minimal RFC 4180 emitter. Header from `PeekTableColumn.label`, body
+    keyed by `column.id`. Quotes any field containing `,`, `"`, `\r`, or
+    `\n`; embedded `"` doubled. CRLF line endings + trailing CRLF for
+    Excel/Sheets compatibility.
+
+  - `peek/src/server/exports/registry.ts` — frozen registry keyed by
+    `PeekExportEntity`. `PeekExporterDefinition` per entity declares
+    `entity`, `resourceType`, `columns`, `maxRowsPerExport`,
+    `requireAtLeastOneFilter`, async `fetch({sql,rowCap,filters})`,
+    and `buildFilterSlug(filters)`. `getPeekExporter(entity, registry?)`
+    is the lookup. Three approved entities ship in this iteration:
+    `claims`, `referrers`, `kol` — the FR-7 line 301 list.
+
+  - `peek/src/server/exports/exporters/claims.ts` — referral-claims
+    exporter. `requireAtLeastOneFilter = true` (claims is the canonical
+    "filtered table" per FR-12 line 367 / FR-7 line 301). Reuses
+    `listReferralClaims` (filters: status / userId / minAmountLamports /
+    maxAmountLamports / requestedFrom / requestedTo / txSignature /
+    errorContains) and maps `PeekGrowthClaimRow` → flat
+    `Record<string,string>` for CSV. `maxRowsPerExport =
+    PEEK_GROWTH_CLAIMS_MAX_LIMIT` so the export cannot exceed what the
+    underlying query module is willing to surface in one shot. Filter
+    slug pulls the meaningful axes (status, user, tx, min/max, date
+    bounds) into a deterministic `_`-joined slug for the filename.
+
+  - `peek/src/server/exports/exporters/referrers.ts` — top-referrers
+    exporter. `requireAtLeastOneFilter = false` because the underlying
+    `listTopReferrers` is a bounded ranked list (orders by earnings DESC,
+    `PEEK_GROWTH_TOP_REFERRERS_MAX_LIMIT`) — not an unfiltered
+    full-table dump. `buildFilterSlug` returns `""` so the filename is
+    deterministically `peek-referrers-YYYY-MM-DD.csv`.
+
+  - `peek/src/server/exports/exporters/kol.ts` — KOL performance
+    exporter. Same bounded-ranked-list discipline as referrers
+    (`requireAtLeastOneFilter = false`, empty filter slug). Caps at
+    `PEEK_GROWTH_KOL_MAX_LIMIT`.
+
+  - `peek/src/server/exports/runner.ts` — `runPeekExport(input)`
+    orchestrator. Lifecycle:
+    1. Look up exporter; `unknown_entity` if missing.
+    2. `no_filters` if exporter requires one and none was supplied
+       (covers FR-12 "available only for filtered tables").
+    3. `audit_unavailable` when `NODE_ENV === "production"` and
+       `DATABASE_URL` is unset (covers FR-12 last bullet — exports
+       disabled in prod when audit logging is not configured).
+    4. Compute `effectiveCap = min(requested, exporter.maxRowsPerExport,
+       PEEK_EXPORT_ROW_CAP_DEFAULT)`; default when no cap given.
+    5. Run `exporter.fetch({sql, rowCap, filters})` to produce
+       `{rows, rowCapApplied}` (each exporter requests `rowCap+1` so the
+       cap-applied flag is honest, then trims to `rowCap`).
+    6. **Emit `peek.export` audit event BEFORE returning data**
+       (`actionId = "export.{entity}"`, `resourceType` from the
+       exporter, `filterSummary = "k=v, k=v"`, `resultCount =
+       rows.length`, `requestId` from actor). If audit insert fails
+       (writer returns `{ok:false, ...}`), runner refuses to return the
+       rows and surfaces `audit_emit_failed` so the caller never serves
+       data we could not record. FR-11 secret redaction is handled by
+       the existing audit writer (`redactPayload`) — the runner never
+       hand-rolls payload sanitation.
+    7. Build filename via `buildPeekExportFilename` and return
+       `PeekExportResult`.
+    Dependency-injectable: callers can pass `sql`, custom `registry`,
+    custom `auditWriter`, custom `env`, custom `now` for tests.
+
+  - `peek/src/server/exports/index.ts` — public re-exports:
+    `serializePeekCsv`, `buildPeekExportFilename`, `slugForFilename`,
+    registry helpers, and `runPeekExport` + types.
+
+- **Files modified** (0). No public types or backend OpenAPI changed
+  (System Invariant #9). All shapes consumed (`PeekExportEntity`,
+  `PeekExportRow`, `PeekExportFilenameInput`, `PeekExportResult`,
+  `PeekTableColumn`) were already declared in `lib/types/peek.ts`
+  during iteration 7's audit/export contract pass.
+
+- **Spec coverage** (against FR-12 acceptance criteria):
+  - **"Exports are available only for filtered tables, not for
+    unfiltered full-table dumps."** — `requireAtLeastOneFilter` per
+    exporter; `claims` requires one, `referrers`/`kol` are bounded
+    ranked lists.
+  - **"Each export has a server-side row cap."** — runner enforces
+    `min(requested, exporter.maxRowsPerExport,
+    PEEK_EXPORT_ROW_CAP_DEFAULT)`. Each exporter requests `rowCap+1` so
+    `rowCapApplied` is truthful when the source returns more.
+  - **"Each export logs a `peek.export` operator event before returning
+    data."** — runner emits via `writePeekAuditEvent` BEFORE building
+    the success result. Audit emit failure → `audit_emit_failed` →
+    rows never returned.
+  - **"Export rows use the same view model fields shown in the table
+    unless explicitly documented."** — each exporter's `columns` array
+    mirrors the table column ids; `fetch` calls the same query module
+    the page uses (`listReferralClaims`, `listTopReferrers`,
+    `listKolPerformance`).
+  - **"Export filenames include entity, date, and filter slug."** —
+    `buildPeekExportFilename` always emits `peek-{entity}-{date}` and
+    appends `-{filterSlug}` when present.
+  - **"Export routes require the same page-level access as the source
+    page."** — deferred to the next ([frontend]) iteration which will
+    place the export route under the matching `/growth/...` prefix
+    (FR-2 route policy already gates `/audit`; growth pages default to
+    business+admin per `PEEK_DEFAULT_ROUTE_ROLES`).
+  - **"Exports are disabled in production if audit logging is not
+    configured."** — `isPeekAuditConfigured(env)` checks
+    `DATABASE_URL`. In production with no `DATABASE_URL`, runner
+    returns `audit_unavailable` before any SQL or audit call.
+
+- **Targeted checks** (CLAUDE.md TS rule):
+  - `cd peek && pnpm typecheck` ✅
+  - `cd peek && pnpm lint` ✅ (no output)
+  - `cd peek && pnpm test --run` ✅ (73 files, 820/820 — no
+    regressions; export-specific tests land in the matching
+    `[test] Export tests for required filters, row caps, filenames,
+    role checks, audit events, and prod-disabled-without-audit-config
+    behavior` iteration).
+
+- **Next**: `[frontend] Wire export actions into approved
+  growth/admin tables with disabled states + tooltip when audit
+  logging is unavailable; export routes inherit page-level access.`
+## Iteration 106 — 2026-04-26T07:40:00Z — OK
+- **Log**: iteration-106.log
+## Iteration 106 — 2026-04-26T07:41:46Z — OK
+- **Log**: iteration-106.log
+
