@@ -3102,3 +3102,80 @@ of every iteration to understand prior context.
 ## Iteration 102 — 2026-04-26T07:10:18Z — OK
 - **Log**: iteration-102.log
 
+
+## Iteration 103 — 2026-04-26 — OK
+- **Item**: `[engine] Audit-log queries filtering operator_events by peek.*
+  event type, actor email, resource id, route, date; bounded.`
+
+- **Files added** (1):
+  - `peek/src/server/db/queries/get-audit-events.ts` — three exports backing
+    the upcoming `/audit` page.
+    - `listAuditEvents({ limit, filters })` — bounded SELECT over
+      `operator_events` filtered to `peek.*` events. Filter shape mirrors the
+      FR-11 spec line "filters by event type, actor email, resource id, route,
+      and date" via `PeekAuditFilters`. Limits clamp through the same helper
+      pattern as `get-event-queue.ts` (`PEEK_AUDIT_DEFAULT_LIMIT=100`,
+      `PEEK_AUDIT_MAX_LIMIT=500`, non-positive → 1, NaN → default). Each
+      filter binds via the `(${X === null} or oe.<col> = ${X ?? ""})` toggle so
+      empty filters bind 6 `true` sentinels rather than mutating SQL shape.
+      The `eventType` filter uses a two-toggle predicate: a known
+      `PeekAuditEventType` binds verbatim and disables the broad fallback,
+      while `null` (including unknown / stale-URL values normalized via
+      `coerceAuditEventTypeFilter`) drops back to `oe.event_type like
+      'peek.%'` so the audit view never accidentally surfaces non-peek
+      operator events. Actor-email matching is case-insensitive by lower-
+      casing both sides. Each row is filtered to known
+      `PeekAuditEventType` values and projected through `rehydratePayload`
+      which re-applies `redactNullableString` defensively.
+
+    - `getAuditOverview({ now, windowHours })` — bounded counts for the
+      FR-4 metric strip. One SQL `GROUP BY oe.event_type` over a sliding
+      window (`PEEK_AUDIT_OVERVIEW_WINDOW_HOURS=24`, clamped to ≤30 days);
+      result rows are projected to the full `PEEK_AUDIT_EVENT_TYPES` set so
+      a missing event type renders as a `0` row. Five `PeekMetric`s
+      (`audit.total_24h`, `audit.exports_24h`, `audit.access_denied_24h`,
+      `audit.changes_applied_24h`, `audit.changes_rejected_24h`) carry the
+      FR-4 metadata (`source: "operator_events"`, dynamic `windowLabel`,
+      `definition`, `freshness: "live"`, `drilldownHref` to `/audit` with
+      the matching `eventType` chip).
+
+    - Internal `coerceAuditEventTypeFilter` ensures a stale URL chip with a
+      non-`peek.*` value falls back to "any peek.*" rather than silently
+      hiding all rows.
+
+- **Files modified** (1):
+  - `peek/src/lib/types/peek.ts` — added `PeekAuditFilters`,
+    `PeekAuditEventTypeCount`, `PeekAuditOverviewMetricId`, and
+    `PeekAuditOverview` type contracts inline with the FR-11 audit-event
+    block. These are browser-safe view-model primitives; no SQL or server
+    imports leak through.
+
+- **Spec coverage** (against the spec line "Audit-log queries filtering
+  `operator_events` by `peek.*` event type, actor email, resource id, route,
+  date; bounded"):
+  - **peek.\* event type**: `eventType` filter with two-toggle SQL predicate;
+    unknown values fall back to the broad `like 'peek.%'` filter.
+  - **actor email**: `actorEmail` filter normalizes to lowercase, binds against
+    `lower(oe.payload->>'actorEmail')`.
+  - **resource id**: `resourceId` filter binds against `oe.payload->>'resourceId'`.
+  - **route**: `route` filter binds against `oe.payload->>'route'`.
+  - **date**: `createdFrom` / `createdTo` half-open window cast through
+    `::timestamptz`.
+  - **bounded**: `clampLimit` clamps to `[1, 500]` with `100` default.
+
+- **Read-only enforcement**: every SQL statement in the new module is a
+  SELECT over `operator_events`. No INSERT / UPDATE / DELETE — the audit
+  table is append-only by contract and the admin UI never edits it.
+
+- **Targeted checks** (CLAUDE.md TS rule):
+  - `cd peek && pnpm typecheck` ✅
+  - `cd peek && pnpm lint` ✅ (no output)
+  - `cd peek && pnpm test --run` ✅ (69 files, 756/756 — no regressions; new
+    query tests land in checklist line 550 "/audit tests for role gating,
+    filters, sensitive payload redaction at render time, empty/error").
+
+- **Next**: `[frontend] /audit page (admin-only via FR-2 page-level
+  allowlist), filters, bounded table, safe empty/error states.`
+## Iteration 103 — 2026-04-26T07:16:42Z — OK
+- **Log**: iteration-103.log
+

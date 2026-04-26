@@ -7,7 +7,7 @@
 | Status | Ready |
 | Priority | P1 |
 | Track | Core |
-| NR_OF_TRIES | 102 |
+| NR_OF_TRIES | 103 |
 
 ---
 
@@ -545,7 +545,7 @@ Keep the implementation close to existing `peek` conventions and cheap to operat
 - [x] [test] Queue query + page tests for pending, failed, dead, aged, filtered, redacted-payload states. (done: iteration 102)
 
 #### Audit view (FR-11)
-- [ ] [engine] Audit-log queries filtering `operator_events` by `peek.*` event type, actor email, resource id, route, date; bounded.
+- [x] [engine] Audit-log queries filtering `operator_events` by `peek.*` event type, actor email, resource id, route, date; bounded. (done: iteration 103)
 - [ ] [frontend] `/audit` page (admin-only via FR-2 page-level allowlist), filters, bounded table, safe empty/error states.
 - [ ] [test] `/audit` tests for role gating, filters, sensitive payload redaction at render time, empty/error.
 
