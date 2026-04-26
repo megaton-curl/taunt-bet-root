@@ -4052,3 +4052,95 @@ of every iteration to understand prior context.
 ## Iteration 145 — 2026-04-26T15:25:36Z — OK
 - **Log**: iteration-145.log
 
+
+
+## Iteration 146 — 2026-04-26 — KOL rate mutation tests
+
+- **Item**: `[test] KOL rate mutation tests: create, update, invalid
+  rate, unauthorized actor, audit payload.`
+
+- **Files added** (1):
+  - `peek/src/server/mutations/__tests__/kol-rate.test.ts` — 15 tests
+    grouped into three describes: `kolRateUpdateInputSchema` (8 schema
+    tests), `kolRateUpdateMutation definition` (1 wiring test), and
+    `kol_rate.update via runPeekMutation` (6 end-to-end tests using a
+    handcrafted `Sql` mock that emulates `sql.begin` and the tagged-
+    template SQL calls the mutation issues — `select ... for update`,
+    `insert`, and `update`).
+
+- **Test plan vs. checklist clauses**:
+  - **create**: "creates a row when no existing record matches userId
+    and emits an applied audit with full new state" — SELECT returns
+    [], INSERT is issued (no UPDATE), result.changes diff is the
+    create-shape `[wallet, rate_bps]` with `before:null`, INSERT
+    bind values are `[userId, wallet, rateBps, actor.email]`, audit
+    payload pins every FR-14 / FR-11 field.
+  - **update**: "updates an existing row, diffs only the fields that
+    actually changed, and skips set_by/updated_at in the audit diff" —
+    existing row with `wallet=X, rateBps=1000`; input keeps wallet,
+    bumps rate; UPDATE issued (no INSERT); diff is exactly
+    `[{ rate_bps, before:1000, after:1500 }]`; audit payload's
+    `changes` array does NOT contain `set_by` or `updated_at`. Plus
+    a no-op variant ("emits an applied audit with an empty diff when
+    the update is a no-op (same wallet + same rate)") proving the
+    audit payload still ships with `changes: []` rather than null.
+  - **invalid rate**: "rejects an invalid rateBps via the schema with
+    peek.change.rejected and never opens a transaction" — input has
+    `rateBps=10001`; runner returns
+    `{ ok:false, reason:"invalid_input" }`, `fieldErrors.rateBps`
+    populated, `sql.begin` was never called, and the only audit row
+    is `peek.change.rejected` with `rejectionReason:"invalid_input"`,
+    `actionId:"kol_rate.update"`, `resourceType:"referral_kol_rates"`,
+    and `changes:null`. Schema-only tests cover the rest of the
+    rate-validation acceptance: negative, non-integer, > 10000, and
+    boundary values 0 / 10000.
+  - **unauthorized actor**: "rejects an unauthorized actor role with
+    peek.change.rejected and never queries the DB" — overrides the
+    action rule to `[admin]` only, sends `actorRole: "business"`;
+    runner returns `{ ok:false, reason:"unauthorized" }`, no SQL
+    calls, audit row is `peek.change.rejected` with
+    `rejectionReason:"unauthorized"` and the resourceType is still
+    populated (the action exists in the registry — only the role
+    failed).
+  - **audit payload**: covered across the three tests above plus the
+    create-path payload assertion that pins every FR-11
+    `PeekAuditPayload` field (`actorEmail`, `route`, `actionId`,
+    `resourceType`, `resourceId`, `filterSummary`, `resultCount`,
+    `requestId`, `rejectionReason`, `changes`).
+  - **bonus**: a UNIQUE-collision rollback test ("rolls back and emits
+    peek.change.rejected when the INSERT collides with the wallet
+    UNIQUE constraint") proves the runner+mutation contract for the
+    `referral_kol_rates_wallet_key` collision path explicitly called
+    out in iteration 145's notes — INSERT throws → `sql.begin` rolls
+    back → runner returns `{ ok:false, reason:"execution_failed" }`
+    with the underlying message preserved → audit row is
+    `peek.change.rejected` with `rejectionReason` starting
+    `execution_failed: `.
+
+- **Mocking**:
+  - `createSqlMock({ existingRow, failOnInsert })` — tagged-template
+    `Sql` that classifies each call by the leading SQL keyword
+    (`select` / `insert` / `update`), returns `[existingRow]` or `[]`
+    for `select`, optionally rejects `insert` for the collision test,
+    and counts `begin` calls / sets `rolledBack` when its callback
+    throws. Tests inspect call values directly so the asserts read as
+    contract checks (e.g. `insertCall.values === [userId, wallet,
+    rateBps, actor.email]`).
+  - `createAuditWriter()` — captures every audit call's `eventType`,
+    `payload`, and which `Sql` was used (so tests can assert on-tx vs.
+    main-connection writes).
+  - `REGISTRY` is a frozen single-entry registry that contains only
+    `kolRateUpdateMutation`, mirroring the production `PEEK_MUTATIONS`
+    shape without the `unknown` widen the registry does internally.
+
+- **Targeted checks** (CLAUDE.md TS rule):
+  - `cd peek && pnpm lint` ✅
+  - `cd peek && pnpm typecheck` ✅
+  - `cd peek && pnpm test --run` ✅ (80 files, 901/901 — +15 new,
+    no regressions).
+
+- **Next**: `[engine] fraud_flags.status update mutation with allowed-
+  transition matrix and before/after audit.`
+## Iteration 146 — 2026-04-26T15:31:36Z — OK
+- **Log**: iteration-146.log
+
