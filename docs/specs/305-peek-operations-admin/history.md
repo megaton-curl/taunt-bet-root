@@ -4734,3 +4734,144 @@ of every iteration to understand prior context.
 ## Iteration 152 — 2026-04-26T19:44:17Z — OK
 - **Log**: iteration-152.log
 
+
+## Iteration 153 — 2026-04-26 — Mutation UI tests
+
+- **Item**: `[test] Mutation UI tests: authorized success, denied
+  actor hidden, validation error display, rejection feedback.`
+
+- **Files added** (5):
+  - `peek/src/components/mutations/__tests__/mutation-feedback.test.tsx`
+    — 13 tests pinning the pure presenter's state mapping: idle
+    renders nothing; ok surfaces the success label + optional
+    `(id <resourceId>)`; every `PeekMutationFailureReason` (and
+    the peek-mutations `no_actor` sentinel) maps to its
+    documented operator-friendly copy; missing reason falls back
+    to a generic line; `fieldErrors` render as a per-field
+    bulleted list (multi-error fields joined with `; `); empty
+    `fieldErrors` does not emit a stray `<ul>`.
+  - `peek/src/components/mutations/__tests__/kol-rate-mutation-form.test.tsx`
+    — 2 tests: authorized render shows the wallet + rate inputs
+    with `old: <current>` adjacency, hidden `userId` field
+    carries through, submit button labelled "Apply rate change"
+    starts enabled, idle feedback panel is silent;
+    pre-population regression covers a non-zero `rateBpsCurrent`.
+  - `peek/src/components/mutations/__tests__/fraud-flag-mutation-form.test.tsx`
+    — 5 tests: each in-matrix `currentStatus` (`open`,
+    `reviewed`, `dismissed`) exposes only the matrix-allowed
+    next statuses as `<option>` values; an unknown current
+    status renders nothing rather than expose a misleading
+    control; submit button starts enabled with the initial
+    label.
+  - `peek/src/components/mutations/__tests__/dogpile-cancel-mutation-form.test.tsx`
+    — 5 tests: `scheduled` row renders the form with the
+    `scheduled → cancelled` diff, hidden `eventId`, and the
+    cancel submit; `active` / `ended` / `cancelled` /
+    arbitrary-other rows all render nothing so the operator
+    cannot offer a request the runner would deny.
+  - `peek/src/components/mutations/__tests__/reward-config-mutation-form.test.tsx`
+    — 6 tests: initial render shows the value input
+    pre-populated with the current value, the unchecked
+    confirmation checkbox, the noop hint, and a disabled
+    submit button; typing a different value swaps the noop
+    hint for a `new:` diff but keeps submit disabled until
+    confirm is checked; confirming alone (no value change)
+    still disables submit (mirrors the runner's `noop_value`
+    rejection); changing value AND confirming enables submit;
+    ratio rows surface `inputMode="decimal"`; confirmation
+    copy mentions FR-14 so the operator understands the gate
+    is contractual.
+
+- **Files modified** (4 — extended existing table tests with
+  `canMutate*` column visibility coverage, no existing tests
+  removed):
+  - `peek/src/components/__tests__/growth-kol-table.test.tsx` —
+    added "denied actor hidden" (default props → no `Edit
+    rate` column, no mutation form rendered) and "authorized
+    success path" (`canMutateKolRate` → column header +
+    one form per row + `old: <wallet>` / `old: <rateBps>`
+    diffs pre-populated).
+  - `peek/src/components/__tests__/dogpile-events-table.test.tsx`
+    — added "denied actor hidden" and "authorized success
+    path" (`canCancelDogpile` → `Cancel` column header,
+    cancel form only on `scheduled` rows, the active / ended /
+    cancelled rows render an empty mutation cell).
+  - `peek/src/components/__tests__/fraud-flags-table.test.tsx`
+    — added "denied actor hidden" and "authorized success
+    path" (`canTransitionFraudFlag` → `Transition` column
+    header + per-row form whose `<select>` exposes only
+    matrix-allowed transitions; asserts the full `[from] →
+    [to[]]` mirroring matches `FRAUD_FLAG_ALLOWED_TRANSITIONS`).
+  - `peek/src/components/__tests__/reward-config-table.test.tsx`
+    — added "denied actor hidden", "authorized success path"
+    (`canEditRewardConfig` + `editableKeys` → form renders
+    only for rows in the allowlist with `expectedType !==
+    "unknown"`; non-allowlisted rows hide the form even
+    though the column header is shown), and "authorized
+    validation error display" (an authorized actor still sees
+    the unregistered-key warning when the row's
+    `expectedType` is `unknown`, and no form is offered).
+
+- **Coverage map** (per the checklist's four bullet points):
+  - **Authorized success** — `MutationFeedback ok` test +
+    table tests asserting the column appears with one form
+    per row when `canMutate*` is true, with values
+    pre-populated for visual diff.
+  - **Denied actor hidden** — table tests assert the column
+    header is absent and no form is rendered when
+    `canMutate*` defaults to false (mirrors the page-layer
+    `isActionAllowedForRole` gate).
+  - **Validation error display** — `MutationFeedback`
+    `fieldErrors` test renders a per-field bulleted list
+    with the `[field]: error1; error2` shape; `reward-config`
+    test additionally exercises the runtime no-op gate
+    (button stays disabled while value matches the current
+    value, mirroring the runner's `execution_failed:
+    noop_value` reject).
+  - **Rejection feedback** — `MutationFeedback` covers every
+    `PeekMutationFailureReason` (`unauthorized`,
+    `invalid_input`, `execution_failed`, `unknown_action`,
+    `audit_emit_failed`) plus the peek-mutations `no_actor`
+    sentinel; raw runner message is preserved beneath the
+    reason title; missing reason falls back to a generic
+    "Mutation failed." line.
+
+- **Design choices**:
+  - **Pure-presenter coverage instead of submission tests**:
+    `MutationFeedback` is the only feedback surface; testing
+    it directly with synthesized `PeekMutationActionState`
+    values pins every reason → copy mapping deterministically
+    without needing to spin up a server-action runner inside
+    jsdom (the action's `next/headers` / `next/cache` /
+    server mutation imports are not safe to invoke from a
+    component test).
+  - **Form-component tests focus on rendered structure** —
+    pre-population, hidden-field carry-through, conditional
+    visibility (FraudFlag / DogpileCancel render nothing for
+    non-admissible statuses), and the no-op + confirmation
+    gating on `RewardConfigMutationForm`. Submission paths
+    are already covered end-to-end in the FR-14 mutation
+    runner / per-mutation tests.
+  - **Existing read-only assertions stay green**: the
+    pre-existing "no edit affordances rendered" tests on
+    fraud-flags, dogpile, and reward-config still apply to
+    the unauthorized default (canMutate*=false). The new
+    authorized-path tests opt in via the prop, leaving the
+    unauthorized contract pinned.
+
+- **Targeted checks** (CLAUDE.md TS rule):
+  - `cd peek && pnpm lint` ✅
+  - `cd peek && pnpm typecheck` ✅
+  - `cd peek && pnpm test --run` ✅ (88 files, 1008/1008 —
+    +40 new mutation UI tests, no regressions; full peek
+    suite green).
+
+- **Next**: `[docs] Update peek/README.md with Cloudflare
+  Access (jose), local business/admin role policy, audit
+  behavior, exports, mutation rules, local dev identity
+  (PEEK_DEV_ACCESS_EMAIL), and verification commands.`
+
+
+## Iteration 153 — 2026-04-26T20:00:47Z — OK
+- **Log**: iteration-153.log
+

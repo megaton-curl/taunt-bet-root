@@ -7,7 +7,7 @@
 | Status | Ready |
 | Priority | P1 |
 | Track | Core |
-| NR_OF_TRIES | 152 |
+| NR_OF_TRIES | 153 |
 
 ---
 
@@ -566,7 +566,7 @@ Keep the implementation close to existing `peek` conventions and cheap to operat
 - [x] [engine] Selected `reward_config` edit mutation with key allowlist, value validation, explicit confirmation flag, and before/after audit. (done: iteration 151)
 - [x] [test] Reward config mutation tests: allowed key success, disallowed key denial, invalid value, missing confirmation, unauthorized actor, audit payload. (done: iteration 151)
 - [x] [frontend] Wire mutation UIs (KOL rate, fraud flag status, Dogpile cancel, reward config edit) with old/new confirmation, role-aware visibility, and rejection messaging. (done: iteration 152)
-- [ ] [test] Mutation UI tests: authorized success, denied actor hidden, validation error display, rejection feedback.
+- [x] [test] Mutation UI tests: authorized success, denied actor hidden, validation error display, rejection feedback. (done: iteration 153)
 
 #### Docs + verify
 - [ ] [docs] Update `peek/README.md` with Cloudflare Access (jose), local business/admin role policy, audit behavior, exports, mutation rules, local dev identity (`PEEK_DEV_ACCESS_EMAIL`), and verification commands.
