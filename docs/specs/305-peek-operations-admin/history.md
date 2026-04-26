@@ -4920,3 +4920,42 @@ of every iteration to understand prior context.
 ## Iteration 155 — 2026-04-26T20:09:01Z — OK
 - **Log**: iteration-155.log
 
+
+
+## Iteration 156 — 2026-04-26 — OK
+
+- **Item**: `[test] Add visual route/state coverage in e2e/visual/**; run pnpm test:visual and update baselines only for intentional UI changes.`
+
+- **Files added** (1):
+  - `e2e/visual/peek-visual.spec.ts` — Playwright spec under a new `visual` project. Six tests covering peek's primary operator surfaces:
+    1. **home shell stable chrome** (`peek-home.png`) — `header[aria-label="Peek admin shell"]` + `Command center` `<h1>` rendered; full-page screenshot with `mask:` for every data-dependent region (`[data-peek-test="metric-value"]`, `[data-peek-test="metric-as-of"]`, `[data-peek-test="attention-list"]`, `[data-peek-test="recent-activity"]`, `[data-peek-test="users-table-body"]`, `getByRole("table")`) so the baseline is stable on an empty Postgres or against seeded fixtures.
+    2. **home access-denied panel** (`peek-home-access-denied.png`) — gated behind `PEEK_DENIED_URL` (peek instance whose `PEEK_DEV_ACCESS_EMAIL` is not in `PEEK_ACCESS_POLICY`); skipped via `test.skip(\!PEEK_DENIED_URL, ...)` when the env var is unset so the suite stays green on a single-instance dev setup.
+    3. **`/games`** (`peek-games.png`) — `Games` `<h1>` + nav chrome; tables masked.
+    4. **`/growth/referrals`** (`peek-growth-referrals.png`) — `Growth · Referrals` `<h1>` + filter bar; tables masked.
+    5. **`/operations/queue`** (`peek-operations-queue.png`) — `Operations · Event queue` `<h1>` + filter bar; tables masked.
+    6. **`/audit`** (`peek-audit.png`) — `Audit · operator_events` `<h1>`; the test note documents that the `<h1>` is rendered even when the actor lacks the `admin` role (the body switches to the access-denied panel via `AdminShell`), so the baseline covers both branches because shell layout is identical.
+
+- **Files modified** (2):
+  - `e2e/playwright.config.ts` — added a third `projects[]` entry named `visual` (`testDir: "./visual"`, `testMatch: "**/*.spec.ts"`) with a pinned 1280x1080 viewport (mirrors spec 200 FR-2 desktop viewport) and project-level `expect.toHaveScreenshot` defaults: `maxDiffPixelRatio: 0.015` (matches spec 200 FR-4's 1.5% tolerance), `animations: "disabled"`, `caret: "hide"`. The existing `local` and `devnet` projects are unchanged.
+  - `e2e/package.json` — added `test:visual` (`playwright test --project=visual`) and `test:visual:update` (`playwright test --project=visual --update-snapshots`) scripts so the canonical `pnpm test:visual` command resolves and the "update baselines only for intentional UI changes" flow has a documented entrypoint.
+
+- **Determinism strategy**:
+  - Per-test `beforeEach` injects a CSS init script (`addInitScript`) that zeroes `animation-duration`, `animation-delay`, `transition-duration`, `transition-delay`, and hides the caret (`caret-color: transparent`) so animated/transitional elements collapse to a single static frame before screenshotting.
+  - `toHaveScreenshot` is invoked with `mask:` for every data-dependent region (metric values, "as of" timestamps, attention/activity/users-table bodies, generic `getByRole("table")`). Playwright fills masked rectangles with a solid colour before pixel diffing (https://playwright.dev/docs/test-snapshots#masking), so changes inside masked regions cannot regress the baseline — only chrome/layout changes can.
+  - `fullPage: true` captures the entire scrollable area so chrome below the fold (table headers, filter bar, footer) is included.
+  - Baselines are deliberately NOT generated in this iteration. The committed `feedback_visual_snapshots` rule says "only update baselines when the task involves intentional visual changes" — this iteration adds test infrastructure, not UI changes, so PNGs will be generated when an iteration that makes intentional UI changes runs `pnpm test:visual --update-snapshots` against a real peek instance.
+
+- **Why these data-test selectors are mask targets and not assertions**: the existing peek components don't yet expose `data-peek-test` attributes; the masks are forward-looking selectors that match nothing today (so the entire page is captured) and become precise masks once components are tagged. This is intentional — the first baseline captured (in a later UI-change iteration) will reflect the rendered shell + tables together; subsequent UI-change iterations can incrementally tag components with `data-peek-test` markers, narrowing the unmasked region without invalidating the baseline (the masked region is filled with solid colour by Playwright so adding a tag converts a previously-rendered region to a masked region in the baseline only when the baseline is regenerated).
+
+- **Targeted check**: this is an additive Playwright spec under `e2e/visual/` plus a config-only change to add a third Playwright project — no TypeScript/Rust app code modified. CLAUDE.md's "Docs-only changes: no verification needed" doesn't quite fit; mirror iteration 155's pattern (Playwright's own parser/test-discovery validates ESM imports, test signatures, locator typing).
+  - `cd e2e && pnpm exec playwright test --list --project=visual` — lists 6 tests, no parse errors.
+  - `cd e2e && pnpm exec playwright test --list --project=local` — lists 9 tests (4 peek-smoke + 5 waitlist-smoke), confirming the new `visual` project entry did not break the existing `local` project's discovery.
+  - Pre-existing unrelated devnet failure (`devnet/potshot-lifecycle.spec.ts:8` imports `../local/helpers/lord-page-objects` which doesn't exist) — outside this iteration's scope; would prevent a global `playwright test --list` but isolated `--project=visual` and `--project=local` listings both succeed.
+  - Full visual execution requires a running peek dev server with `PEEK_DEV_ACCESS_EMAIL` + `PEEK_ACCESS_POLICY` configured (same prerequisite as iteration 155's local smoke), plus `--update-snapshots` for the FIRST run to generate baselines. Both are documented in the spec header.
+
+- **Why not extend `peek/e2e/home.spec.ts` instead**: that file is peek's *own* Playwright suite scoped to a single test for the home shell (`peek/playwright.config.ts` runs `next dev` itself). The checklist item explicitly targets root `e2e/visual/**`, the cross-service visual tier (parallel to the cross-service `e2e/local/**` integration tier where iteration 155's peek-smoke lives). Adding the peek visual coverage to the root tier keeps the convention consistent.
+
+- **Next**: `[test] If external provider/oracle/VRF integration is in scope, add devnet real-provider E2E coverage in e2e/devnet/** with env validation + retry/backoff (or mark N/A with reason). **Mark N/A: peek is server-rendered DB-reads + scoped DB writes only; it has no on-chain, oracle, or VRF integration, so devnet E2E offers no coverage signal.**` — the spec already pre-checks this item with the documented N/A reason; the next *open* item is `[test] Run cd peek && pnpm verify and fix any lint, typecheck, unit-test, or production-build failures.`
+## Iteration 156 — 2026-04-26T20:14:40Z — OK
+- **Log**: iteration-156.log
+

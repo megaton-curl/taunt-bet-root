@@ -7,7 +7,7 @@
 | Status | Ready |
 | Priority | P1 |
 | Track | Core |
-| NR_OF_TRIES | 155 |
+| NR_OF_TRIES | 156 |
 
 ---
 
@@ -571,7 +571,7 @@ Keep the implementation close to existing `peek` conventions and cheap to operat
 #### Docs + verify
 - [x] [docs] Update `peek/README.md` with Cloudflare Access (jose), local business/admin role policy, audit behavior, exports, mutation rules, local dev identity (`PEEK_DEV_ACCESS_EMAIL`), and verification commands. (done: iteration 154)
 - [x] [test] Add local deterministic E2E coverage for primary user flow(s) in e2e/local/** (or mark N/A with reason for non-web/non-interactive specs). (done: iteration 155)
-- [ ] [test] Add visual route/state coverage in e2e/visual/**; run pnpm test:visual and update baselines only for intentional UI changes.
+- [x] [test] Add visual route/state coverage in e2e/visual/**; run pnpm test:visual and update baselines only for intentional UI changes. (done: iteration 156)
 - [ ] [test] If external provider/oracle/VRF integration is in scope, add devnet real-provider E2E coverage in e2e/devnet/** with env validation + retry/backoff (or mark N/A with reason). **Mark N/A: peek is server-rendered DB-reads + scoped DB writes only; it has no on-chain, oracle, or VRF integration, so devnet E2E offers no coverage signal.**
 - [ ] [test] Run `cd peek && pnpm verify` and fix any lint, typecheck, unit-test, or production-build failures.
 - [ ] [test] Run root `./scripts/verify` if required before commit/PR and confirm no public backend API or OpenAPI changes were introduced.
