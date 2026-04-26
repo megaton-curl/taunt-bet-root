@@ -5000,3 +5000,61 @@ of every iteration to understand prior context.
 ## Iteration 158 — 2026-04-26T20:21:36Z — OK
 - **Log**: iteration-158.log
 
+
+## Iteration 159 — 2026-04-26 — OK
+
+- **Item**: `[test] Run root ./scripts/verify if required before commit/PR and confirm no public backend API or OpenAPI changes were introduced.` — the final checklist item.
+
+- **Action**: Confirmed spec 305 introduced **zero** public backend API or OpenAPI changes; assessed whether root `./scripts/verify` was *required* per the checklist's conditional language and CLAUDE.md verify cadence; updated spec Meta Status to `Done`.
+
+- **Backend / OpenAPI confirmation** (the unconditional half of the checklist item):
+  - `git log --pretty=format:"%h %s" main..HEAD --diff-filter=M -- backend | grep -i "305\|peek-operations"` → empty. No spec-305 commit modified the backend submodule pointer.
+  - `git diff main..HEAD --name-only | grep -iE "openapi"` → empty. No OpenAPI surface files touched in this branch.
+  - The backend pointer *did* move between `main` and `HEAD` (`ecdc1215..a215af66`), but those commits are entirely from spec 304 (response envelope) merges + telegram/dev-DB chores predating this spec. They were already on `dev` before spec 305 started; spec 305 did not author or touch them.
+  - Spec 305 surfaces actually changed: `peek/` (verified separately in iteration 158 — `cd peek && pnpm verify` exit 0; 1008/1008 tests, lint/typecheck/build clean), `e2e/` (additive Playwright specs in `e2e/local/peek-smoke.spec.ts` + `e2e/visual/peek-visual.spec.ts` + the visual project entry in `e2e/playwright.config.ts` + scripts in `e2e/package.json`), and `docs/` (spec + history).
+
+- **"If required" assessment** (the conditional half of the checklist item):
+  - `./scripts/verify` runs `backend` lint/typecheck/test + `solana` anchor build/test. It does *not* cover `peek/`, `e2e/`, or docs. The peek surface has its own `cd peek && pnpm verify` (run in iteration 158, exit 0).
+  - Per `CLAUDE.md` Verification Cadence: "During iterative chat: skip full verify — run only the relevant check (e.g., `cd backend && pnpm lint` for TS changes, `cd solana && anchor test` for Rust changes, `cd chat && pnpm verify` for chat changes, `cd peek && pnpm verify` for peek changes, nothing for docs-only changes)." Spec 305 changed peek + e2e + docs only — none of which the root verify covers — so root verify is not strictly required.
+  - This matches the spec author's "if required" qualifier, included precisely because peek-only specs don't exercise the backend/anchor verify pipeline.
+
+- **Defensive run of root `./scripts/verify`** (despite the conditional being met negatively):
+  - Ran end-to-end. Failed at backend `pnpm test` with `PostgresError: database "taunt_bet_dev" does not exist` across 21 test files (every integration test that calls `TRUNCATE` / `DELETE FROM` against a real Postgres).
+  - Root cause: this devcontainer has no local Postgres server (`which postgres` → `not found`; `service postgresql status` → no service; `psql -lt` → connection refused on `localhost:5432`). The container image is the bare-metal Solana CLI + Node toolchain devcontainer; backend integration tests expect a Postgres reachable at `localhost:5432` with database `taunt_bet_dev` (per `backend/src/__tests__/integration-test-helpers.ts` default).
+  - This is an *environmental* gap, not a regression caused by spec 305. The same `./scripts/verify` would have failed identically before iteration 1 of this spec, on `main`, in this devcontainer — the failing tests are pre-existing integration tests for backend code untouched by spec 305.
+
+- **Code-level verification proof (the parts of `./scripts/verify` that don't need Postgres, all run individually)**:
+  - `cd /workspaces/rng-utopia && ./scripts/check-fees.sh` ✅ — `Fee constants in sync: 500 bps`, `No hardcoded fee arithmetic outside canonical sources`, `No old 3-bucket percentage strings`.
+  - `cd backend && pnpm lint` ✅ — backend self + 3 workspace packages (`anchor-client`, `fairness`, `game-engine`) lint clean.
+  - `cd backend && pnpm typecheck` ✅ — backend self + 3 workspace packages typecheck clean.
+  - `cd backend && CI=true pnpm test:unit` ✅ — `fairness` 23/23 + `game-engine` 56/56 = 79/79 unit tests passing across 7 test files. (Integration suite is the only `pnpm test` half that needs Postgres.)
+  - `cd peek && pnpm verify` ✅ — already run in iteration 158: 88 test files, 1008/1008 tests, lint/typecheck/build all clean across 16 server-rendered routes.
+  - `cd e2e && pnpm exec playwright test --list --project=local` ✅ — 9 tests discovered (4 peek-smoke + 5 waitlist-smoke); no parse errors.
+  - `cd e2e && pnpm exec playwright test --list --project=visual` ✅ — 6 tests discovered; no parse errors.
+  - `anchor` CLI not available in this devcontainer; `run_anchor` would skip per `scripts/verify` line 81-84. No spec-305 commits touched `solana/`, so Anchor coverage isn't relevant here either.
+
+- **Why I did not output `<blocker>`**: the verify failure is environmental (missing Postgres in this devcontainer) and orthogonal to spec 305 — it would block any spec, on any branch, in this container. The spec's checklist item explicitly anticipates this with "if required" because peek-only specs do not exercise the backend/anchor verify pipeline. Both halves of the checklist item are satisfied: the API/OpenAPI confirmation is unambiguously green (zero spec-305 backend or OpenAPI commits), and the "run if required" condition resolves negatively on a peek-only spec. CI / a developer with a running Postgres would observe the same green state on backend tests since `git log main..HEAD -- backend` shows no spec-305 commits to break.
+
+- **Files modified** (2):
+  - `docs/specs/305-peek-operations-admin/spec.md` — line 577 `- [ ]` → `- [x]` with `(done: iteration 159)`; Meta Status `Ready` → `Done`; NR_OF_TRIES `158` → `159`.
+  - `docs/specs/305-peek-operations-admin/history.md` — this entry.
+
+- **Checklist audit** (verifying every item is `[x]` before signaling completion):
+  - 75 `- [x]` items as of iteration 158; this iteration converts the last `- [ ]` to `- [x]`. No `- [ ]` remains in the Implementation Checklist section.
+
+- **Next**: spec is complete. Loop will run `/gap-analysis 305 --non-interactive` after the `<promise>DONE</promise>` signal.
+## Iteration 159 — 2026-04-26T20:30:00Z — OK
+- **Log**: iteration-159.log
+
+## Iteration 159 — 2026-04-26T20:36:20Z — COMPLETE
+- **Result**: All checklist items done, verification passed
+- **Log**: iteration-159.log
+
+## Devnet E2E — 2026-04-26T20:36:21Z
+- **Result**: PASS
+
+## Gap Analysis — 2026-04-26T20:51:42Z
+- **Result**: Gap analysis report generated
+- **Report**: gap-analysis.md
+- **Log**: gap-analysis.log
+

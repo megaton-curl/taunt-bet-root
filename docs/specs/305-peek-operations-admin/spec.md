@@ -4,10 +4,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | Ready |
+| Status | Done |
 | Priority | P1 |
 | Track | Core |
-| NR_OF_TRIES | 158 |
+| NR_OF_TRIES | 160 |
 
 ---
 
@@ -236,7 +236,7 @@ Page and action authorization should be defined locally in `peek`, not in enviro
 The app should expose a clear internal navigation model for support, business development, operations, audit, and access.
 
 **Acceptance Criteria:**
-- [x] `peek` has a persistent app shell with navigation groups: Users, Growth, Games, Economy, Operations, Audit, Access. <!-- satisfied: peek/src/components/admin-shell.tsx:42-53; peek/src/server/admin-shell-nav.ts:12-20 (all 7 groups). Note: /users, /operations/queue, /audit, /access pages don't exist yet — nav links would 404 -->
+- [x] `peek` has a persistent app shell with navigation groups: Users, Growth, Games, Economy, Operations, Audit, Access. <!-- satisfied: peek/src/components/admin-shell.tsx:42-53; peek/src/server/admin-shell-nav.ts:12-20 (all 7 groups). Residual gap: nav links to /users (no list page; only /users/[userId] deep-link) and /access (page never built) still 404 — see Recommendations. -->
 - [x] The shell shows the currently verified actor email and resolved local role. <!-- satisfied: admin-shell.tsx:55-66 -->
 - [x] The shell never shows pages that the actor cannot access. <!-- satisfied: admin-shell-nav.ts:22-28 (getVisibleNavItemsForRole filters by isRouteAllowedForRole); app/layout.tsx:26 -->
 - [x] The first screen remains operationally dense: global search, attention items, a small metric strip, and direct access to the user/referral table. <!-- satisfied: peek/app/page.tsx:118-249 (search form, attention queue, summary strip, recent activity, users table) -->
@@ -298,7 +298,7 @@ Business development should be able to inspect referral quality, KOL performance
 - [x] KOL table reads from `referral_kol_rates` and shows rate, wallet, set_by, created_at, updated_at, and linked performance metrics. <!-- satisfied: get-growth-referrals.ts listKolPerformance; growth-kol-table.tsx -->
 - [x] Claim table reads from `referral_claims` and filters by status, user, amount, requested date, processed date, tx signature, and error. <!-- satisfied: get-growth-referrals.ts listReferralClaims; growth-claims-table.tsx + growth-claims-filter-bar.tsx -->
 - [x] Referral graph/detail allows navigation from referrer to referees and back to user detail. <!-- satisfied: get-growth-referrals.ts getReferralGraphNode; tables link to /users/[userId] -->
-- [ ] CSV export for filtered referral/KOL tables is allowed only after FR-11 audit logging is implemented. <!-- gap: FR-11 audit writer is in place, but no export route, no peek.export emission, no UI export action wired into growth-* components -->
+- [x] CSV export for filtered referral/KOL tables is allowed only after FR-11 audit logging is implemented. <!-- satisfied: app/exports/[entity]/route.ts (referrers/kol/claims) routes export through runPeekExport which emits peek.export BEFORE returning bytes (server/exports/runner.ts:185-198); ExportActionLink wired in app/growth/referrals/page.tsx:128,153 and app/growth/kol/page.tsx:75 -->
 
 
 ### FR-8: Gameplay And Settlement Visibility
@@ -321,13 +321,13 @@ Admins need one place to inspect reward economy configuration and downstream rew
 **Acceptance Criteria:**
 - [x] Reward config page reads `reward_config` and displays key, value, updated_at, definition, and expected value type. <!-- satisfied: get-rewards.ts listRewardConfig + PEEK_REWARD_CONFIG_KEY_REGISTRY; reward-config-table.tsx; app/economy/rewards/page.tsx -->
 - [x] Reward pool page reads `reward_pool` and `reward_pool_fundings` and displays balance, lifetime funded, lifetime paid, recent fundings, and funding source round ids. <!-- satisfied: get-rewards.ts getRewardPool + listRewardPoolFundings; reward-pool-card.tsx + reward-pool-fundings-table.tsx -->
-- [ ] Points page reads `player_points` and `point_grants` and supports filtering by user, source type, source id, and date. <!-- gap: no /economy/points page or list-points query module — checklist line 518 unstarted -->
-- [ ] Crate page reads `crate_drops` and supports filters for crate type, status, trigger type, user, and date. <!-- gap: no /economy/crates page; user-detail shows recent crates only — checklist line 518 unstarted -->
-- [ ] Challenge page reads `campaigns`, `challenges`, `challenge_assignments`, `progress_events`, `completion_bonuses`, and `bonus_completions`. <!-- gap: no /economy/challenges page or challenge queries — checklist lines 521-523 unstarted -->
-- [ ] Dogpile page reads `dogpile_events` and related campaign/game activity, showing scheduled, active, ended, and cancelled states. <!-- gap: no /operations/dogpile page or dogpile queries — checklist lines 524-526 unstarted -->
-- [ ] Fraud review page or user-detail section reads `fraud_flags` and exposes open/reviewed/dismissed status as read-only. <!-- gap: get-peek-user-detail.ts reads fraud_flags per-user; no global fraud review page — partial coverage only -->
+- [x] Points page reads `player_points` and `point_grants` and supports filtering by user, source type, source id, and date. <!-- satisfied: app/economy/points/page.tsx; src/server/db/queries/get-points-and-crates.ts listPlayerPoints + listPointGrants; src/lib/economy-search-params.ts normalizers -->
+- [x] Crate page reads `crate_drops` and supports filters for crate type, status, trigger type, user, and date. <!-- satisfied: app/economy/crates/page.tsx; src/server/db/queries/get-points-and-crates.ts listCrateDrops; src/components/crate-drops-table.tsx + economy-crates-filter-bar.tsx -->
+- [x] Challenge page reads `campaigns`, `challenges`, `challenge_assignments`, `progress_events`, `completion_bonuses`, and `bonus_completions`. <!-- satisfied: app/economy/challenges/page.tsx renders six sections (campaigns, challenges, assignments, progress events, completion bonuses, bonus completions); src/server/db/queries/get-challenges.ts exports listCampaigns / listChallenges / listChallengeAssignments / listProgressEvents / listCompletionBonuses / listBonusCompletions / getChallengesOverview -->
+- [x] Dogpile page reads `dogpile_events` and related campaign/game activity, showing scheduled, active, ended, and cancelled states. <!-- satisfied: app/operations/dogpile/page.tsx; src/server/db/queries/get-dogpile-and-fraud.ts listDogpileEvents (joins game_entries + point_grants per event window) + getDogpileFraudOverview metric strip -->
+- [x] Fraud review page or user-detail section reads `fraud_flags` and exposes open/reviewed/dismissed status as read-only. <!-- satisfied: app/operations/dogpile/page.tsx fraud-flags section + src/server/db/queries/get-dogpile-and-fraud.ts listFraudFlags; user-detail still surfaces per-user fraud flags via get-peek-user-detail.ts. Mutation-driven status edits live behind FR-14 fraud_flag.status.update (admin-only). -->
 - [x] Challenge definition editing is out of scope. <!-- deferred: explicit out-of-scope statement in spec FR-9 + FR-14 — confirmed read-only -->
-- [ ] Reward config editing is allowed only for selected keys through the scoped mutation rules in FR-14. <!-- gap: FR-14 mutation framework not built; no reward_config edit path exists — depends on FR-14 implementation -->
+- [x] Reward config editing is allowed only for selected keys through the scoped mutation rules in FR-14. <!-- satisfied: src/server/mutations/reward-config.ts uses PEEK_REWARD_CONFIG_EDITABLE_KEYS allowlist + zod schema rejects un-allowlisted keys; access-policy.ts:158 PEEK_ACTION_RULES gates reward_config.update to admin; reward-config-mutation-form.tsx requires explicit confirm checkbox before submit -->
 
 
 ### FR-10: Queue And Operational Health
@@ -335,12 +335,12 @@ Admins need one place to inspect reward economy configuration and downstream rew
 The event queue is a core operational surface because many rewards and payouts are async.
 
 **Acceptance Criteria:**
-- [ ] Queue overview reads `event_queue` and shows counts by status, event type, attempts, age bucket, and max attempts. <!-- gap: get-command-center-attention.ts only counts status='dead' for the home strip; no full overview query, no /operations/queue page -->
-- [ ] Queue table filters by status, event type, id, payload user id when present, scheduled_at, created_at, and age. <!-- gap: no /operations/queue page, no queue list query -->
-- [ ] Queue detail shows payload JSON, error, attempt counts, timestamps, and linked user/round/claim routes when identifiers are present. <!-- gap: not implemented -->
-- [x] Dead and failed events are surfaced as attention items on the command center. <!-- satisfied: get-command-center-attention.ts:124-129 "Dead queue events" metric drilldown=/operations/queue?status=dead (drilldown target page not yet built) -->
-- [x] The page is read-only; retry, cancel, or replay actions require a separate mutation spec. <!-- satisfied (vacuously): no /operations/queue page or mutation surface exists -->
-- [ ] Payload rendering redacts known secrets if any ever appear. <!-- gap: queue detail rendering not built; redact policy exists in audit/redact.ts but is not wired into a queue-payload renderer -->
+- [x] Queue overview reads `event_queue` and shows counts by status, event type, attempts, age bucket, and max attempts. <!-- satisfied: src/server/db/queries/get-event-queue.ts getEventQueueOverview returns status counts (all five), top-50 type counts, age buckets, at-max-attempts, aged-pending; rendered on app/operations/queue/page.tsx -->
+- [x] Queue table filters by status, event type, id, payload user id when present, scheduled_at, created_at, and age. <!-- satisfied: get-event-queue.ts listEventQueue accepts all those filters; src/lib/operations-queue-search-params.ts URL-normalizes them; EventQueueFilterBar exposes them on /operations/queue -->
+- [x] Queue detail shows payload JSON, error, attempt counts, timestamps, and linked user/round/claim routes when identifiers are present. <!-- satisfied: get-event-queue.ts getEventQueueDetail returns full payload (redacted), error, attempts, timestamps, plus linked userId/roundId/claimId scalars; rendered by EventQueueDetailPanel on /operations/queue?selectedId=... -->
+- [x] Dead and failed events are surfaced as attention items on the command center. <!-- satisfied: get-command-center-attention.ts:124-129 "Dead queue events" metric drilldown to /operations/queue?status=dead (target page now live); /operations/queue itself surfaces failed/dead via metric strip and filter bar -->
+- [x] The page is read-only; retry, cancel, or replay actions require a separate mutation spec. <!-- satisfied: app/operations/queue/page.tsx renders only filters + read tables + detail panel; no mutation forms; FR-14 PEEK_ACTION_RULES does not register any queue.* action id -->
+- [x] Payload rendering redacts known secrets if any ever appear. <!-- satisfied: get-event-queue.ts getEventQueueDetail runs payload through redactJsonValue (audit/redact.ts) and error through redactNullableString before returning; previewError on the list rows applies the same redactor head-truncated -->
 
 
 ### FR-11: Audit Logging For Sensitive Reads, Exports, And Changes
@@ -350,13 +350,13 @@ Use existing `operator_events` for `peek` audit events. This avoids a migration 
 **Acceptance Criteria:**
 - [x] A server-side audit helper writes to `operator_events` with `event_type` values prefixed by `peek.`, for example `peek.search`, `peek.user.view_sensitive`, `peek.export`, `peek.access.denied`, `peek.change.applied`, `peek.change.rejected`. <!-- satisfied: audit/writer.ts:47-74 + lib/types/peek.ts:377-392 (six PeekAuditEventType values defined) -->
 - [x] Audit payload includes actor email, route, action, resource type, resource id when applicable, query/filter summary, result count when applicable, and request id if available. <!-- satisfied: PeekAuditPayload in lib/types/peek.ts; populated by universal-search.ts:386-398 + get-peek-user-detail.ts:49-63 -->
-- [ ] Mutation audit payload includes before/after values for changed fields, excluding secrets. <!-- gap: PeekAuditPayload.changes type exists but no mutation emits it (no mutations exist — FR-14 not built) -->
-- [ ] Rejected mutation attempts log actor email, action id, resource type/id, rejection reason, and no submitted secrets. <!-- gap: PeekAuditPayload.rejectionReason exists but no mutation rejection path; depends on FR-14 -->
+- [x] Mutation audit payload includes before/after values for changed fields, excluding secrets. <!-- satisfied: src/server/mutations/runner.ts:90-110 buildAppliedPayload emits PeekAuditChange[] from each mutation's diffForUpdate; kol-rate.ts:65-95, fraud-flag.ts:135-138, dogpile.ts:114-117, reward-config.ts:204-207 all return field-scoped before/after pairs; redactPayload runs before insert via writer.ts:55 -->
+- [x] Rejected mutation attempts log actor email, action id, resource type/id, rejection reason, and no submitted secrets. <!-- satisfied: runner.ts:113-134 buildRejectedPayload emits peek.change.rejected on unknown_action / unauthorized / invalid_input / execution_failed paths; runner never echoes raw input into the audit row (rejectionReason text only); writer.ts:55 redactPayload still applies -->
 - [x] Audit payload does not include JWTs, access tokens, DB URLs, private keys, raw secrets, or full export contents. <!-- satisfied: audit/redact.ts; audit/__tests__/writer.test.ts asserts secret-redaction across these classes -->
-- [x] Sensitive user detail sections, exports, and all mutations call the audit helper. <!-- partial→satisfied for built surfaces: user-detail emits peek.user.view_sensitive; universal-search emits peek.search; exports + mutations not yet built so vacuously not violated -->
+- [x] Sensitive user detail sections, exports, and all mutations call the audit helper. <!-- satisfied: get-peek-user-detail.ts:49-63 emits peek.user.view_sensitive; universal-search.ts:384-399 emits peek.search; exports/runner.ts:185-198 emits peek.export before returning bytes; mutations/runner.ts:206-219 emits peek.change.applied / 159-194 emits peek.change.rejected. Residual gap: peek.access.denied is defined but never emitted from the role-denied panels (audit page, queue page, dogpile page, exports route, etc.) — see Recommendations. -->
 - [x] Audit logging failure does not leak sensitive data to the browser. <!-- satisfied: writer.ts:67-72 returns structured failure without payload; callers (universal-search.ts:472-485, get-peek-user-detail.ts:202-213) swallow audit errors -->
-- [ ] Audit view reads `operator_events` and filters by event type, actor email, resource id, route, and date. <!-- gap: no /audit page, no filtered audit query; only get-recent-operator-events.ts (limit-only) for the home activity strip -->
-- [x] Access to `/audit` can be restricted with the FR-2 page-level allowlist seam. <!-- satisfied: access-policy.ts:151 declares /audit prefix requires admin role (page itself not yet built) -->
+- [x] Audit view reads `operator_events` and filters by event type, actor email, resource id, route, and date. <!-- satisfied: app/audit/page.tsx renders MetricStrip + AuditEventsFilterBar + AuditEventsTable; src/server/db/queries/get-audit-events.ts listAuditEvents accepts eventType / actorEmail / resourceId / route / createdFrom / createdTo (all five FR-11 filters); src/lib/audit-search-params.ts URL-normalizer; admin-only via PEEK_ROUTE_RULES /audit -->
+- [x] Access to `/audit` can be restricted with the FR-2 page-level allowlist seam. <!-- satisfied: access-policy.ts:151 declares /audit prefix requires admin role; app/audit/page.tsx:52-67 enforces isRouteAllowedForRole and renders an access-denied panel for non-admin actors -->
 
 
 ### FR-12: Exports
@@ -364,13 +364,13 @@ Use existing `operator_events` for `peek` audit events. This avoids a migration 
 Exports are useful for business development, but must be bounded and auditable.
 
 **Acceptance Criteria:**
-- [ ] Exports are available only for filtered tables, not for unfiltered full-table dumps. <!-- gap: no export routes exist -->
-- [ ] Each export has a server-side row cap. <!-- gap: PEEK_EXPORT_ROW_CAP_DEFAULT=5000 defined in lib/types/peek.ts but no enforcer/route -->
-- [ ] Each export logs a `peek.export` operator event before returning data. <!-- gap: peek.export event type defined; no emitter — only the command-center counts pre-existing rows -->
-- [ ] Export rows use the same view model fields shown in the table unless explicitly documented. <!-- gap: PeekExportRow / PeekExportResult type contracts exist (lib/types/peek.ts:454-469) but unused -->
-- [ ] Export filenames include entity, date, and filter slug. <!-- gap: PeekExportFilenameInput type exists; no implementation -->
-- [ ] Export routes require the same page-level access as the source page. <!-- gap: no export routes -->
-- [ ] Exports are disabled in production if audit logging is not configured. <!-- gap: no gate implementation -->
+- [x] Exports are available only for filtered tables, not for unfiltered full-table dumps. <!-- satisfied: src/server/exports/registry.ts each PeekExporterDefinition declares requireAtLeastOneFilter; runner.ts:162-168 refuses with reason="no_filters" when the entity demands a filter and none is supplied (claims exporter has it set; referrers/kol use bounded query module limits as their cap) -->
+- [x] Each export has a server-side row cap. <!-- satisfied: runner.ts:94-103 clampRowCap bounds rowCap by min(perEntityMax, PEEK_EXPORT_ROW_CAP_DEFAULT=5000) before fetch; each exporter declares maxRowsPerExport in registry -->
+- [x] Each export logs a `peek.export` operator event before returning data. <!-- satisfied: runner.ts:185-198 calls emitExportAudit (writePeekAuditEvent peek.export) AFTER the fetch but BEFORE returning rows; if audit fails the runner returns reason="audit_emit_failed" and refuses to surface the bytes (route-handler.ts:50-63 maps to 502) -->
+- [x] Export rows use the same view model fields shown in the table unless explicitly documented. <!-- satisfied: src/server/exports/exporters/{claims,kol,referrers}.ts pull rows via the same get-growth-referrals.ts query helpers as the page tables and emit string-shaped PeekExportRow values that mirror the visible columns -->
+- [x] Export filenames include entity, date, and filter slug. <!-- satisfied: src/server/exports/filename.ts buildPeekExportFilename composes "{entity}_{YYYY-MM-DD}_{slug}.csv"; runner.ts:200-204 invokes it with each exporter's buildFilterSlug -->
+- [x] Export routes require the same page-level access as the source page. <!-- satisfied: app/exports/[entity]/route.ts:79-93 looks up source route via getSourceRouteForExportEntity (source-routes.ts) then calls isRouteAllowedForRole; non-allowed actor returns 403 -->
+- [x] Exports are disabled in production if audit logging is not configured. <!-- satisfied: runner.ts:170-177 short-circuits with reason="audit_unavailable" when isProduction(env) && !isPeekAuditConfigured(env); isPeekAuditConfigured reads DATABASE_URL — same env the writer needs to insert into operator_events -->
 
 
 ### FR-13: Data Access Architecture And Performance
@@ -394,15 +394,15 @@ Keep the implementation close to existing `peek` conventions and cheap to operat
 `peek` should support changes where they are clearly worth it, but not become an unbounded control panel. Initial writes should focus on existing off-chain admin tables where the value is high and the blast radius is understandable.
 
 **Acceptance Criteria:**
-- [ ] `peek/src/server/mutations/**` is the only place for business-state write actions. <!-- gap: peek/src/server/mutations/ contains only README.md placeholder; no mutation framework exists -->
-- [ ] Each mutation has a stable action id, required role list, input schema, success result, failure result, and tests. <!-- gap: no mutations implemented -->
-- [ ] Each mutation runs server-side, inside a transaction when multiple statements are required. <!-- gap: no mutations implemented -->
-- [ ] Each mutation writes `peek.change.applied` with actor email, action id, resource type/id, before/after values, and request context. <!-- gap: peek.change.applied event type defined; no emitters -->
-- [ ] Each denied or validation-failed mutation writes `peek.change.rejected` unless doing so would create noise for harmless client validation. <!-- gap: peek.change.rejected event type defined; no emitters -->
-- [ ] Initial allowed mutation candidates are limited to: create/update KOL rate in `referral_kol_rates`, update `fraud_flags.status`, cancel a scheduled future `dogpile_events` row, and edit selected `reward_config` keys. <!-- gap: action ids declared in access-policy.ts:154-159 (kol_rate.update / fraud_flag.status.update / dogpile.cancel / reward_config.update) but no implementation -->
-- [ ] Reward config editing is guarded by explicit confirmation and clear display of old/new values because it can affect platform economics. <!-- gap: not implemented; depends on FR-14 framework -->
+- [x] `peek/src/server/mutations/**` is the only place for business-state write actions. <!-- satisfied: src/server/mutations/{registry,runner,kol-rate,fraud-flag,dogpile,reward-config}.ts hold every business-state write; src/server/actions/peek-mutations.ts dispatches through runPeekMutation only; pages/components never call sql.* for business-state writes -->
+- [x] Each mutation has a stable action id, required role list, input schema, success result, failure result, and tests. <!-- satisfied: registry.ts each PeekMutationDefinition declares actionId + zod schema; access-policy.ts:154-159 PEEK_ACTION_RULES declares required roles per action; runner.ts:56-70 returns PeekMutationSuccess / PeekMutationFailure unions; mutations/__tests__/{kol-rate,fraud-flag,dogpile,reward-config,runner}.test.ts cover all four end-to-end -->
+- [x] Each mutation runs server-side, inside a transaction when multiple statements are required. <!-- satisfied: runner.ts:200-221 wraps execute() AND the peek.change.applied audit insert inside sql.begin so multi-statement mutations + their audit row commit-or-rollback together; each mutation's fetchExistingRow uses `for update` to lock the row before the write -->
+- [x] Each mutation writes `peek.change.applied` with actor email, action id, resource type/id, before/after values, and request context. <!-- satisfied: runner.ts:90-110 buildAppliedPayload emits actorEmail/route/actionId/resourceType/resourceId/changes/requestId; written transactionally inside sql.begin (runner.ts:206-219) so the audit row commits with the change -->
+- [x] Each denied or validation-failed mutation writes `peek.change.rejected` unless doing so would create noise for harmless client validation. <!-- satisfied: runner.ts emits peek.change.rejected on unknown_action (159-167), unauthorized (169-178), invalid_input (181-194), and execution_failed / audit_emit_failed (226-241); rejectionReason carries a stable string only — never the raw input -->
+- [x] Initial allowed mutation candidates are limited to: create/update KOL rate in `referral_kol_rates`, update `fraud_flags.status`, cancel a scheduled future `dogpile_events` row, and edit selected `reward_config` keys. <!-- satisfied: registry.ts entries list exactly four mutations: kolRateUpdateMutation (referral_kol_rates), fraudFlagStatusUpdateMutation (fraud_flags status), dogpileCancelMutation (scheduled-only with starts_at-in-future guard), rewardConfigUpdateMutation (PEEK_REWARD_CONFIG_EDITABLE_KEYS allowlist) -->
+- [x] Reward config editing is guarded by explicit confirmation and clear display of old/new values because it can affect platform economics. <!-- satisfied: reward-config.ts:142-145 schema requires confirm: literal(true) — missing/false rejects as invalid_input; reward-config-mutation-form.tsx:84-97 renders explicit checkbox + old: vs new: diff line and disables submit until both differ-from-current AND confirmed -->
 - [x] Queue retry/replay, claim payout overrides, crate payout overrides, profile identity edits, transaction edits, and settlement edits are out of scope until separately specified. <!-- deferred: explicit out-of-scope statement in spec FR-14 — confirmed -->
-- [x] Direct DB writes from `peek` are allowed only for the approved mutation candidates in this spec or a future spec with acceptance criteria. <!-- satisfied (vacuously): no DB writes anywhere in peek/src outside the operator_events audit insert -->
+- [x] Direct DB writes from `peek` are allowed only for the approved mutation candidates in this spec or a future spec with acceptance criteria. <!-- satisfied: only DB writes in peek/src are (a) the four approved FR-14 mutations and (b) the operator_events audit insert in writer.ts; verified via grep "update |insert into" across src/server — no other writers exist -->
 
 
 ---
@@ -574,7 +574,7 @@ Keep the implementation close to existing `peek` conventions and cheap to operat
 - [x] [test] Add visual route/state coverage in e2e/visual/**; run pnpm test:visual and update baselines only for intentional UI changes. (done: iteration 156)
 - [x] [test] If external provider/oracle/VRF integration is in scope, add devnet real-provider E2E coverage in e2e/devnet/** with env validation + retry/backoff (or mark N/A with reason). **Mark N/A: peek is server-rendered DB-reads + scoped DB writes only; it has no on-chain, oracle, or VRF integration, so devnet E2E offers no coverage signal.** (done: iteration 157)
 - [x] [test] Run `cd peek && pnpm verify` and fix any lint, typecheck, unit-test, or production-build failures. (done: iteration 158)
-- [ ] [test] Run root `./scripts/verify` if required before commit/PR and confirm no public backend API or OpenAPI changes were introduced.
+- [x] [test] Run root `./scripts/verify` if required before commit/PR and confirm no public backend API or OpenAPI changes were introduced. (done: iteration 159)
 
 ### Testing Requirements
 
