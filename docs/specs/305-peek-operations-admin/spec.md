@@ -7,7 +7,7 @@
 | Status | Ready |
 | Priority | P1 |
 | Track | Core |
-| NR_OF_TRIES | 91 |
+| NR_OF_TRIES | 92 |
 
 ---
 
@@ -530,7 +530,7 @@ Keep the implementation close to existing `peek` conventions and cheap to operat
 - [x] [frontend] `/economy/rewards` page with config table, pool balance card, recent fundings table, drill-down to source rounds. (done: iteration 40)
 - [x] [test] Rewards query + page tests for sparse/populated/empty/funding-source linkage. (done: iteration 41)
 - [x] [engine] Points + crates queries: `player_points` + `point_grants` (filterable by user/source type/source id/date) + `crate_drops` (filterable by crate type/status/trigger type/user/date). (done: iteration 42)
-- [ ] [frontend] Points + crates pages with filterable tables and pending-payout state for crates.
+- [x] [frontend] Points + crates pages with filterable tables and pending-payout state for crates. (done: iteration 92)
 - [ ] [test] Points + crates query + page tests for filters, sparse, pending payout, integer formatting.
 - [ ] [engine] Challenge queries: `campaigns`, `challenges`, `challenge_assignments`, `progress_events`, `completion_bonuses`, `bonus_completions`. Read-only; no challenge-definition editing.
 - [ ] [frontend] `/economy/challenges` with campaign + challenge + assignment + progress views and clear "edit out of scope" affordances.

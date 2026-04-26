@@ -2277,6 +2277,38 @@ of every iteration to understand prior context.
 ## Iteration 91 — 2026-04-25T15:23:24Z — OK
 - **Log**: iteration-091.log
 
-## Iteration 92 — 2026-04-25T15:23:27Z — BLOCKED
-- **Blocker**: Max iterations (50) reached in this run. Review spec and history, then re-run.
+## Iteration 92 — 2026-04-26 — OK
+- **Item**: `[frontend] Points + crates pages with filterable tables and pending-payout state for crates.`
+- **Files**:
+  - `peek/app/economy/crates/page.tsx` — new server-rendered route. Mirrors
+    the `/economy/rewards` and `/economy/points` pattern: role gate via
+    `getPeekActorContext` + `isRouteAllowedForRole`, force-dynamic, reads
+    `crateUserId` / `crateType` / `crateStatus` / `crateTriggerType` /
+    `crateFrom` / `crateTo` from URL search params via the existing
+    `normalizeCrateDropFiltersFromSearchParams`, calls
+    `listCrateDrops({ filters })`, and composes
+    `EconomyCratesFilterBar` + `CrateDropsTable`.
+- **Pending-payout state**: already implemented in
+  `crate-drops-table.tsx`: `status === 'pending' && crateType === 'sol'`
+  rows render with the negative-tone "pending · payout" status chip and a
+  red row tint, with the points-pending case staying info-toned because
+  it is an off-chain ledger update rather than an on-chain transfer.
+  Wiring the page in is what was missing.
+- **Components reused (no new components written)**: `CrateDropsTable`,
+  `EconomyCratesFilterBar`, and the `normalizeCrateDropFiltersFromSearchParams`
+  helper were all added in iteration 43 alongside the points page; only
+  the route file was missing.
+- **Targeted check (peek)**: `pnpm typecheck` ✅, `pnpm lint` ✅, `pnpm test
+  --run` ✅ (410/410, no regressions). Next FR-9 checklist item is the
+  matching test pair: points + crates query + page tests for filters,
+  sparse, pending payout, integer formatting.
+- **Iterations 43–91 note**: marked OK in this history but produced no
+  code changes (rate-limit "out of extra usage" responses with no commits
+  in `peek/`). Iteration 43 was the last real peek commit and shipped
+  the `/economy/points` page + crates components used here. Iteration 92
+  finally wires up the crates route they were waiting for.
+- **Log**: iteration-092.log
+
+## Iteration 92 — 2026-04-26T05:49:26Z — OK
+- **Log**: iteration-092.log
 
