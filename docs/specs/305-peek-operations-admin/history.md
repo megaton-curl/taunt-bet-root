@@ -4875,3 +4875,18 @@ of every iteration to understand prior context.
 ## Iteration 153 — 2026-04-26T20:00:47Z — OK
 - **Log**: iteration-153.log
 
+
+
+## Iteration 154 — 2026-04-26 — OK
+
+- **Item**: `[docs] Update peek/README.md with Cloudflare Access (jose), local business/admin role policy, audit behavior, exports, mutation rules, local dev identity (PEEK_DEV_ACCESS_EMAIL), and verification commands.`
+
+- **Files modified** (1):
+  - `peek/README.md` — replaced the 303-era waitlist/referral admin description with a full FR-1 → FR-14 operator-admin reference covering: scope ("internal operations admin for users, growth/referrals, games, economy, queue, dogpile, fraud review, audit, and exports"); required env (`DATABASE_URL`, `CF_ACCESS_TEAM_DOMAIN`, `CF_ACCESS_AUD`); optional env (`PEEK_ACCESS_POLICY`, `PEEK_DEV_ACCESS_EMAIL`, `PEEK_DEFAULT_PAGE_SIZE`, `PEEK_DB_CONNECT_TIMEOUT_SECONDS`); Cloudflare Access (jose) (`createRemoteJWKSet` + `jwtVerify`, RS256, issuer/audience/expiration validation, `x-peek-verified-access-email` server-only header, browser header strip, `403` on missing/invalid token); local roles (FR-2) (`business`/`admin`, exact email + `*@domain` wildcard, case-insensitive, admin precedence, `/audit` → admin only, `PEEK_ACTION_RULES` listing every approved action id and required role); local dev identity (`PEEK_DEV_ACCESS_EMAIL` only honored when `NODE_ENV=development`, ignored in production builds); audit behavior (FR-11) (six `peek.*` event types; payload shape; secret redaction via `peek/src/server/audit/redact.ts`; safe-failure semantics); exports (FR-12) (filtered tables only, per-entity row cap bounded by `PEEK_EXPORT_ROW_CAP_DEFAULT=5000`, deterministic filenames, audit-before-rows ordering, prod-disabled-without-audit-config gate, page-level access inheritance); mutation rules (FR-14) (`peek/src/server/mutations/**` registry, action-id role check, zod input schema, transactional `sql.begin(...)` wrap, before/after audit, four approved candidates listed, explicit out-of-scope set); commands (`dev`, `build`, `start`, `typecheck`, `test`, `test:e2e`, `verify` with run-before-commit/PR cadence); explicit "no devnet E2E coverage" rationale ("server-rendered Postgres reads + scoped DB writes only; no on-chain, oracle, or VRF integration"); deploy (existing `.do/app-dev.yaml` / `.do/app-prod.yaml` flow + the explicit env-var checklist for the deployed environment).
+
+- **Targeted check**: docs-only change, no lint/typecheck/test required per project rules ("Docs-only changes: no verification needed" — `CLAUDE.md` Verification Cadence + Definition of Done #1).
+
+- **Next**: `[test] Add local deterministic E2E coverage for primary user flow(s) in e2e/local/** (or mark N/A with reason for non-web/non-interactive specs).`
+## Iteration 154 — 2026-04-26T20:03:53Z — OK
+- **Log**: iteration-154.log
+
