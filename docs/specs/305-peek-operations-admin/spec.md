@@ -7,7 +7,7 @@
 | Status | Ready |
 | Priority | P1 |
 | Track | Core |
-| NR_OF_TRIES | 97 |
+| NR_OF_TRIES | 98 |
 
 ---
 
@@ -536,7 +536,7 @@ Keep the implementation close to existing `peek` conventions and cheap to operat
 - [x] [frontend] `/economy/challenges` with campaign + challenge + assignment + progress views and clear "edit out of scope" affordances. (done: iteration 95)
 - [x] [test] Challenge page tests for read-only guarantees, filters, sparse data, status transitions. (done: iteration 96)
 - [x] [engine] Dogpile + fraud queries: `dogpile_events` (scheduled/active/ended/cancelled with linked campaigns/game_entries/point_grants) + `fraud_flags` (open/reviewed/dismissed read-only). (done: iteration 97)
-- [ ] [frontend] `/operations/dogpile` (lifecycle + participation) and fraud review surface (page or user-detail section).
+- [x] [frontend] `/operations/dogpile` (lifecycle + participation) and fraud review surface (page or user-detail section). (done: iteration 98)
 - [ ] [test] Dogpile + fraud query + page tests for state transitions, sparse, and read-only enforcement.
 
 #### Queue (FR-10)

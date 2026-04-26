@@ -2616,3 +2616,68 @@ of every iteration to understand prior context.
 ## Iteration 97 — 2026-04-26T06:27:25Z — OK
 - **Log**: iteration-097.log
 
+
+
+## Iteration 98 — 2026-04-26 — OK
+- **Item**: `[frontend] /operations/dogpile (lifecycle + participation) and fraud review surface (page or user-detail section).`
+- **Files added** (5):
+  - `peek/app/operations/dogpile/page.tsx` — server-rendered page
+    composing the FR-4 metric strip + dogpile-events section + fraud-flags
+    review section. Mirrors the `/economy/challenges` orchestration:
+    `getPeekActorContext` → `isRouteAllowedForRole` → 2 normalisers →
+    overview + 2 list queries → existing tables + filter bars. Each
+    section calls out the read-only boundary in operator-facing copy and
+    cross-references the FR-14 mutation action ids
+    (`dogpile.cancel`, `fraud_flag.status.update`).
+  - `peek/src/lib/operations-dogpile-search-params.ts` — URL-addressable
+    filter normalisers for the two prefixed param groups
+    (`dogpFilter*` for dogpile events, `fraudFilter*` for fraud flags).
+    Empty / whitespace → null; allowlisted enum values pass through;
+    unknown enum values normalise to null so a stale URL chip cannot lie
+    about the filter state. Reuses `PEEK_DOGPILE_STATUSES` from
+    `lib/types/peek.ts` and declares `PEEK_FRAUD_FLAG_STATUSES`
+    (`open` / `reviewed` / `dismissed`) to match the migration-011
+    CHECK constraint.
+  - `peek/src/components/operations-dogpile-filter-bar.tsx` — two
+    GET-style forms posting back to `/operations/dogpile`. Shared style
+    block matches the `economy-challenges-filter-bar.tsx` pattern; date
+    inputs slice to `YYYY-MM-DD`; status selects expose only the
+    allowlisted values.
+  - `peek/src/components/dogpile-events-table.tsx` — read-only dense
+    table over `PeekDogpileEventRow`. Status chip tones:
+    `scheduled = info`, `active = positive`, `ended = neutral`,
+    `cancelled = warning`. Multiplier rendered as `2.5×` (column already
+    text from the NUMERIC(4,2) round-trip). Game-entries and
+    point-grants counts use `toLocaleString` for thousands separators.
+    Empty + error states match the rest of the FR-4 table primitives.
+  - `peek/src/components/fraud-flags-table.tsx` — read-only review
+    table over `PeekFraudFlagListRow`. Status chip tones:
+    `open = warning`, `reviewed = info`, `dismissed = neutral`. Username
+    cell links to `/users/[userId]` with the userId fallback when the
+    profile join is sparse. JSONB `details` column round-trips verbatim
+    via `JSON.stringify(..., null, 2)` inside a constrained `<pre>`
+    block so the operator can paste the full body into a paste bin.
+- **Read-only guarantee**: no buttons, mutations, or form actions besides
+  the GET filter forms — every dogpile or fraud-flag write still lives
+  behind the FR-14 `dogpile.cancel` and `fraud_flag.status.update` action
+  ids (declared in `peek/src/server/access-policy.ts:154-159` but
+  unimplemented).
+- **Auth handling**: page checks `getPeekActorContext()` then
+  `isRouteAllowedForRole("/operations/dogpile", role)`. Unknown route
+  prefix falls through to the default rule (any resolved peek role —
+  `business` or `admin`) per System Invariant #6, matching the existing
+  `/economy/*` and `/games/*` pages. The `Operations` nav item already
+  points to `/operations/queue`, which is unbuilt; this page exposes
+  itself via the FR-4 drilldown links from the dogpile metrics
+  (`/operations/dogpile?status=…`) defined in iteration 97's
+  `getDogpileFraudOverview`.
+- **Targeted checks** (CLAUDE.md TS rule):
+  - `cd peek && pnpm typecheck` ✅
+  - `cd peek && pnpm lint` ✅
+  - `cd peek && pnpm test --run` ✅ (59 files, 605/605, no regressions)
+- **Next**: matching test pair (`Dogpile + fraud query + page tests for
+  state transitions, sparse, and read-only enforcement`).
+- **Log**: iteration-098.log
+## Iteration 98 — 2026-04-26T06:33:19Z — OK
+- **Log**: iteration-098.log
+
