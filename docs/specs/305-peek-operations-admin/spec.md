@@ -7,7 +7,7 @@
 | Status | Ready |
 | Priority | P1 |
 | Track | Core |
-| NR_OF_TRIES | 141 |
+| NR_OF_TRIES | 142 |
 
 ---
 
@@ -552,7 +552,7 @@ Keep the implementation close to existing `peek` conventions and cheap to operat
 #### Exports (FR-12)
 - [x] [engine] Server-side CSV export helpers for approved filtered tables with required filters, server-side row caps, view-model field mapping, filename slug (entity + date + filter), and pre-return `peek.export` audit emission. Disabled in production when audit logging is unavailable. (done: iteration 106)
 - [x] [frontend] Wire export actions into approved growth/admin tables with disabled states + tooltip when audit logging is unavailable; export routes inherit page-level access. (done: iteration 107)
-- [ ] [test] Export tests for required filters, row caps, filenames, role checks, audit events, and prod-disabled-without-audit-config behavior.
+- [x] [test] Export tests for required filters, row caps, filenames, role checks, audit events, and prod-disabled-without-audit-config behavior. (done: iteration 142)
 
 #### Mutations (FR-14)
 - [ ] [engine] Mutation framework under `peek/src/server/mutations/**`: action-id registry, role-check, input schema, transaction handling for multi-statement mutations, typed success/failure results, audit hooks for `peek.change.applied` / `peek.change.rejected`.

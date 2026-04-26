@@ -3794,3 +3794,95 @@ of every iteration to understand prior context.
 ## Iteration 142 — 2026-04-26T08:01:25Z — BLOCKED
 - **Blocker**: Max iterations (50) reached in this run. Review spec and history, then re-run.
 
+## Iteration 142 — 2026-04-26 (resumed)
+
+- **Item**: `[test] Export tests for required filters, row caps,
+  filenames, role checks, audit events, and prod-disabled-without-audit-config
+  behavior.`
+
+- **Status**: The five export test files were authored in earlier
+  iterations (csv/filename/runner/route-handler/source-routes) but had
+  not been validated against `pnpm verify`. Two latent failures and
+  three latent typecheck errors blocked the checklist item from being
+  closed.
+
+- **Test files exercised**:
+  - `peek/src/server/exports/__tests__/runner.test.ts` (23 tests)
+    — required filters, row caps, filename composition, audit
+    emission ordering, audit insert failure, unknown entity,
+    production audit gate.
+  - `peek/src/server/exports/__tests__/route-handler.test.ts` (14
+    tests) — entity validation, role checks via `PEEK_EXPORT_SOURCE_ROUTES`
+    + `isRouteAllowedForRole`, filter forwarding, runner failure
+    mapping (404/400/503/502), CSV success response.
+  - `peek/src/server/exports/__tests__/filename.test.ts` (11 tests)
+    — slug shape, filename composition, fallback segments.
+  - `peek/src/server/exports/__tests__/csv.test.ts` (4 tests).
+  - `peek/src/server/exports/__tests__/source-routes.test.ts` (3
+    tests).
+
+- **Files modified** (1):
+  - `peek/src/server/exports/__tests__/runner.test.ts`
+    — replaced an `undefined` filter value with `null` (the
+    `PeekExporterFilters` shape is `Record<string, string | null>`,
+    `undefined` was a TS error not a runtime concern); pinned the
+    inline `audit` mock return to `{ ok: true as const }` so it
+    satisfies the `PeekAuditWriteResult` discriminated union; added
+    explicit `NODE_ENV` and `as NodeJS.ProcessEnv` casts to the
+    `isPeekAuditConfigured` test envs to satisfy the strict
+    `NodeJS.ProcessEnv` index signature without changing the
+    function's runtime behavior.
+  - `peek/src/server/exports/__tests__/filename.test.ts` —
+    corrected two assertions to match the shipped behavior of
+    `slugForFilename`: the implementation only collapses repeated
+    *dashes* (not underscores) and trims leading/trailing dashes
+    *after* the unsafe-character pass. The failing tests
+    expected behavior the implementation never had:
+    `"---a   b___c---"` → `"a-b___c"` (not `"a-b_c"` — underscores
+    are preserved); `"café-µ"` → `"caf"` (not `"caf-"` — the
+    trailing dash from the stripped `µ` is trimmed). The
+    implementation's behavior is intentional and documented in
+    the file header ("collapse repeated dashes; trim leading/trailing
+    dashes"), so the fix is on the test side.
+
+- **Spec coverage** (against the FR-12 acceptance criteria for the
+  test iteration):
+  - **"required filters"** — `runner.test.ts > required filters`
+    covers `requireAtLeastOneFilter=true` rejection, all-empty
+    filter rejection, single non-empty value success, and bounded
+    ranked-list exporter (`requireAtLeastOneFilter=false`).
+  - **"row caps"** — `runner.test.ts > row caps` covers global
+    default cap, per-entity ceiling clamp, smaller caller-supplied
+    cap, invalid `rowCap` (NaN/0/negative) fallback, and the
+    `rowCapApplied` truthiness flag.
+  - **"filenames"** — `runner.test.ts > filename` +
+    `filename.test.ts` cover entity/date/filter composition, empty
+    slug omission, fallback segments, and unsafe-character slugging.
+  - **"role checks"** — `route-handler.test.ts > role check`
+    covers missing actor (403), role-cannot-reach-source-page
+    (403), and inherited page-level access (success).
+  - **"audit events"** — `runner.test.ts > audit events` covers
+    `peek.export` payload shape (actor, action id, route, filter
+    summary, result count), `[fetch, audit]` ordering (audit before
+    return), `audit_emit_failed` refusal to ship rows, and
+    `filterSummary=null` for filterless ranked exports.
+  - **"prod-disabled-without-audit-config"** —
+    `runner.test.ts > production audit gate` covers
+    `audit_unavailable` in production with missing/empty
+    `DATABASE_URL`, success in production with configured
+    `DATABASE_URL`, and non-production permissive behavior.
+    `isPeekAuditConfigured` directly tested at the bottom of the
+    file.
+
+- **Targeted checks** (CLAUDE.md TS rule):
+  - `cd peek && pnpm lint` ✅
+  - `cd peek && pnpm typecheck` ✅
+  - `cd peek && pnpm test --run` ✅ (78 files, 875/875).
+
+- **Next**: `[engine] Mutation framework under
+  peek/src/server/mutations/** ...` (FR-14 mutation framework
+  iteration).
+
+## Iteration 142 — 2026-04-26T15:05:31Z — OK
+- **Log**: iteration-142.log
+
