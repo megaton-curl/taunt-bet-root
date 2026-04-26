@@ -4306,3 +4306,76 @@ of every iteration to understand prior context.
 ## Iteration 148 — 2026-04-26T15:42:42Z — OK
 - **Log**: iteration-148.log
 
+
+
+## Iteration 149 — 2026-04-26 — Dogpile cancellation mutation
+
+- **Item**: `[engine] Scheduled future Dogpile cancellation mutation with
+  state guards (deny active/ended) and before/after audit.`
+
+- **Files added** (1):
+  - `peek/src/server/mutations/dogpile.ts` — third concrete FR-14
+    mutation. Definition `dogpileCancelMutation` with
+    `actionId="dogpile.cancel"`, `resourceType="dogpile_events"`, a
+    strict zod input schema (`eventId` trimmed text matching
+    `^[0-9]+$`), and an `execute` that runs inside the runner-supplied
+    transactional `Sql` (`SELECT ... FOR UPDATE`, status guard,
+    starts-in-future guard, then `UPDATE` to `cancelled`).
+
+- **Files modified** (2):
+  - `peek/src/server/mutations/registry.ts` — registered
+    `dogpileCancelMutation` in `entries`; updated leading comment to
+    note that dogpile cancel has now landed (reward config edit
+    remains).
+  - `peek/src/server/mutations/index.ts` — re-exported
+    `DOGPILE_EVENT_STATUSES`, `dogpileCancelInputSchema`,
+    `dogpileCancelMutation`, `DogpileCancelInput`, and
+    `DogpileEventStatus` so future UI/route iterations import from a
+    single public surface.
+
+- **FR-14 coverage** for this checklist item:
+  - **"Scheduled future Dogpile cancellation mutation"** —
+    `executeDogpileCancel` performs an `UPDATE dogpile_events SET
+    status='cancelled' WHERE id::text = ${eventId}`. No row is ever
+    inserted; unknown ids fail closed via a thrown `unknown_event:`
+    error that the runner classifies as `execution_failed` and emits
+    as `peek.change.rejected`.
+  - **"state guards (deny active/ended)"** — the guard runs after the
+    `SELECT ... FOR UPDATE` and before the `UPDATE`, so a denied
+    cancellation never mutates the row. Three denial paths:
+      - `active`/`ended`/`cancelled` -> thrown error
+        `invalid_status: <current>` -> `execution_failed:
+        invalid_status: <current>` (`cancelled` is rejected because
+        cancelling an already-cancelled row is a no-op and FR-14 audit
+        rows must reflect a real movement).
+      - row status is still `scheduled` but `starts_at <= now()` ->
+        thrown error `starts_at_in_past` -> `execution_failed:
+        starts_at_in_past`. This closes the "scheduled" promotion
+        race: the worker that flips `scheduled` -> `active` runs out
+        of band, so admins should not be able to win that race by
+        hand.
+      - unknown id -> `execution_failed: unknown_event: <id>`.
+  - **"before/after audit"** — the mutation returns
+    `[{ field: "status", before: "scheduled", after: "cancelled" }]`
+    so the runner-emitted `peek.change.applied` payload's `changes`
+    array pins both ends of the state movement.
+  - **Authorization** — `dogpile.cancel` is admin-only per the FR-2
+    `PEEK_ACTION_RULES` rule already declared in
+    `peek/src/server/access-policy.ts:157`. The runner enforces this
+    before `execute` is called, so a non-admin actor sees
+    `peek.change.rejected` with `rejectionReason: "unauthorized"` and
+    no SQL is issued.
+
+- **Targeted checks** (CLAUDE.md TS rule):
+  - `cd peek && pnpm lint` ✅
+  - `cd peek && pnpm typecheck` ✅
+  - `cd peek && pnpm test --run` ✅ (81 files, 919/919 — no
+    regressions; dedicated mutation tests land in the next iteration
+    "[test] Dogpile cancellation tests").
+
+- **Next**: `[test] Dogpile cancellation tests: scheduled success,
+  active/ended denial, unknown event, unauthorized actor, audit
+  payload.`
+## Iteration 149 — 2026-04-26T15:47:16Z — OK
+- **Log**: iteration-149.log
+
