@@ -3587,3 +3587,105 @@ of every iteration to understand prior context.
 ## Iteration 106 — 2026-04-26T07:41:46Z — OK
 - **Log**: iteration-106.log
 
+
+## Iteration 107 — 2026-04-26
+
+- **Item**: `[frontend] Wire export actions into approved growth/admin
+  tables with disabled states + tooltip when audit logging is
+  unavailable; export routes inherit page-level access.`
+
+- **Files added** (4):
+  - `peek/app/exports/[entity]/route.ts` — Next.js Route Handler that
+    resolves the verified actor, looks up the per-entity source page
+    via `PEEK_EXPORT_SOURCE_ROUTES`, refuses when the role cannot
+    reach that source page (FR-12 "Export routes require the same
+    page-level access as the source page."), forwards URL search
+    params verbatim as exporter filters, delegates to
+    `runPeekExport`, and streams CSV with deterministic
+    `Content-Disposition: attachment; filename="..."` and
+    `Cache-Control: no-store`. Failure-mode → status mapping:
+    `unknown_entity → 404`, `no_filters → 400`,
+    `audit_unavailable → 503`, `audit_emit_failed → 502`. The handler
+    never bypasses the audit gate — the runner emits `peek.export`
+    BEFORE rows are returned, so an unrecorded export cannot leak.
+  - `peek/src/server/exports/source-routes.ts` — server-only entity →
+    source-route map (`PEEK_EXPORT_SOURCE_ROUTES` /
+    `getSourceRouteForExportEntity`). Currently wires `referrers`,
+    `kol`, and `claims` to their `/growth/...` source pages; entities
+    declared in `PeekExportEntity` whose pages are not yet built
+    (`users`, `rounds`, `transactions`, `queue`, `audit`) are mapped
+    to `null` so the route handler fails closed with 404.
+  - `peek/src/lib/export-href.ts` — `buildExportHref(entity, filters)`
+    browser-safe URL builder that drops null/empty filter values and
+    yields a stable query string. Page-level filter state passes
+    straight through because `PeekReferralClaimFilters` already uses
+    the exporter's expected key names (`status`, `userId`,
+    `minAmountLamports`, etc.).
+  - `peek/src/components/export-action-link.tsx` — `<ExportActionLink>`
+    primitive: enabled state renders an `<a download>` with the export
+    href; disabled state renders a `role="button" aria-disabled="true"`
+    span with a `title` tooltip explaining why exports are off
+    (audit-unavailable copy is the default; pages can override the
+    reason — used for "apply at least one filter" on the claims
+    export). Component never builds the URL itself, so the access /
+    audit gate stays on the server.
+
+- **Files modified** (3):
+  - `peek/src/server/exports/index.ts` — re-export
+    `PEEK_EXPORT_SOURCE_ROUTES` and `getSourceRouteForExportEntity`
+    so route handlers can resolve the entity → source page mapping
+    via the public surface.
+  - `peek/app/growth/referrals/page.tsx` — wired `<ExportActionLink>`
+    next to **Top referrers** (`buildExportHref("referrers")`) and
+    **Referral claims** (`buildExportHref("claims", filters)`), using
+    the existing page-level filter state. Computes
+    `exportsEnabled = NODE_ENV \!== "production" || isPeekAuditConfigured()`
+    so the disabled tooltip mirrors the runner's production gate.
+    Claims export additionally requires at least one applied filter
+    (mirrors `CLAIMS_EXPORTER.requireAtLeastOneFilter`); when no
+    filters are present the link is disabled with the
+    "Apply at least one claims filter" reason instead of letting the
+    runner reject the request server-side. Top referrers / KOL stay
+    enabled with no filter requirement because they ride bounded
+    ranked-list queries (`requireAtLeastOneFilter = false`).
+  - `peek/app/growth/kol/page.tsx` — wired `<ExportActionLink>` next
+    to the KOL rates table (`buildExportHref("kol")`) with the same
+    `exportsEnabled` gate. KOL export needs no filter requirement
+    because the underlying `listKolPerformance` is already bounded.
+
+- **Spec coverage** (against FR-12 acceptance criteria for this
+  iteration's scope):
+  - **"Export routes require the same page-level access as the source
+    page."** — route handler reads the entity's source route from
+    `PEEK_EXPORT_SOURCE_ROUTES` and runs `isRouteAllowedForRole`
+    against the verified actor; mismatched roles get 403. Currently
+    `/growth/...` pages default to `["business", "admin"]` per
+    `PEEK_DEFAULT_ROUTE_ROLES`, so any resolved peek role can hit
+    those exports — same gate as the page itself.
+  - **"Exports are available only for filtered tables, not for
+    unfiltered full-table dumps."** — the claims action UI is
+    disabled until at least one filter is set (mirrors the runner's
+    `no_filters` rejection); the runner is still authoritative for
+    bypass attempts (a hand-crafted URL hitting `/exports/claims`
+    with no filters returns 400).
+  - **"Exports are disabled in production if audit logging is not
+    configured."** — pages now compute `exportsEnabled` so the UI
+    shows the disabled affordance + tooltip in prod-without-audit;
+    the runner remains the authoritative server-side gate
+    (`audit_unavailable → 503` if a stale enabled link is followed).
+  - **"Each export logs a `peek.export` operator event before
+    returning data."** — already satisfied by the runner; the new
+    route handler delegates without bypassing.
+
+- **Targeted checks** (CLAUDE.md TS rule):
+  - `cd peek && pnpm typecheck` ✅
+  - `cd peek && pnpm lint` ✅ (no output)
+  - `cd peek && pnpm test --run` ✅ (73 files, 820/820 — no
+    regressions; export route + UI tests land in the matching
+    `[test] Export tests` iteration).
+
+- **Next**: `[test] Export tests for required filters, row caps,
+  filenames, role checks, audit events, and prod-disabled-without-audit-config behavior.`
+## Iteration 107 — 2026-04-26T07:50:05Z — OK
+- **Log**: iteration-107.log
+
