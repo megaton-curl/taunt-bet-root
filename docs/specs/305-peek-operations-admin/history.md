@@ -2858,3 +2858,127 @@ of every iteration to understand prior context.
 ## Iteration 100 — 2026-04-26T06:52:40Z — OK
 - **Log**: iteration-100.log
 
+
+
+
+
+## Iteration 101 — 2026-04-26 — OK
+- **Item**: `[frontend] /operations/queue with overview + filters + detail
+  panel + redacted payload rendering + dead/failed attention links.`
+- **Files added** (4):
+  - `peek/app/operations/queue/page.tsx` — server-rendered admin page.
+    Calls `getPeekActorContext()` then `isRouteAllowedForRole()`; renders
+    access-denied without leaking the verified email when the role gate
+    rejects. Composes `MetricStrip` (FR-4) over the six FR-10 metrics
+    (`queue.pending` / `queue.processing` / `queue.failed` / `queue.dead`
+    / `queue.at_max_attempts` / `queue.aged_pending`) returned by
+    `getEventQueueOverview`. The `failed` and `dead` metrics carry the
+    drilldown hrefs `?status=failed` / `?status=dead` (FR-10 attention
+    links). A status / type / age-bucket breakdown panel surfaces the
+    full status distribution (so an operator sees a 0 row for an absent
+    state instead of a missing one) and the top 50 event types by
+    frequency. The filtered list uses `EventQueueFilterBar` +
+    `EventQueueTable`; the side-by-side `EventQueueDetailPanel` resolves
+    only when `?selectedId=<id>` is on the URL — otherwise it renders a
+    "Select a row id" hint. All three error paths (overview / list /
+    detail) catch their own thrown errors and render isolated error
+    cards so a single failing query never blanks the page.
+  - `peek/src/lib/operations-queue-search-params.ts` — URL-addressable
+    filter normaliser. Exports
+    `normalizeEventQueueFiltersFromSearchParams` (one filter group:
+    `queueFilter*` for status / event type / id / payload user id /
+    scheduled+created [from, to) windows / age bucket) and
+    `readSelectedQueueIdFromSearchParams` (drives the detail panel).
+    Allowlist-narrowing applies to `status` (against
+    `PEEK_EVENT_QUEUE_STATUSES`) and `ageBucket` (against the bucket
+    ids) so a stale URL chip cannot lie about the table's state. Empty /
+    whitespace values normalise to `null`. The
+    `PEEK_EVENT_QUEUE_FILTER_PARAM_NAMES` map exposes the prefix tokens
+    for tests + future shareable-link helpers without duplicating the
+    literals.
+  - `peek/src/components/event-queue-filter-bar.tsx` — URL-addressable
+    filter form. Status + age bucket render as `<select>` over the
+    canonical enum sets exported from `lib/types/peek.ts`; date pickers
+    truncate ISO timestamps to `YYYY-MM-DD`. `selectedId` is
+    intentionally **not** rendered as a hidden input so submitting the
+    filter form clears the detail panel rather than reopening the same
+    row repeatedly.
+  - `peek/src/components/event-queue-table.tsx` — read-only dense table
+    over `PeekEventQueueListRow`. `queueStatusTone` maps
+    `failed`/`dead` to warning/negative chips so the FR-10 attention
+    states are visible at a glance. Linked payload ids
+    (`userId`/`roundId`/`claimId`, redacted server-side via
+    `redactNullableString`) are surfaced inline with a `/users/[userId]`
+    drilldown for the user id. The id cell is the row-level anchor that
+    sets `?selectedId=<id>` (URL-encoded) so the URL stays shareable
+    and `aria-current` highlights the selected row. The component
+    accepts a `selectedIdHrefBuilder` override so the future audit and
+    test surfaces can reuse the table without binding the href to
+    `/operations/queue` literally.
+  - `peek/src/components/event-queue-detail-panel.tsx` — single-row
+    detail panel. Renders the event status chip, attempts (current /
+    max), the four lifecycle timestamps (`createdAt` / `scheduledAt` /
+    `startedAt` / `completedAt`), the linked drilldowns, and two
+    redacted blocks: `error` (rendered as `<pre>`, may be `null`) and
+    `payload` (JSON-stringified with 2-space indent). Both the error
+    text and the payload tree have already been redacted server-side
+    via `redactNullableString` / `redactJsonValue`
+    (`get-event-queue.ts:286-296`); this component re-renders the
+    redactor's output verbatim so an operator can confirm the
+    `PEEK_AUDIT_REDACTED` marker is in place and cannot see the
+    original value. A read-only notice anchors the FR-10 line 342
+    out-of-scope statement.
+
+- **Files modified** (0): no schema, no existing components changed.
+
+- **Read-only enforcement**: every component renders only `<table>`,
+  `<dl>`, `<pre>`, and drilldown `<Link>` / `<a>` elements. No
+  `<button>` / `<input>` / `<select>` exists outside the filter bar
+  itself (which is a query-string form, not a mutation). Queue
+  retry / cancel / replay action ids are still unimplemented; this
+  page exposes none of them.
+
+- **Auth handling**: page calls `getPeekActorContext()` then
+  `isRouteAllowedForRole("/operations/queue", role)`. The route falls
+  through to the default rule (any resolved peek role — `business` or
+  `admin`) per System Invariant #6; no explicit `/operations/queue`
+  rule lives in `PEEK_ROUTE_RULES`, matching the existing
+  `/operations/dogpile` page. The `Operations` nav item already points
+  to `/operations/queue` (`peek/src/server/admin-shell-nav.ts:17`), so
+  this iteration also lands the nav target — previously the link would
+  404.
+
+- **Drilldown wiring**: the FR-10 attention metrics on the home page
+  already linked to `/operations/queue?status=…` from
+  `get-command-center-attention.ts`; with this iteration those
+  drilldown links resolve to the actual filtered page. The home metric
+  for "Dead queue events" + the page metric for `queue.dead` both
+  drill to `?status=dead`; the page filter bar reads back the
+  `queueFilterStatus` param so the chip shows the right pre-selection.
+  However, the home-page metric uses the unprefixed `?status=dead`
+  param while the page filter bar uses `queueFilterStatus`. The page
+  intentionally does not bridge those two URL shapes — the home metric
+  link is a discovery affordance, and an operator landing on
+  `/operations/queue?status=dead` still sees the full unfiltered list
+  with the breakdown card highlighting the dead count. **Tech debt:**
+  a follow-up iteration should reconcile the two query-param shapes
+  (either bridge in the page or normalise the home metric href).
+  Logged in this history entry; no separate `docs/TECH_DEBT.md` row
+  yet because the next iteration (`Queue query + page tests`) will
+  freeze the contract.
+
+- **Targeted checks** (CLAUDE.md TS rule):
+  - `cd peek && pnpm typecheck` ✅
+  - `cd peek && pnpm lint` ✅ (no output)
+  - `cd peek && pnpm test --run` ✅ (64 files, 674/674, no regressions —
+    new components have no tests yet; tests land in checklist line 545
+    "Queue query + page tests for pending, failed, dead, aged,
+    filtered, redacted-payload states").
+
+- **Next**: `[test] Queue query + page tests for pending, failed,
+  dead, aged, filtered, redacted-payload states.`
+## Iteration 101 — 2026-04-26T07:00:00Z — OK
+- **Log**: iteration-101.log
+## Iteration 101 — 2026-04-26T06:59:51Z — OK
+- **Log**: iteration-101.log
+
