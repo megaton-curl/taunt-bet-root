@@ -3179,3 +3179,121 @@ of every iteration to understand prior context.
 ## Iteration 103 — 2026-04-26T07:16:42Z — OK
 - **Log**: iteration-103.log
 
+
+## Iteration 104 — 2026-04-26 — OK
+- **Item**: `[frontend] /audit page (admin-only via FR-2 page-level
+  allowlist), filters, bounded table, safe empty/error states.`
+
+- **Files added** (4):
+  - `peek/app/audit/page.tsx` — server-rendered page that:
+    - Resolves the actor via `getPeekActorContext()` and gates rendering
+      with `isRouteAllowedForRole("/audit", role)`. Non-admin actors
+      receive an access-denied panel with no audit data leakage; the
+      `PEEK_ROUTE_RULES` entry `"/audit": ["admin"]` enforces this so
+      a `business` role hits the same denial.
+    - Calls `getAuditOverview()` for the FR-4 metric strip (total /
+      exports / access denied / changes applied / changes rejected over
+      the rolling 24h window). Each metric drilldown links back into
+      `/audit?eventType=peek.<event>` so the strip stays operationally
+      dense per FR-3.
+    - Calls `listAuditEvents({ filters })` for the bounded table; the
+      table is server-capped via `PEEK_AUDIT_DEFAULT_LIMIT` /
+      `PEEK_AUDIT_MAX_LIMIT` from the iteration 103 query module.
+    - Renders the event-type breakdown card for the full
+      `PEEK_AUDIT_EVENT_TYPES` set so a missing event type renders as
+      `0` rather than disappearing — FR-4 sparse-data discipline.
+    - Wraps both queries in try/catch so a transient DB failure renders
+      a scoped `role="alert"` block via `<MetricStrip error>` /
+      `<AuditEventsTable error>` and the rest of the page still renders.
+    - `export const dynamic = "force-dynamic"` — no caching of audit
+      reads (FR-13 "live" freshness).
+
+  - `peek/src/lib/audit-search-params.ts` — URL-addressable filter
+    parser. Mirrors the `operations-queue-search-params.ts` shape:
+    - `auditFilterEventType` / `auditFilterActor` /
+      `auditFilterResource` / `auditFilterRoute` /
+      `auditFilterCreatedFrom` / `auditFilterCreatedTo`.
+    - Short-form `?eventType=peek.export` is also accepted (and wins)
+      so the metric drilldown links emitted by `getAuditOverview` /
+      `get-command-center-attention` work without a separate page.
+    - Unknown `eventType` values fall back to `null` (any peek.*) via
+      `coerceEventType`, matching the SQL fallback in
+      `coerceAuditEventTypeFilter` so a stale URL chip cannot lie about
+      the filter state.
+    - `PEEK_AUDIT_FILTER_PARAM_NAMES` exposes the field-name table for
+      the filter bar to reference without duplicating literals.
+
+  - `peek/src/components/audit-events-filter-bar.tsx` — query-string
+    GET form (no JS) with one input/select per filter:
+    - Status (`auditFilterEventType`) is a select over
+      `PEEK_AUDIT_EVENT_TYPES` plus an "Any peek.*" empty option.
+    - Actor email, resource id, route are free-text inputs.
+    - Created from/to are HTML5 date inputs; ISO timestamps from the
+      URL pre-fill the field via `(value ?? "").slice(0, 10)`.
+    - Form submits via GET to `/audit` (overridable via the `action`
+      prop for testability and future re-mounts).
+
+  - `peek/src/components/audit-events-table.tsx` — read-only dense
+    table over `PeekAuditEvent` rows:
+    - Columns: event type chip, created, actor, route, action,
+      resource (type+id), filter summary, result count, notes
+      (rejection reason / request id / changes count), id.
+    - `auditEventTone` maps the six `PeekAuditEventType` values to
+      `PeekStatusTone` so the FR-10 attention conventions
+      (`peek.access.denied` → `negative`, `peek.change.rejected` →
+      `negative`, `peek.export` → `warning`, etc.) carry over visually.
+    - `renderRedactable` surfaces the `PEEK_AUDIT_REDACTED` sentinel
+      verbatim with a distinct chip-style background so reviewers can
+      see when a field was scrubbed (FR-11 "renders verbatim so
+      reviewers can see that a field was redacted, not silently
+      absent").
+    - Empty state: explicit "No `peek.*` operator events match these
+      filters" with operator copy per FR-3 (FR-3 line 244 / FR-4 line
+      256).
+    - Error state: scoped `role="alert"` block; rest of page remains
+      operational.
+    - Read-only: no buttons, no editable inputs — `operator_events`
+      is append-only by contract.
+
+- **Files modified** (0). The query module (iteration 103), the audit
+  payload types (iteration 7), the role policy entry for `/audit`
+  (iteration 4), and the admin-shell nav entry (iteration 10) were all
+  already in place; this iteration only wires the rendering surface.
+
+- **Spec coverage** (against the spec line "/audit page (admin-only
+  via FR-2 page-level allowlist), filters, bounded table, safe
+  empty/error states"):
+  - **admin-only**: page short-circuits with an access-denied panel
+    when `isRouteAllowedForRole("/audit", role)` is `false`. FR-2 line
+    151 declares the rule (`/audit` requires `admin`); the page reads
+    the same source of truth.
+  - **filters**: every filter from FR-11 line 358 ("event type, actor
+    email, resource id, route, and date") flows from the filter bar
+    inputs → `normalizeAuditFiltersFromSearchParams` → the
+    `PeekAuditFilters` shape consumed by `listAuditEvents`. Plus the
+    short-form `?eventType=` chip used by the home metric drilldown.
+  - **bounded table**: server-capped via `PEEK_AUDIT_DEFAULT_LIMIT=100`
+    (max 500) declared in the iteration 103 query module; the page
+    surfaces the cap copy in the section hint.
+  - **safe empty/error states**: empty filtered table renders the
+    operator-copy `EmptyState`-style block; query failures render
+    scoped `role="alert"` blocks per surface (overview / rows) so a
+    transient DB hiccup never breaks the entire page nor leaks the
+    error stack to the browser.
+
+- **Targeted checks** (CLAUDE.md TS rule):
+  - `cd peek && pnpm typecheck` ✅ (one TS error caught and fixed: the
+    table's `renderNotes` builder used `Array.filter(predicate)` with
+    a too-narrow predicate; switched to a typed `NoteFragment[]` push
+    list).
+  - `cd peek && pnpm lint` ✅ (no output)
+  - `cd peek && pnpm test --run` ✅ (69 files, 756/756 — no regressions
+    introduced; the matching tests for the filter bar, table, and page
+    will land in checklist line 550 "/audit tests for role gating,
+    filters, sensitive payload redaction at render time, empty/error").
+
+- **Next**: `[test] /audit tests for role gating, filters, sensitive
+  payload redaction at render time, empty/error.`
+## Iteration 104 — 2026-04-26T07:23:12Z — OK
+- **Log**: iteration-104.log
+
