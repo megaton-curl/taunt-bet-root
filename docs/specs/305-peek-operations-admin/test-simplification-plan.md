@@ -603,7 +603,32 @@ Tick the box and commit it as part of each tier's work.
     one multi-row fixture; default-window + custom-windowHours folded.
     `Parameters<typeof X>[0]["filters"]` needed `NonNullable<...>` to
     satisfy strict typecheck — fixed in a follow-up commit.
-- [ ] Tier 4 — mutation schema boilerplate (~60–70 tests)
+- [x] Tier 4 — mutation schema boilerplate (56 tests dropped; 803 → 747)
+  - Just below the 60–70 estimate (4 short of the lower bound) because
+    fraud-flag's `FRAUD_FLAG_ALLOWED_TRANSITIONS` describe stayed at three
+    tests rather than the 4-5 budget the plan set per file. The plan's
+    KEEP list explicitly names "fraud-flag's allowed-transition matrix"
+    as mutation-specific business logic, and the three tests (admits the
+    five tuples; denies dismissed→reviewed; denies every X→X no-op) each
+    document a separate contract — folding them would have collapsed
+    distinct guards into one assertion-heavy test, not dropped duplication.
+    Per-file drops:
+    `kol-rate 15→4 (-11)`, `fraud-flag 18→9 (-9)`,
+    `dogpile 17→6 (-11)`, `reward-config 32→7 (-25)`.
+    Patterns applied: dropped Zod schema boilerplate describes (8 tests
+    in kol-rate, 6 in fraud-flag, 6 in dogpile, 8 in reward-config) since
+    Zod's own tests cover trim/strict/enum behavior; dropped per-file
+    duplicates of runner.test.ts's `unauthorized` (no-resolved-role) and
+    `invalid_input` (schema-level) assertions; folded reward-config's
+    10-test validator describe into one consolidated assertion-heavy
+    test; dropped per-status redundancy (dogpile's 3 invalid_status tests
+    collapsed to one representative `active` case; fraud-flag's no-op
+    X→X dropped since the dismissed→reviewed test already exercises the
+    `invalid_transition` path). KEPT: matrix describe (fraud-flag),
+    editable-keys describe (reward-config), state guards specific to
+    each mutation (starts_at_in_past, noop_value, unknown_key,
+    unknown_event, unknown_flag), one role-gating test per file, all 11
+    runner.test.ts tests untouched.
 - [ ] Tier 5 — access-policy parsing (~18–22 tests)
 
 **Cumulative target**: ~1017 → ~600 tests. Coverage unchanged for every
