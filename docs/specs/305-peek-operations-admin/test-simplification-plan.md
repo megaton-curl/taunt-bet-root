@@ -568,7 +568,19 @@ Tick the box and commit it as part of each tier's work.
     at the upper end of expected (32 tests). Net: 39, which is below 50
     but coverage is unchanged — TS + the populated/prefix tests already
     enforce what the dropped lines asserted.
-- [ ] Tier 2 — search-params helper (~55 tests)
+- [x] Tier 2 — search-params helper (47 tests dropped; 978 → 931)
+  - Below the 55-test estimate by ~14% (47 vs 55) but within tolerance — not
+    "materially lower" per the plan's threshold. Per-file drops: audit
+    12→6 (-6), economy-challenges 15→4 (-11), games 21→15 (-6), growth
+    7→1 (-6), operations-dogpile 13→3 (-10), operations-queue 14→6 (-8).
+    games-search-params kept the FR-8 stuck-flag composite-filter tests
+    (4 tests) plus readPageFromSearchParams + buildRoundsQueryString
+    (8 tests) which are file-specific and out of scope for this tier.
+    audit kept the 3 short-form/long-form precedence tests
+    (PARAM_NAMES + EVENT_TYPE_VALUES table assertions kept too — those
+    are file-specific contracts not covered by the shared helper).
+    No `search-params.test.ts` file existed in `src/lib/__tests__/`; the
+    plan's "leave alone" reference was stale.
 - [ ] Tier 3 — query-test duplication (~130–170 tests)
 - [ ] Tier 4 — mutation schema boilerplate (~60–70 tests)
 - [ ] Tier 5 — access-policy parsing (~18–22 tests)
