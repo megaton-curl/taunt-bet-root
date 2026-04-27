@@ -629,7 +629,31 @@ Tick the box and commit it as part of each tier's work.
     each mutation (starts_at_in_past, noop_value, unknown_key,
     unknown_event, unknown_flag), one role-gating test per file, all 11
     runner.test.ts tests untouched.
-- [ ] Tier 5 — access-policy parsing (~18–22 tests)
+- [x] Tier 5 — access-policy parsing (5 tests dropped; 747 → 742)
+  - Materially below the 18–22 estimate. The agent that produced the upstream
+    estimate said "44 tests; ~20 are parsing-validator boilerplate", but on
+    inspection only 8 of the 44 tests live in `parsePeekRolePolicy` — the
+    other 36 cover `loadPeekRolePolicyFromEnv`, `normalizeActorEmail`,
+    `resolveRoleForEmail` (7 distinct branches), `getRequiredRolesForRoute`
+    (6 — default, /audit subpaths, prefix boundary, query/hash strip,
+    leading-slash normalize, most-specific match), `isRouteAllowedForRole`
+    (3), `getRequiredRolesForAction` (2), `isActionAllowedForRole` (5 —
+    fail-closed, role-missing, full admin sweep, business denial,
+    override-rules), `getPeekActorContext` (6 distinct branches), and the
+    live-table sanity assertions (2). The plan's KEEP list explicitly names
+    every one of those as "real security-boundary guards" — none could be
+    folded without losing coverage.
+    Of the 8 `parsePeekRolePolicy` tests, the cleanup folded 6 (invalid
+    role, missing match, malformed wildcard, malformed exact email,
+    non-object items, dedup-rejection) into ONE comprehensive
+    "rejects every invalid entry shape" test that walks every rejection
+    branch in a single fixture, with a trailing valid sentinel proving the
+    rejected items don't poison subsequent parsing. Reshaped the
+    "normalizes match values" happy-path to also assert the dedup-positive
+    (distinct (match, role) pairs preserved) so the dropped dedup test's
+    positive assertion still has a home. Kept "returns [] for non-array
+    input" verbatim per the plan's "keep one 'rejects non-array'" guidance.
+    Net per-section: parsePeekRolePolicy 8→3 (-5).
 
 **Cumulative target**: ~1017 → ~600 tests. Coverage unchanged for every
 non-obvious contract; type-system + Zod guarantees absorb the boilerplate
