@@ -444,7 +444,7 @@ if [ "$(count_remaining)" -eq 0 ]; then
     GAP_LOG_FILE="gap-analysis.log"
     GAP_PROMPT=$(generate_gap_analysis_prompt)
 
-    echo "$GAP_PROMPT" | claude -p \
+    echo "$GAP_PROMPT" | timeout 1800 claude -p \
         --dangerously-skip-permissions \
         --verbose \
         --output-format stream-json 2>/dev/null \
@@ -495,13 +495,26 @@ while true; do
     PROMPT=$(generate_prompt "$ITERATION")
     LOG_FILE="iteration-$(printf '%03d' "$ITERATION").log"
 
-    echo -e "${GREEN}  Running claude -p ...${NC}"
-    echo "$PROMPT" | claude -p \
+    echo -e "${GREEN}  Running claude -p (30m wall-clock cap)...${NC}"
+    echo "$PROMPT" | timeout 1800 claude -p \
         --dangerously-skip-permissions \
         --verbose \
         --output-format stream-json 2>/dev/null \
         | tee "$LOG_DIR/$LOG_FILE" \
         | "$SCRIPT_DIR/parse-stream.sh" || true
+
+    # Detect dead iterations BEFORE bumping NR_OF_TRIES so the retry on next
+    # run reuses this iteration number and overwrites the stub log cleanly.
+    # Productive iterations write >30KB; rate-limit stubs are ~23KB; hung
+    # claude processes produce <5KB before the timeout cap fires.
+    LOG_SIZE=$(stat -c %s "$LOG_DIR/$LOG_FILE" 2>/dev/null || echo 0)
+    if [ "$LOG_SIZE" -lt 30000 ]; then
+        if grep -q "out of extra usage" "$LOG_DIR/$LOG_FILE" 2>/dev/null; then
+            RESET=$(grep -oE "resets [0-9]+:[0-9]+(am|pm) \(UTC\)" "$LOG_DIR/$LOG_FILE" 2>/dev/null | head -1)
+            handle_blocker "$ITERATION" "Rate limit hit — ${RESET:-reset time not parsed}. Re-run after reset." "$LOG_FILE"
+        fi
+        handle_blocker "$ITERATION" "Iteration produced only ${LOG_SIZE}B of output (likely hung — 30m wall-clock cap fired or claude returned empty)." "$LOG_FILE"
+    fi
 
     # Bump NR_OF_TRIES immediately so next run won't collide with this log file
     increment_tries
@@ -556,7 +569,7 @@ while true; do
         GAP_LOG_FILE="gap-analysis.log"
         GAP_PROMPT=$(generate_gap_analysis_prompt)
 
-        echo "$GAP_PROMPT" | claude -p \
+        echo "$GAP_PROMPT" | timeout 1800 claude -p \
             --dangerously-skip-permissions \
             --verbose \
             --output-format stream-json 2>/dev/null \
