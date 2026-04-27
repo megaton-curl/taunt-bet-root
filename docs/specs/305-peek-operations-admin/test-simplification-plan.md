@@ -581,7 +581,28 @@ Tick the box and commit it as part of each tier's work.
     are file-specific contracts not covered by the shared helper).
     No `search-params.test.ts` file existed in `src/lib/__tests__/`; the
     plan's "leave alone" reference was stale.
-- [ ] Tier 3 — query-test duplication (~130–170 tests)
+- [x] Tier 3 — query-test duplication (128 tests dropped; 931 → 803)
+  - Just below the lower bound of the 130–170 estimate, primarily because
+    the planned fold targets (limit-clamp variants, sparse, load-error)
+    only ever existed for ~5 functions per file. Across 14 of the 15
+    target files the actual reductions were:
+    `get-challenges 55→34 (-21)`, `get-event-queue 38→25 (-13)`,
+    `get-growth-referrals 32→18 (-14)`, `get-dogpile-and-fraud 32→17 (-15)`,
+    `get-audit-events 30→16 (-14)`, `get-game-rounds 27→19 (-8)`,
+    `universal-search 38→32 (-6)`, `get-rewards 26→13 (-13)`,
+    `get-points-and-crates 26→15 (-11)`, `get-peek-user-detail 16→13 (-3)`,
+    `get-round-detail 18→15 (-3)`, `get-recent-operator-events 8→5 (-3)`,
+    `get-games-overview 8→6 (-2)`, `get-command-center-attention 8→6 (-2)`.
+    `telegram-linked-queries.test.ts` was already lean at 3 tests and
+    skipped.
+    Patterns applied: shared describe.it.each across families that share
+    `clampLimit` / single-call shape; per-status / per-event-type loops
+    kept (already parametric); per-game variations folded; FR-4 metric
+    bookkeeping snapshots merged populated + coercion + thousands-display
+    onto one fixture; populated coerce + nullable column tests folded to
+    one multi-row fixture; default-window + custom-windowHours folded.
+    `Parameters<typeof X>[0]["filters"]` needed `NonNullable<...>` to
+    satisfy strict typecheck — fixed in a follow-up commit.
 - [ ] Tier 4 — mutation schema boilerplate (~60–70 tests)
 - [ ] Tier 5 — access-policy parsing (~18–22 tests)
 
