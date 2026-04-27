@@ -558,7 +558,16 @@ Same pattern as previous tiers.
 
 Tick the box and commit it as part of each tier's work.
 
-- [ ] Tier 1 — cross-cutting duplication (~50–80 tests)
+- [x] Tier 1 — cross-cutting duplication (39 tests dropped; 1017 → 978)
+  - Below the 50–80 estimate because the per-filter-bar "form posts" tests
+    bundled unique option-set assertions alongside the form action/method
+    glue. Eight of those tests were *reshaped* (kept the
+    PEEK_*_VALUES → option-list verification, dropped the form action +
+    empty-input glue) rather than dropped outright, so they still earn one
+    test slot per filter bar. Read-only and error-state collapses landed
+    at the upper end of expected (32 tests). Net: 39, which is below 50
+    but coverage is unchanged — TS + the populated/prefix tests already
+    enforce what the dropped lines asserted.
 - [ ] Tier 2 — search-params helper (~55 tests)
 - [ ] Tier 3 — query-test duplication (~130–170 tests)
 - [ ] Tier 4 — mutation schema boilerplate (~60–70 tests)
