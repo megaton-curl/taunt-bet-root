@@ -28,5 +28,24 @@ export default defineConfig({
       testDir: "./devnet",
       testMatch: "**/*.spec.ts",
     },
+    {
+      name: "visual",
+      testDir: "./visual",
+      testMatch: "**/*.spec.ts",
+      use: {
+        ...devices["Desktop Chrome"],
+        viewport: { width: 1280, height: 1080 },
+      },
+      expect: {
+        toHaveScreenshot: {
+          // Tolerate sub-pixel anti-aliasing differences across hosts while
+          // still failing on real visual regressions. Mirrors spec 200's
+          // 0.015 (1.5%) tolerance.
+          maxDiffPixelRatio: 0.015,
+          animations: "disabled",
+          caret: "hide",
+        },
+      },
+    },
   ],
 });

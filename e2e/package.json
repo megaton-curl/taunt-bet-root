@@ -5,7 +5,9 @@
   "description": "Devnet E2E tests for TAUNT.BET",
   "scripts": {
     "test": "playwright test",
-    "test:headed": "playwright test --headed"
+    "test:headed": "playwright test --headed",
+    "test:visual": "playwright test --project=visual",
+    "test:visual:update": "playwright test --project=visual --update-snapshots"
   },
   "devDependencies": {
     "@taunt-bet/anchor-client": "link:../backend/packages/anchor-client",

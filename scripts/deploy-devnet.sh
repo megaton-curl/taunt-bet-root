@@ -120,6 +120,39 @@ deploy_program() {
   init_config "$name"
 }
 
+ensure_platform_config() {
+  local idl_path="target/idl/platform.json"
+  local kp_path="$HOME/.config/solana/id.json"
+
+  if [ ! -f "$idl_path" ]; then
+    printf '  Building platform IDL for shared config check...\n'
+    anchor build -p platform >/dev/null
+  fi
+
+  node --input-type=module -e "
+import { Connection, Keypair, PublicKey, SystemProgram } from '@solana/web3.js';
+import { AnchorProvider, Program, Wallet } from '@coral-xyz/anchor';
+import { readFileSync } from 'fs';
+
+const idl = JSON.parse(readFileSync('${idl_path}', 'utf8'));
+const conn = new Connection('${RPC}', 'confirmed');
+const kp = Keypair.fromSecretKey(Uint8Array.from(JSON.parse(readFileSync('${kp_path}', 'utf8'))));
+const provider = new AnchorProvider(conn, new Wallet(kp), { commitment: 'confirmed' });
+const program = new Program(idl, provider);
+const [config] = PublicKey.findProgramAddressSync([Buffer.from('platform_config')], program.programId);
+const existing = await conn.getAccountInfo(config, 'confirmed');
+if (existing) {
+  console.log('  Platform config already exists (OK)');
+} else {
+  await program.methods
+    .initializePlatform(kp.publicKey)
+    .accounts({ authority: kp.publicKey, config, systemProgram: SystemProgram.programId })
+    .rpc();
+  console.log('  Platform config initialized');
+}
+" 2>&1
+}
+
 init_config() {
   local name="$1"
   local idl_path="target/idl/$name.json"
@@ -138,7 +171,13 @@ const program = new Program(idl, provider);
 
 try {
   const methods = program.methods;
-  if ('initializeConfig' in methods) {
+  if ('initializePlatform' in methods) {
+    await methods
+      .initializePlatform(kp.publicKey)
+      .accounts({ authority: kp.publicKey })
+      .rpc();
+    console.log('  Platform config initialized');
+  } else if ('initializeConfig' in methods) {
     $(case "$name" in
       closecall)
         echo "
@@ -168,6 +207,11 @@ try {
 for prog in "${DEPLOY_LIST[@]}"; do
   deploy_program "$prog"
 done
+
+if [[ ! " ${DEPLOY_LIST[*]} " =~ " platform " ]]; then
+  printf '\n\033[1;36m═══ platform config ═══\033[0m\n'
+  ensure_platform_config
+fi
 
 # Expire orphaned rounds — after a --fresh deploy, any unsettled rounds
 # for that game are stranded (old program closed, PDAs can never settle).

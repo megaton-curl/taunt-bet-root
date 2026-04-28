@@ -208,7 +208,7 @@ Cloudflare Zero Trust Access is the outer access gate. `peek` must trust only a 
 - [ ] Production requests with a valid JWT but missing/invalid email claim are denied. <!-- gap: peek/proxy.ts:54-56 lets request through (no header set) when verification.email is null; layout renders access-denied panel via AdminShell but no hard 403 — denial is layout-only -->
 - [x] JWT validation uses `jose` (`createRemoteJWKSet` + `jwtVerify`) with configured Cloudflare issuer and audience; custom crypto/JWKS verification code is removed. <!-- satisfied: peek/src/server/cloudflare-access.ts:1-9, 56-72 -->
 - [x] The normalized Cloudflare email is attached to server-side request context and never accepted from an untrusted browser header. <!-- satisfied: peek/proxy.ts:17-18 strips browser-supplied header; peek/src/server/access-policy.ts:115-125 reads only via headers() -->
-- [x] `peek` does not maintain a second global env allowlist for base access; base access remains Cloudflare policy. <!-- satisfied: access-policy.ts uses only PEEK_ACCESS_POLICY for role mapping -->
+- [x] `peek` does not maintain a second global env allowlist for base access; base access remains Cloudflare policy. <!-- satisfied: access-policy.ts has no env-derived allowlist — role assignments live in the hardcoded PEEK_ROLE_POLICY constant -->
 - [x] Development bypass is explicit and local-only, for example `PEEK_DEV_ACCESS_EMAIL=dev@example.com`; production never uses this bypass. <!-- satisfied: peek/proxy.ts:20-28; cloudflare-access-middleware.test.ts:39-67 -->
 - [x] Unit tests cover missing token, invalid token, missing email, case normalization, trusted context propagation, and development bypass behavior. <!-- satisfied: peek/src/server/__tests__/cloudflare-access.test.ts + cloudflare-access-middleware.test.ts -->
 
@@ -219,7 +219,7 @@ Page and action authorization should be defined locally in `peek`, not in enviro
 
 **Acceptance Criteria:**
 - [x] Access checks are centralized in one server-only module, not repeated in pages. <!-- satisfied: peek/src/server/access-policy.ts:177-218 (getRequiredRolesForRoute / isRouteAllowedForRole / getRequiredRolesForAction / isActionAllowedForRole) -->
-- [x] Local role policy is defined in a checked-in server-only module such as `peek/src/server/access-policy.ts`, or in a local config file loaded only by server code. <!-- satisfied: access-policy.ts loads policy via loadPeekRolePolicyFromEnv (PEEK_ACCESS_POLICY JSON) -->
+- [x] Local role policy is defined in a checked-in server-only module such as `peek/src/server/access-policy.ts`, or in a local config file loaded only by server code. <!-- satisfied: access-policy.ts hardcodes PEEK_ROLE_POLICY in a checked-in server-only module — no env override -->
 - [x] Role membership supports exact emails such as `alice@example.com`. <!-- satisfied: access-policy.ts:99-102 -->
 - [x] Role membership supports wildcard domains such as `*@example.com`. <!-- satisfied: access-policy.ts:51-56, 99-102 -->
 - [x] Role matching is case-insensitive and trims whitespace. <!-- satisfied: access-policy.ts:48, 80-85 -->
