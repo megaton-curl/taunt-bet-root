@@ -46,6 +46,32 @@ Track temporary hacks, relaxed rules, and shortcuts here.
 
 ## Low Priority (Post-Launch cleanup)
 
+### [Reward Economy] Multi-replica cache invalidation
+- **Date**: 2026-04-29
+- **Location**: `backend/src/reward-economy.ts` — `activeSeasonCache`, `activePointRateCache`, `invalidateRewardEconomyCache()`
+- **What**: Active-season and active-point-rate caches are module-level globals with a 5-min TTL. `invalidateRewardEconomyCache()` is called after admin writes (season rollover, point-rate version, event create/cancel) but only invalidates the in-process cache.
+- **Current mitigation**: App Platform runs **one** backend replica today, so the cache is consistent with admin writes.
+- **Proper solution**: Before scaling to N replicas, switch to one of: (1) Postgres `LISTEN/NOTIFY` channel that all replicas subscribe to, (2) shorten TTL to ~30s and accept the staleness window, or (3) revalidate per request when the cached entry's `at` falls outside the cached season window.
+- **Why not now**: Single-replica deploy makes this a non-issue today. Important to address before the first horizontal scale-out.
+
+### ~~[Reward Economy] Wager-USD aggregate scales with grant count~~
+- **Resolved**: 2026-04-29 — Migration 021 introduces `user_wager_totals` (per-user lifetime + current-season USD), maintained inside the points-grant transaction under the existing advisory lock. `computeEffectiveMultiplier` reads from the table instead of summing `metadata->>'wagerUsd'` across `point_grants`. Lazy season reset on first wager into the new active season. No backfill — existing grants do not contribute.
+
+### [Reward Economy] Modifier table needs pruning strategy
+- **Date**: 2026-04-29
+- **Location**: `multiplier_modifiers` table; `computeEffectiveMultiplier()` query.
+- **What**: Migration 020 split the index into two partial indexes (user-scoped + global) to keep lookups fast as the table grows. Long term, expired modifier rows still accumulate; the partial indexes don't filter by `ends_at`.
+- **Current mitigation**: Two queries each hit a small partial index; performance is fine until expired-row count dominates.
+- **Proper solution**: Periodically delete rows where `ends_at IS NOT NULL AND ends_at < now() - INTERVAL '90 days'` (or archive to a history table for audit). Alternatively, add a recurring `VACUUM`-friendly retention worker.
+- **Why not now**: At launch volume the index alone is sufficient.
+
+### [Reward Economy] `idx_point_balances_season_balance` is unused
+- **Date**: 2026-04-29
+- **Location**: `backend/migrations/018_reward_economy.sql:49-50`.
+- **What**: Index `(season_id, balance DESC)` was added for a future points leaderboard. Current leaderboard ranks off `game_entries.amount_lamports`, so this index has zero readers.
+- **Current mitigation**: None. Index is cheap (small table today) but writes pay for an unused index.
+- **Proper solution**: Either ship the points leaderboard, or drop the index. Decide alongside the leaderboard product call.
+
 ### [Challenge Engine] Extract to separate service
 - **Date**: 2026-04-04
 - **Location**: `backend/src/queue/handlers/` (game-settled, reward-pool-fund, points-grant, crate-drop, crate-sol-payout), `routes/` (challenges, points, dogpile, admin)
