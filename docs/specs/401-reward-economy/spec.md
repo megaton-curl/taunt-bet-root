@@ -296,11 +296,6 @@ An event creates one or more `multiplier_modifiers` with `source_type = 'event'`
 - `GET /events/schedule`
 - Admin: `POST /admin/events`, `PUT /admin/events/:id`, `GET /admin/events`
 
-Legacy `dogpile` routes should become compatibility aliases for one release window:
-- `/dogpile/current` -> `/events/current`
-- `/dogpile/schedule` -> `/events/schedule`
-- `/admin/dogpile` -> `/admin/events`
-
 ---
 
 ## FR-5: Display Metadata
@@ -335,9 +330,9 @@ Display labels can be season-specific or global config. They should not be hard-
 2. Seed the current season and initial point rate (`100` points per wagered USD).
 3. Seed launch lifetime and season multiplier ladders from FR-3.
 4. Add `season_id`, `effective_multiplier`, and `point_rate_version_id` to `point_grants`.
-5. Replace `player_points` with `point_balances`, or keep `player_points` as a compatibility view over the active season during migration.
-6. Rename `dogpile_events` to generic `events`, or backfill `events` from `dogpile_events` and retire the old table after compatibility endpoints are removed.
-7. Add generic endpoints first; keep existing Dogpile endpoints as aliases for one release window.
+5. Replace `player_points` with `point_balances`; discard legacy aggregate rows during the dev hard cutoff.
+6. Remove `dogpile_events`; create generic `events` only, with no Dogpile backfill.
+7. Add generic endpoints and remove legacy Dogpile route surfaces instead of carrying compatibility aliases.
 8. Rename code helpers from Dogpile/HEAT-specific names to event/multiplier names.
 9. Update frontend display copy to read labels from API/config instead of code identifiers.
 
