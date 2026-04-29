@@ -33,7 +33,7 @@ Last updated: 2026-04-09
 - **Polling fallback**: 1s interval for resilience, ~3-5s total settlement latency
 - **Close Call clock**: Minute-boundary BTC price capture from Pyth Hermes, automatic round creation and settlement
 - **Retry worker**: Exponential backoff for failed settlement transactions
-- **Dogpile worker**: Status transitions (scheduled → active → ended) on 10s poll
+- **Event worker**: Status transitions (scheduled -> active -> ended) on 10s poll; current implementation uses legacy Dogpile naming
 
 ### Auth & Identity
 - **JWT auth** (spec 007) — Challenge-response via wallet signature, HS256 tokens
@@ -44,15 +44,16 @@ Last updated: 2026-04-09
 
 ### Fairness & Pricing
 - **Commit-reveal fairness** (spec 006): `SHA256(secret || entropy || PDA || algo_ver)`, public verification endpoints
-- **SOL/USD price service**: Pyth Hermes REST (`GET /price/sol-usd`), 60s cache, used for points USD conversion
+- **Wager value rate**: cached global conversion rate used for points USD conversion; current implementation reads SOL/USD from Pyth Hermes
 - **Fee structure**: 500 bps flat to single treasury, on-chain PlatformConfig canonical. CI guard: `scripts/check-fees.sh`
 
 ### Reward & Retention
 - **Challenge engine** (spec 400) — Daily/weekly/onboarding challenges, template-based, adapter-driven
-- **Points** — Earned per $ wagered (USD-converted), Dogpile multiplier, free to mint (pre-TGE allocation signal)
+- **Reward economy** (spec 401) — Generic points, multiplier, season, and event model; product labels stay display-only
+- **Points** — Season-scoped balance earned per $ wagered using cached global value rates and active multipliers
 - **Loot crates** — Random drops after settled games (points crates + SOL crates from reward pool)
 - **Reward pool** — Accounting-only ledger, configurable share of platform fees (default 20%)
-- **Dogpile events** — Scheduled windows with boosted point multipliers, admin-managed
+- **Events** — Scheduled modifier windows with boosted or overridden multipliers, admin-managed
 - **Completion bonus** — Meta-reward for completing all daily challenges (configurable)
 
 ### Growth
@@ -62,7 +63,7 @@ Last updated: 2026-04-09
 ### Backend Infrastructure
 - **Async event queue** (spec 301) — Postgres-backed, `FOR UPDATE SKIP LOCKED`, handler registry, exponential backoff (5s → 30s → 300s), dead-letter after 3 attempts
 - **Event-driven pipeline** — `game.settled` → challenge progress + points + crate drops + pool funding; `profile.username_set` → onboarding challenge progress
-- **Admin API** — Campaign/challenge CRUD, reward config tuning, Dogpile scheduling, reward pool monitoring (X-Admin-Key auth)
+- **Admin API** — Campaign/challenge CRUD, reward config tuning, event scheduling, reward pool monitoring (X-Admin-Key auth)
 - **Rate limiting**: Per-wallet and global rate limits on game creation endpoints
 - **Health endpoint**: `GET /health` — DB connectivity, worker status, unsettled queue depth
 - **Transaction history**: Per-player ledger of on-chain deposits, payouts, refunds with game context
@@ -115,7 +116,7 @@ If it changes user funds or determines payouts, it must be validated on-chain.
 
 ### In progress
 - **Chat service** (spec 009) — Separate repo (`chat/`), global chat + event feed transport
-- **Dogpile events** — Scheduled, admin-managed. Infrastructure shipped, needs operational tuning.
+- **Events** — Scheduled, admin-managed. Infrastructure shipped under legacy Dogpile naming, needs generic reward-economy migration.
 
 ### Next priorities
 - SOL crate payout production hardening (tech debt: review transfer handler before enabling)

@@ -15,24 +15,45 @@
 
 * Displays connected wallet address and offers an option to link X and Discord for profile display.
 
-The Multiplier \- HEAT / BAND / BODY COUNT → VIP TIER
+The Multiplier - product label TBD (current working label: PNS Size)
 
-This single number, purely a function of lifetime wagered volume, governs all rewards:
+Implementation note: backend/domain language should stay generic (`multiplier`). Product labels are display copy and should not be used in table names, endpoints, queue event names, or code identifiers.
 
-* Points earned per dollar wagered (pre- and post-TGE).  
-* Loot Crate drop rate probability.  
-* **Progression:** Starts at **\[TBD 1\]x**, reaches meaningful territory at **\[TBD 2-3\]x** at mid-level volume, and caps at **\[TBD 5\]x** for the highest-volume players.  
+The effective multiplier governs point earnings and may later govern crate probability. It is composed from:
+
+* A lifetime component based on lifetime wagered volume. This never resets.
+* A seasonal component based on season activity. This resets each season.
+* Temporary modifiers from events, admin actions, or rewards.
+
+Current design supports both stacking and overwrite-style modifiers:
+
+* Multiply: boost the existing multiplier.
+* Set minimum: raise everyone to at least a configured multiplier during an event.
+* Set value: hard override the multiplier for an event/admin/reward case. This is the default event behavior for launch.
+
+The lifetime and seasonal components use stepped ladders. Changes apply only to future point grants.
+
+Launch lifetime ladder: $1k = 1.10x, $10k = 1.20x, $50k = 1.30x, $100k = 1.40x, $250k = 1.50x, $500k = 1.60x, $1m = 1.70x, $2.5m = 1.80x, $5m = 1.90x, $10m = 2.00x.
+
+Launch season ladder: $500 = 1.20x, $5k = 1.50x, $25k = 2.00x, $100k = 2.50x, $250k = 3.00x.
+
+* Points earned per dollar wagered (pre- and post-TGE).
+* Loot Crate drop rate probability (still undecided).
+* **Progression:** Starts at **\[TBD 1\]x**, reaches meaningful territory at **\[TBD 2-3\]x** at mid-level volume, and caps are not required for launch.  
 * **Design Consideration:** The progression experience must feel dynamic and alive, especially during gameplay.  
-* **Curve:** The multiplier curve should flatten as it goes up (logarithmic, not linear forever).  
-* **Open Question:** Use a **Global / Lifetime multiplier \* Seasonal multiplier** to avoid discouraging newer players.
+* **Curve:** Stepped ladders should flatten as they go up.
 
 Points System (Pre-TGE)[1](https://docs.google.com/document/d/19Sg7NUoz-U_4xaKa79vjwIZ9Zl0wdYirppjwVGmaVCo/edit)
 
-* **Accrual:** Points are earned by wagered volume, accelerated by the HEAT multiplier.  
+* **Accrual:** Points are earned by wagered volume, accelerated by the effective multiplier.
+* **Season reset:** Current point balances reset each season, but point grants and lifetime data are never discarded.
+* **Season invariant:** There should always be exactly one active season. Ending a season requires activating the next season.
+* **Initial issuance rate:** 100 points per wagered $1, computed after games settle using the cached global value rate available at compute time.
+* **Rate changes:** Point rates are versioned by effective date and apply only to future point grants.
+* **Fixed grants:** Crate point grants are unmultiplied at launch. Other fixed grants stay fixed by default unless explicitly designed otherwise.
 * **Conversion:** Points convert to **$TAUNT** proportionally at TGE.  
 * **Visibility:** Points are visible on the profile and on leaderboards.  
 * **Airdrop 1 Targets:** **\[TBD 10m\]** tokens distributed based on a snapshot of **\[TBD 1m\]** points across **\[TBD 10,000\]** players.  
-* **Action Required:** Define the **points emission rate (points/$)**.  
 * **Action Required:** Define the **end date of Season 1** based on the TGE date.  
 * **Open Question:** Leaderboard structure (Seasonal?).
 
@@ -43,13 +64,13 @@ Quests[1](https://docs.google.com/document/d/19Sg7NUoz-U_4xaKa79vjwIZ9Zl0wdYirpp
 * **Reward:** Completing a quest drops a Loot Crate.  
 * **Launch Scope:** Season 1 tasks are fixed; S2 onwards will move toward rotating quests.  
 * **Progression Examples:** Change your nickname, Play 1 game, Play each game once.   
-* **Other Examples:** Face 5 unique opponents, Create 1 game that gets filled, Play during a Dogpile window.  
+* **Other Examples:** Face 5 unique opponents, Create 1 game that gets filled, Play during an event window.  
 * **Weekly Tasks:** Awaiting definition.
 
 Loot Crates[1](https://docs.google.com/document/d/19Sg7NUoz-U_4xaKa79vjwIZ9Zl0wdYirppjwVGmaVCo/edit)
 
-* **TODO: CRATE PROBABILITIES** (The probability of a good drop is multiplied by the HEAT multiplier).  
-* **V2 Idea:** Allow users to buy/sell loot crates that can contain items like temporary HEAT increases.  
+* **TODO: CRATE PROBABILITIES** (Open decision: whether the probability of a good drop is affected by the effective multiplier).  
+* **V2 Idea:** Allow users to buy/sell loot crates that can contain items like temporary multiplier increases.  
 * **Expiration:** Loot crates can expire after each season.  
 * **Illustrative Drop Table (Needs Finalized Probabilities and Amounts):**[1](https://docs.google.com/document/d/19Sg7NUoz-U_4xaKa79vjwIZ9Zl0wdYirppjwVGmaVCo/edit)  
   * Small points bundle: **\[TBD %\]**  
@@ -59,13 +80,15 @@ Loot Crates[1](https://docs.google.com/document/d/19Sg7NUoz-U_4xaKa79vjwIZ9Zl0wd
   * Large SOL drop (**\[TBD SOL AMOUNT\]**): **\[TBD %\]**  
 * **IDEA:** Large SOL drop could be a **\[TBD %\]** of the Incentive Pool.
 
-Dogpile / Gangbang[1](https://docs.google.com/document/d/19Sg7NUoz-U_4xaKa79vjwIZ9Zl0wdYirppjwVGmaVCo/edit)
+Events - current product label: Gangbang[1](https://docs.google.com/document/d/19Sg7NUoz-U_4xaKa79vjwIZ9Zl0wdYirppjwVGmaVCo/edit)
+
+Implementation note: backend/domain language should use `event`. "Gangbang" is display copy for one event type and may be renamed.
 
 * **Mechanic:** A lobby-fill event running once every **6hrs** for a **60 minute window**.  
-* **Multiplier:** Grants a **\[TBD 2\]x** multiplier to your existing HEAT for rewards.  
+* **Multiplier:** Creates an event-scoped multiplier modifier. The launch default is a hard override of the effective multiplier during the active event window.  
 * **Volume Threshold:** A volume threshold (**\[TBD SOL VALUE\]** or dynamic amount) must be met; otherwise, the prize pool rolls over.  
 * **Prize Pool:** Consists of a lump sum from the marketing budget plus a percentage of the Incentive Pool.  
-* **Decision Required (Gangbang Multiplier):**  
+* **Decision Required (Event Multiplier):**  
   * Based on the pro-rata amount of wagered volume during an event (up to a maximum of **\[TBD 2\]x**).  
   * **OR** Give the same multiplier to everyone during the event (at the maximum of **\[TBD 2\]x**).  
 * **Decision Required (Reward Structure):**  
@@ -101,16 +124,16 @@ Incentive Pool & Financial Allocation[1](https://docs.google.com/document/d/19Sg
 * **Fees Collected:** Out of all the fees we collect (**\[TBD %\]** \* wagered\_volume):[1](https://docs.google.com/document/d/19Sg7NUoz-U_4xaKa79vjwIZ9Zl0wdYirppjwVGmaVCo/edit)  
   * **Profit** \= **\[TBD %\]** \* (fees \- referrals)[1](https://docs.google.com/document/d/19Sg7NUoz-U_4xaKa79vjwIZ9Zl0wdYirppjwVGmaVCo/edit)  
   * **Incentive\_Pool** \= **\[TBD %\]** \* (fees \- referrals)[1](https://docs.google.com/document/d/19Sg7NUoz-U_4xaKa79vjwIZ9Zl0wdYirppjwVGmaVCo/edit)  
-    * This pool feeds Gangbangs, Weekly Leaderboards, and Loot Crates.  
+    * This pool feeds Events, Weekly Leaderboards, and Loot Crates.  
 * **Allocation of Incentive Pool (Need Final Percentages):**[1](https://docs.google.com/document/d/19Sg7NUoz-U_4xaKa79vjwIZ9Zl0wdYirppjwVGmaVCo/edit)  
-  * x% goes toward Dogpile/Gangbangs[1](https://docs.google.com/document/d/19Sg7NUoz-U_4xaKa79vjwIZ9Zl0wdYirppjwVGmaVCo/edit)  
+  * x% goes toward Events[1](https://docs.google.com/document/d/19Sg7NUoz-U_4xaKa79vjwIZ9Zl0wdYirppjwVGmaVCo/edit)  
   * 100-x% goes toward the weekly leaderboards[1](https://docs.google.com/document/d/19Sg7NUoz-U_4xaKa79vjwIZ9Zl0wdYirppjwVGmaVCo/edit)  
   * x% goes toward loot crates[1](https://docs.google.com/document/d/19Sg7NUoz-U_4xaKa79vjwIZ9Zl0wdYirppjwVGmaVCo/edit)
 
 Landing Page \- The Pit[1](https://docs.google.com/document/d/19Sg7NUoz-U_4xaKa79vjwIZ9Zl0wdYirppjwVGmaVCo/edit)
 
-* **Pre-connect:** Shows live activity (recent wins ticker, active game count by type, Dogpile status/countdown, total platform volume, biggest pot of the day).  
-* **Post-connect:** Becomes the lobby, showing the open games board, Dogpile status, active quests, points balance, and Global Chat.
+* **Pre-connect:** Shows live activity (recent wins ticker, active game count by type, event status/countdown, total platform volume, biggest pot of the day).  
+* **Post-connect:** Becomes the lobby, showing the open games board, event status, active quests, points balance, and Global Chat.
 
 Global Chat[1](https://docs.google.com/document/d/19Sg7NUoz-U_4xaKa79vjwIZ9Zl0wdYirppjwVGmaVCo/edit)
 
@@ -136,7 +159,7 @@ Telegram Bot (@taunt\_bot)[1](https://docs.google.com/document/d/19Sg7NUoz-U_4xa
   * /profile \[taunt\_username\]: Replies with a link to the player’s public profile.  
   * /referral \[taunt\_username\]: Replies with that player’s referral link.  
   * /games: Short menu of available games with direct links to start a new game (Flip You, Jackpot, Close Call).  
-  * /wen: Countdown to the next Dogpile window or status if active.  
+  * /wen: Countdown to the next event window or status if active.  
   * /therapy: List of gambling support resources.  
   * /ngmi: Random one-liners from a rotating list.  
   * /challenge @tg\_username \[game\_id\] (future use case for link generation).  

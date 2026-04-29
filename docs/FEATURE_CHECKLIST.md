@@ -34,18 +34,20 @@ Legend:
 
 ---
 
-## 2. The Multiplier — HEAT
+## 2. Multiplier
 
-> "This single number, purely a function of lifetime wagered volume, governs all rewards"
+> Canonical code/API name: `multiplier`. Current display label: "PNS Size".
 
-- [x] `heat_multiplier` column in DB (default 1.0)
-- [x] Returned in profile API
-- [ ] Compute from lifetime wagered volume — `todo` + `tokenomics` (curve shape, cap)
+- [x] Legacy `heat_multiplier` column in DB (default 1.0)
+- [x] Legacy value returned in profile API
+- [ ] Rename domain language from HEAT/Dogpile-specific terms to generic multiplier/event terms — `spec 401`
+- [ ] Lifetime stepped ladder based on lifetime wagered USD, thresholds defined in spec 401 — `todo`
+- [ ] Season stepped ladder based on season wagered USD, thresholds defined in spec 401 — `todo`
+- [ ] Temporary modifiers for events, admin grants, and reward grants — `todo`
+- [ ] Modifier modes: multiply, set minimum, hard override; events default to hard override — `todo`
 - [ ] Apply to points earned per dollar wagered — `todo`
-- [ ] Apply to loot crate drop-rate probability — `todo`
-- [ ] Starting value, mid-level, cap (`[TBD 1]x` → `[TBD 2-3]x` → `[TBD 5]x`) — `tokenomics`
-- [ ] Logarithmic curve (flattens as it goes up) — `tokenomics`
-- [ ] Global/Lifetime × Seasonal multiplier design — `tokenomics`
+- [x] Decision: crate point grants are unmultiplied at launch; other fixed grants stay fixed by default
+- [x] Starting values and ladder thresholds defined — `spec 401`
 - [ ] Dynamic progression feel during gameplay — `fe/design`
 
 ---
@@ -53,12 +55,16 @@ Legend:
 ## 3. Points System (Pre-TGE)
 
 - [x] Points accrual on every settled game (wager-based)
-- [x] `player_points` table + `point_grants` ledger
+- [x] Legacy `player_points` table + `point_grants` ledger
 - [x] Balance + history endpoints (`GET /points/mine`, `/mine/history`)
-- [ ] Accelerated by HEAT multiplier — `todo` (multiplier exists but not applied)
+- [ ] Season-scoped balances via `seasons` + `point_balances` — `spec 401`
+- [ ] Enforce exactly one active season; season end requires activating a successor — `spec 401`
+- [ ] `point_grants.season_id` for every grant source — `spec 401`
+- [ ] Point rate versions (`100` points / wagered USD launch default) — `spec 401`
+- [ ] Cached global wager-value rate used at compute time — `spec 401`
+- [ ] Accelerated by effective multiplier — `todo` (legacy multiplier exists but not applied)
 - [ ] Points visible on leaderboards — `fe/design`
 - [ ] Points → $TAUNT conversion at TGE — `tokenomics`
-- [ ] Emission rate (points per $) — `tokenomics`
 - [ ] Season 1 end date — `tokenomics`
 - [ ] Airdrop 1: `[TBD 10m]` tokens / `[TBD 1m]` points / `[TBD 10,000]` players — `tokenomics`
 
@@ -79,55 +85,59 @@ Legend:
 - [~] Expanded quest list from doc:
   - [x] Face 5 unique opponents — `unique_opponents` condition + seed data
   - [x] Create 1 game that gets filled — `lobby_filled` (existed)
-  - [x] Play during a Dogpile window — `dogpile_game` adapter + seed data
+  - [x] Play during an event window — legacy `dogpile_game` adapter + seed data
   - [ ] Hit a 1/3/5/7 day streak — `todo` (needs cross-day tracking)
   - [ ] Beat 2 unique opponents (win) — `todo` (needs `unique_opponents_won` condition variant)
   - [x] Join 2 open lobbies — `lobby_joined` adapter + seed data
 - [~] Weekly quest list:
   - [x] Play 20 Games, Win 10, Play Every Type, Fill 5 Lobbies (existed)
-  - [x] Meet 10 Opponents, Lobby Regular, Dogpile Veteran (new)
+  - [x] Meet 10 Opponents, Lobby Regular, event participation challenge (new)
 - [ ] S2+ rotating quests — `todo`
 
 ---
 
 ## 5. Loot Crates
 
-> "Probability of a good drop is multiplied by the HEAT multiplier"
+> Open decision: whether crate probability is affected by the effective multiplier.
 
 - [x] `crate_drops` table
 - [x] Weighted probability roll (SOL > points > miss)
 - [x] SOL payout handler (on-chain transfer)
 - [x] Configurable rates via `reward_config`
 - [x] Crate history endpoint (`GET /crates/mine`)
-- [ ] HEAT multiplier applied to drop probability — `todo`
+- [x] Decision: crate point grants stay unmultiplied at launch
+- [ ] Decide and implement multiplier impact on drop probability — `todo` + `tokenomics`
 - [ ] Crate expiration per season — `todo`
 - [ ] Provably fair crate mechanism — `todo`
 - [ ] Final probabilities — `tokenomics` (doc has illustrative table: 64.24% / 23% / 12.5% / 0.25% / 0.01%)
 - [ ] SOL drop amounts — `tokenomics`
 - [ ] Large SOL drop as % of incentive pool — `tokenomics`
 - [ ] Crate opening UX — `fe/design`
-- [ ] Show base probability vs player probability vs Dogpile buff — `fe/design`
+- [ ] Show base probability vs player probability vs event modifier — `fe/design`
 
 ---
 
-## 6. Dogpile / Gangbang
+## 6. Events
 
-> "A lobby-fill event running once every 6hrs for a 60 minute window"
+> Canonical code/API name: `event`. Current display label for one event type: "Gangbang".
 
-- [x] `dogpile_events` table (scheduled → active → ended)
+- [x] Legacy `dogpile_events` table (scheduled → active → ended)
 - [x] Status worker (time-based transitions)
-- [x] Public endpoints (`GET /dogpile/current`, `/dogpile/schedule`)
+- [x] Legacy public endpoints (`GET /dogpile/current`, `/dogpile/schedule`)
 - [x] Admin can create events
-- [ ] Multiplier applied during active window — `todo` (field exists, not applied to settlement)
+- [ ] Generic `events` table and `/events/*` endpoints — `spec 401`
+- [ ] Legacy `/dogpile/*` routes become compatibility aliases — `spec 401`
+- [ ] Events can overlap; multiplier modifiers resolve deterministically — `spec 401`
+- [ ] Event multiplier applied during active window — `todo` (legacy field exists, point handler currently applies Dogpile only)
 - [ ] Volume threshold (must be met or prize rolls over) — `todo`
 - [ ] Prize pool distribution to participants — `todo`
 - [ ] Fee rollover when threshold not met — `todo`
-- [ ] HEAT maxed during window for points + crate chances — `todo`
+- [ ] Event can hard override the effective multiplier by default — `todo`
 - [ ] Multiplier value (`[TBD 2]x`) — `tokenomics`
 - [ ] Volume threshold amount — `tokenomics`
 - [ ] Multiplier design: pro-rata by volume OR flat for everyone — `tokenomics`
 - [ ] Reward structure: leaderboard race vs random drop vs hybrid — `tokenomics`
-- [ ] Dogpile countdown / status widget — `fe/design`
+- [ ] Event countdown / status widget — `fe/design`
 
 ---
 
@@ -171,7 +181,7 @@ Legend:
 
 - [x] `reward_pool` table (balance, lifetime funded/paid)
 - [x] Pool funding from fees (configurable %)
-- [ ] Allocation split: Dogpile vs Leaderboard vs Crates — `todo` + `tokenomics`
+- [ ] Allocation split: Events vs Leaderboard vs Crates — `todo` + `tokenomics`
 - [ ] Profit vs incentive pool split — `tokenomics`
 - [ ] All allocation percentages — `tokenomics`
 
@@ -182,13 +192,13 @@ Legend:
 ### Pre-connect
 - [ ] Recent wins live ticker — `fe/design` + `todo` (event feed)
 - [ ] Active game count by type — `fe/design` + `todo` (backend query)
-- [ ] Dogpile status/countdown — `fe/design` (endpoint exists)
+- [ ] Event status/countdown — `fe/design` (legacy endpoint exists)
 - [ ] Total platform volume — `fe/design` + `todo` (backend query)
 - [ ] Biggest pot of the day — `fe/design` + `todo` (backend query)
 
 ### Post-connect (Lobby)
 - [ ] Open games board — `fe/design`
-- [ ] Dogpile status — `fe/design` (endpoint exists)
+- [ ] Event status — `fe/design` (legacy endpoint exists)
 - [ ] Active quests inline — `fe/design` (endpoint exists)
 - [ ] Points balance — `fe/design` (endpoint exists)
 - [ ] Global chat panel — `fe/design` (chat service exists)
@@ -230,7 +240,7 @@ Legend:
 - [x] /profile [username] — public profile link
 - [x] /referral [username] — referral link
 - [x] /games — Flip You, Pot Shot, Close Call links
-- [x] /wen — Dogpile countdown
+- [x] /wen — event countdown (legacy Dogpile source)
 - [x] /therapy — gambling support resources
 - [x] /ngmi — random one-liners
 - [ ] V2: account linking, /stats, /challenge — `todo`
@@ -246,7 +256,7 @@ Legend:
 
 ## 16. Dashboards
 
-- [x] Admin API (`/admin/*` — reward config, campaigns, challenges, dogpile)
+- [x] Admin API (`/admin/*` — reward config, campaigns, challenges, legacy dogpile/events)
 - [x] Admin auth (X-Admin-Key)
 - [ ] KOL referral dashboard — `fe/design`
 - [ ] Admin panel UI — `fe/design`
@@ -259,11 +269,11 @@ Legend:
 | Category | Done | Partial | Todo | FE/Design | Tokenomics |
 |----------|------|---------|------|-----------|------------|
 | Profiles | 4 | 0 | 3 | 4 | 1 |
-| HEAT Multiplier | 2 | 0 | 2 | 1 | 4 |
+| Multiplier | 2 | 0 | 2 | 1 | 4 |
 | Points | 3 | 0 | 1 | 1 | 4 |
 | Quests | 7 | 2 | 2 | 0 | 0 |
 | Loot Crates | 5 | 0 | 3 | 2 | 3 |
-| Dogpile | 4 | 0 | 5 | 1 | 4 |
+| Events | 4 | 0 | 5 | 1 | 4 |
 | Leaderboard | 3 | 0 | 2 | 1 | 1 |
 | Referral | 7 | 0 | 4 | 0 | 3 |
 | Incentive Pool | 2 | 0 | 1 | 0 | 2 |

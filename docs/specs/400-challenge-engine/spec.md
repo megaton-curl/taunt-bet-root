@@ -15,6 +15,8 @@
 
 A backend service that gives players daily and weekly gameplay objectives, tracks progress automatically via game settlement events, awards points for wagering, drops loot crates with configurable probability, and runs scheduled Dogpile events with boosted multipliers. Every challenge drives lobby activity — no social media chores, no off-platform actions.
 
+**Reward economy terminology note:** this spec records the implemented M1 challenge/reward system and still uses legacy names such as HEAT and Dogpile in several places. New reward-economy work should use the generic vocabulary in spec 401: `points`, `multiplier`, `season`, and `event`. Product copy such as "PNS Size" or "Gangbang" belongs in display labels, not schema, URLs, queue event names, or code identifiers.
+
 The system introduces three new primitives:
 1. **Points** — earned passively per $ wagered (configurable rate). Pre-TGE allocation signal. Free to mint.
 2. **Loot Crates** — random drops after settled games. Two types: points crates (free) and SOL crates (capped by reward-pool accounting).
