@@ -184,6 +184,19 @@ GET /profile/transactions?cursor=<id>&limit=<n>&game=<filter>
 - [x] Response matches the documented shape <!-- satisfied: routes/profile.ts:66-81 — id, game (frontend-mapped), matchId, event, amountLamports (string), txSig, createdAt -->
 - [x] Empty result returns `{ "transactions": [], "nextCursor": null }` <!-- satisfied: routes/profile.ts:76-79 — empty array length !== limit → nextCursor = null -->
 
+#### Patch (2026-04-30) — restore `payout` in response `txType` enum
+
+The DB column, settlement workers (`worker/settle-tx.ts:428`, `worker/closecall-clock.ts:489`), stats queries (FR-8), and the original spec body all treat `payout` as a first-class transaction type. The public response schema regressed at some point and only enumerates `["deposit", "refund"]` (`backend/src/contracts/validators.ts:187`), so settle-time payouts written by the worker never reach `/profile/transactions` consumers, leaving the profile page unable to compute wins / win rate / net P&L from its own ledger.
+
+- **Response (`TransactionSchema.txType`)**: `"deposit" | "payout" | "refund"`. Mirrors the DB CHECK and the `TransactionType` union in `db/transactions.ts`.
+- **Request (`ConfirmTransactionBodySchema.txType`)**: stays `"deposit" | "refund"`. Clients never report payouts; only the settlement worker writes them server-side.
+
+**Acceptance Criteria:**
+- [ ] `TransactionSchema.txType` enum includes `"payout"`.
+- [ ] `ConfirmTransactionBodySchema.txType` enum remains restricted to `"deposit" | "refund"`.
+- [ ] `GET /profile/transactions` returns settle-time payout rows (verified by integration test that inserts a `payout` row and reads it back).
+- [ ] OpenAPI spec at `/openapi.json` reflects the three-value enum.
+
 ### FR-4: Frontend — Wire ProfileTransactions to Real Data
 
 Replace mock transaction data in the profile page with real API calls.
@@ -405,6 +418,105 @@ All profile interaction points for the frontend.
 - [x] BigInt fields serialized as strings <!-- satisfied: routes/profile.ts:75,78,83 String() calls for totalWagered, pointsBalance, netPnl -->
 - [x] 404 for unknown identifier on public endpoint <!-- satisfied: routes/public-profile.ts:23-24 returns 404 NOT_FOUND -->
 
+#### Patch (2026-04-30) — split stats into `GET /profile/stats`
+
+`/profile/me` is hot — chat (`chat/src/auth/resolve-username.ts:44`, every session resume) and waitlist (`waitlist/src/components/TelegramCard.tsx`, every page mount) call it for `username` and `telegramLinked` respectively, never for stats. The webapp profile page (per design) wants both identity AND stats. Pinning aggregate queries to every `/me` call makes the cheap path expensive for callers that ignore the payload.
+
+Changes:
+
+- **Drop `stats` from `/profile/me` response.** `PlayerProfileSchema` no longer includes `stats`. The previous "Temporary production safety valve" zeroing in `routes/profile.ts:97-109` is removed entirely (no zeroed sub-tree, no DB calls).
+- **Add `GET /profile/stats`** (auth, JWT required). Returns the existing `PlayerStatsSchema` shape (`gamesPlayed`, `totalWagered`, `totalWins`, `winRate`, `winStreakCurrent`, `winStreakBest`, `netPnl`, `gameBreakdown`). Computed live from `game_entries` via `getPlayerStatsByUserId` + `getWinStreaksByUserId` + `getGameBreakdownByUserId` (already implemented in `db/stats.ts`). All three queries hit `idx_game_entries_user_settled`.
+- **Cache policy:** `/profile/me` is high-TTL on the client (identity rarely changes); `/profile/stats` should invalidate on settlement.
+- **Public-profile endpoint unchanged** — already returns its own restricted stats subset on the same call.
+
+**Consumer impact:**
+
+- `chat/src/auth/resolve-username.ts` — unaffected (only reads `username`).
+- `waitlist/src/components/TelegramCard.tsx` — unaffected (only reads `telegramLinked`); the `stats` field on `waitlist/src/lib/profile-api.ts:30` is dead-typed and should be removed in a follow-up. Logged in `docs/TECH_DEBT.md`.
+- `webapp` — must call `/profile/stats` in addition to `/profile/me` (parallel React Query calls). Out of scope for this patch (frontend repo handles).
+
+**Acceptance Criteria:**
+- [ ] `PlayerProfileSchema` no longer includes a `stats` field.
+- [ ] `GET /profile/me` route handler does NOT call `getPlayerStatsByUserId`, `getWinStreaksByUserId`, or `getGameBreakdownByUserId`.
+- [ ] `GET /profile/stats` exists, requires JWT, returns 401 without one.
+- [ ] `GET /profile/stats` returns `PlayerStatsSchema` with values computed live from `game_entries`.
+- [ ] `gameBreakdown` includes only games the user has played (no zero-row entries).
+- [ ] Refunded entries (`is_winner IS NULL`) are excluded from `gamesPlayed`, `totalWins`, `winRate`, and streak walks.
+- [ ] OpenAPI spec exposes both endpoints under the `Profile` tag.
+
+---
+
+### FR-10 (2026-04-30) — Avatar Upload via Cloudflare Images
+
+The original spec deferred avatar uploads ("No upload/unlock system in this iteration"). This adds Cloudflare Images as the avatar storage layer and the three backend endpoints needed to set/clear an avatar. Storage and CDN delivery are external — the backend **never handles image bytes**. It only brokers signed direct-upload URLs and stores the resulting Cloudflare image ID.
+
+**Schema additions** (extend `player_profiles`, additive nullable, no backfill):
+
+| Column | Type | Constraints | Notes |
+|---|---|---|---|
+| `avatar_image_id` | `TEXT` | nullable | Cloudflare Images UUID. Null = no custom avatar (frontend renders identicon from `user_id`) |
+| `avatar_updated_at` | `TIMESTAMPTZ` | nullable | Last successful avatar set/clear; powers cooldown + cache busting |
+
+`avatar_url` (already in schema) is now a **derived** field: when `avatar_image_id` is set, the API returns `https://imagedelivery.net/<account_hash>/<avatar_image_id>/<variant>`. Consumers treat as opaque.
+
+**Configuration** (`backend/.env`):
+
+| Var | Example | Required |
+|---|---|---|
+| `CLOUDFLARE_ACCOUNT_ID` | `<account id>` | yes |
+| `CLOUDFLARE_ACCOUNT_HASH` | `Nu1tHIHtX_h4t_YnuzsO_Q` | yes |
+| `CLOUDFLARE_IMAGES_TOKEN` | API token scoped `Account → Cloudflare Images → Edit` | yes |
+| `CLOUDFLARE_IMAGES_VARIANT` | `240x240` | yes |
+
+Variants are configured in the CF dashboard (one-time, not via API). Current variant: `240x240` — 240×240, fit=cover, format=auto. The variant **name** (the URL slug, not the dimensions) is read from env so renaming the variant in CF doesn't require a code change.
+
+**Endpoints** (all behind `/profile/*` JWT middleware):
+
+`POST /profile/avatar/upload-url`
+- Cooldown check: if `avatar_updated_at > now() - 5min`, return 429 with `nextChangeAvailableAt`.
+- Calls Cloudflare `POST /accounts/{accountId}/images/v2/direct_upload` (multipart) with `metadata = JSON.stringify({ userId: <jwt sub>, exp: <now + 5min ISO> })` and `requireSignedURLs=false`.
+- Returns: `{ uploadURL: string, imageId: string }`. The CF-issued `uploadURL` is one-time and CF-signed; the client PUTs bytes there directly.
+
+`PATCH /profile/avatar`
+- Body: `{ imageId: string }`
+- Cooldown check (same as above).
+- Backend:
+  1. Fetches `GET /accounts/{accountId}/images/v1/{imageId}`
+  2. Validates: response `success` is true, `result.draft === false` (upload completed), `result.meta.userId === <jwt sub>` (anti-hijack)
+  3. UPDATEs `player_profiles` setting `avatar_image_id`, `avatar_url = https://imagedelivery.net/<hash>/<imageId>/<variant>`, `avatar_updated_at = now()`
+  4. Fire-and-forget `DELETE /accounts/{accountId}/images/v1/<previous_image_id>` (errors logged, never bubble up — orphaned images cost ~$0 at our tier)
+- Returns: `{ avatarUrl: string }`
+- Errors: `404` (image not found at CF), `403` (`meta.userId` mismatch), `422` (`draft: true`), `429` (cooldown)
+
+`DELETE /profile/avatar`
+- Cooldown check.
+- Reads previous `avatar_image_id`, sets `avatar_image_id`/`avatar_url` to null, stamps `avatar_updated_at`.
+- Fire-and-forget delete at CF.
+- Returns: `204`.
+
+**Rate limiting:** Simple 5-minute cooldown via `avatar_updated_at`. Avatars don't have a name-grab equivalent (no uniqueness contention), so the constraint here is just to bound CF API spam. No separate audit table needed.
+
+**Acceptance Criteria:**
+- [ ] Migration adds `avatar_image_id` and `avatar_updated_at` columns to `player_profiles` (additive, nullable, no backfill)
+- [ ] Migration runs cleanly on a fresh DB and against the existing dev DB
+- [ ] `POST /profile/avatar/upload-url` returns a CF-signed upload URL with `userId` and `exp` baked into the CF-stored metadata
+- [ ] `PATCH /profile/avatar` returns 403 when CF image metadata `userId` does not match caller's JWT `sub`
+- [ ] `PATCH /profile/avatar` returns 404 when CF reports the image does not exist
+- [ ] `PATCH /profile/avatar` returns 422 when CF reports `draft: true`
+- [ ] Successful PATCH writes `avatar_image_id`, derives `avatar_url` as `https://imagedelivery.net/<hash>/<id>/<variant>`, and stamps `avatar_updated_at`
+- [ ] Successful PATCH best-effort deletes the previously-stored image from CF (CF errors do not fail the request)
+- [ ] `DELETE /profile/avatar` clears both columns, stamps `avatar_updated_at`, and best-effort deletes the CF image
+- [ ] Cooldown returns 429 when `avatar_updated_at` is within the last 5 minutes, with `nextChangeAvailableAt` in the response
+- [ ] `GET /profile/me` emits the imagedelivery URL when `avatar_image_id` is set, otherwise null
+- [ ] No image bytes are read or buffered by the backend (no multipart/file body parsing in the new routes)
+- [ ] OpenAPI spec exposes the three new paths under the `Profile` tag
+
+**Out of scope (explicitly deferred):**
+- Frontend upload UI — separate frontend project
+- Loot Crate / unlock-gating of avatars — Phase 4
+- Automated NSFW / moderation — manual takedown only via admin tool, future
+- Additional variants beyond `240x240` (e.g. 64×64 thumbs) — add when surfaces need them
+
 ---
 
 ## Success Criteria
@@ -558,6 +670,19 @@ existing participation entries with results, inserts new entries for joiners.
 - [x] [test] Unit tests for stats + streaks — in `backend/src/__tests__/player-stats.test.ts`. Requires DB (use vitest setup from existing `auth-routes.test.ts` pattern). Seed `transactions` table with known rows, then call `getPlayerStats`, `getWinStreaks`, `getGameBreakdown`, `getPublicPlayerStats`. Test cases: (1) empty history → all zeros, (2) 3 wins in a row → current=3 best=3, (3) win-win-loss-win → current=1 best=2, (4) refund-only match skipped in streak, (5) game breakdown groups correctly, (6) public stats omit wagered/pnl. Run: `cd backend && pnpm test`. (done: iteration 25)
 - [x] [test] Integration test for profile lifecycle — in `backend/src/__tests__/profile.test.ts`. Test flow: (1) POST `/verify` with new wallet → succeeds → `player_profiles` row exists with auto-generated username + user_id, (2) GET `/profile/me` returns profile + stats (empty), (3) PUT `/profile/username` with valid name → succeeds, (4) PUT `/profile/username` again immediately → 429 cooldown, (5) PUT `/profile/username` with taken name → 409, (6) GET `/public-profile/{username}` returns public profile + limited stats, (7) GET `/public-profile/{user_id}` returns same data, (8) no `wallet` field in any response. Run: `cd backend && pnpm test`. (done: iteration 26)
 
+#### Iteration 3: Avatar Upload via Cloudflare Images (Backend Only)
+
+- [ ] [engine] Migration `024_player_avatar.sql` — `ALTER TABLE player_profiles ADD COLUMN avatar_image_id TEXT, ADD COLUMN avatar_updated_at TIMESTAMPTZ`. Verify: `cd backend && pnpm migrate`.
+- [ ] [engine] Cloudflare config in `backend/src/config.ts` — extend `Config` interface with `cloudflareAccountId`, `cloudflareAccountHash`, `cloudflareImagesToken`, `cloudflareImagesVariant` (all required strings). `loadConfig()` uses `requireEnv` for each. Add the four vars to `backend/.env.example` if such a file exists.
+- [ ] [engine] Cloudflare Images client wrapper — create `backend/src/lib/cloudflare-images.ts`. Pure module (no DB). Constructor takes `{ accountId, token }`. Methods: `requestDirectUpload({ userId, exp }): Promise<{ uploadURL, imageId }>`, `getImage(imageId): Promise<{ draft: boolean, meta: Record<string,string> }>`, `deleteImage(imageId): Promise<void>`. Wraps `fetch` to `https://api.cloudflare.com/client/v4`. Methods throw on non-2xx; `deleteImage` swallows 404 only (image already gone is fine).
+- [ ] [engine] DB functions — add to `db.ts`: `setProfileAvatar(userId: string, imageId: string, avatarUrl: string)`, `clearProfileAvatar(userId: string)`, `getProfileAvatarState(userId: string): { imageId: string|null, updatedAt: Date|null }` (used for cooldown check + previous-image lookup).
+- [ ] [engine] `POST /profile/avatar/upload-url` route in `routes/profile.ts` — JWT required. Cooldown check: read `getProfileAvatarState`, if `updatedAt > now()-5min` return 429 `{ error: "COOLDOWN_ACTIVE", nextChangeAvailableAt }`. Else call `cloudflareImages.requestDirectUpload({ userId: c.get("userId"), exp: <now+5min ISO> })` and return `{ uploadURL, imageId }`.
+- [ ] [engine] `PATCH /profile/avatar` route in `routes/profile.ts` — JWT required. Body validated `{ imageId: string }`. Cooldown check (429). Calls `cloudflareImages.getImage(imageId)`. Validate `!result.draft && result.meta.userId === c.get("userId")`. On mismatch → 403; on draft → 422; on CF 404 → 404. On success: compute `avatarUrl = https://imagedelivery.net/${cfg.cloudflareAccountHash}/${imageId}/${cfg.cloudflareImagesVariant}`, call `setProfileAvatar(userId, imageId, avatarUrl)`. Read previous imageId via `getProfileAvatarState` BEFORE the update; fire-and-forget `cloudflareImages.deleteImage(prevId)` after the update returns success (catch + log, never throw). Return `{ avatarUrl }`.
+- [ ] [engine] `DELETE /profile/avatar` route in `routes/profile.ts` — JWT required. Cooldown check (429). Read previous `imageId` via `getProfileAvatarState`, call `clearProfileAvatar`, fire-and-forget delete at CF, return 204.
+- [ ] [engine] Update OpenAPI spec (`backend/src/openapi.ts`) — add three paths under Profile tag with proper request/response schemas (`AvatarUploadUrlResponse`, `AvatarUpdateBody`, `AvatarUpdateResponse`). Document error responses (403, 404, 422, 429).
+- [ ] [test] Unit tests for `cloudflare-images` wrapper — `backend/src/__tests__/cloudflare-images.test.ts`. Mock `global.fetch`; assert request URL, headers (Authorization Bearer), and body shape for `requestDirectUpload`, `getImage`, `deleteImage`. Cover non-2xx → throw, 404 in deleteImage → swallow.
+- [ ] [test] Integration test for avatar lifecycle — `backend/src/__tests__/avatar.test.ts`. Mock CF API. (1) Auth a wallet → POST upload-url → response shape correct, exp ~5min ahead. (2) PATCH with imageId whose CF `meta.userId` ≠ caller → 403. (3) PATCH with imageId where CF returns `draft: true` → 422. (4) PATCH with valid imageId → 200, DB has `avatar_image_id` set and `avatar_url` matches `imagedelivery.net/<hash>/<id>/<variant>`. (5) Second PATCH within 5min → 429 with `nextChangeAvailableAt`. (6) DELETE → 204, columns nulled. (7) Verify previous-image delete was called on CF (best-effort, mocked). Run: `cd backend && pnpm test`.
+
 ### Testing Requirements
 
 The agent MUST complete ALL before outputting the completion signal:
@@ -630,6 +755,11 @@ After the spec loop outputs `<promise>DONE</promise>`, `spec-loop.sh` automatica
   - `GET  /public-profile/:identifier` -- public (no auth). Mounted at `/public-profile` separately from `/profile/*` to avoid JWT middleware. Resolves user_id (starts with `usr_`) or username (case-insensitive). Returns: userId, username, avatarUrl, heatMultiplier, limited stats (gamesPlayed, totalWins, winRate), createdAt. No wallet, no PnL, no streaks, no tx history. 404 if not found.
   - `PUT  /profile/username` -- JWT required (under `/profile/*` middleware). Body: `{ username }`. Validates format (3-20 chars, `[a-zA-Z0-9_-]`), case-insensitive uniqueness, 30-day cooldown. Returns: `{ username, nextEditAvailableAt }`. Errors: 400/409/429.
 
+- **Endpoints (Iteration 3 — avatar upload)**:
+  - `POST   /profile/avatar/upload-url` -- JWT required. Brokers a CF Images `direct_upload` URL with embedded `userId` + `exp` metadata. Returns `{ uploadURL, imageId }`. 429 on 5-min cooldown.
+  - `PATCH  /profile/avatar` -- JWT required. Body `{ imageId }`. Verifies CF metadata.userId matches caller, writes `avatar_image_id` + derived `avatar_url`, fire-and-forget deletes previous image. Returns `{ avatarUrl }`. Errors: 403 (hijack)/404/422 (draft)/429.
+  - `DELETE /profile/avatar` -- JWT required. Clears avatar, fire-and-forget deletes CF image. Returns 204.
+
 - **DB Tables**:
   - `transactions` (PK: `id`, BIGSERIAL) -- on-chain SOL movement ledger. Key columns: `wallet`, `game`, `match_id`, `tx_type` (deposit/payout/refund), `amount_lamports`, `tx_sig` (NOT NULL). Unique index: `(wallet, match_id, tx_type, tx_sig)`. Migration 009.
   - `player_profiles` (PK: `id`, BIGSERIAL) -- player identity. Key columns: `user_id` (UNIQUE, `usr_` + 8 random), `wallet` (UNIQUE, internal only), `username` (UNIQUE, auto-gen or player-set), `username_updated_at`, `avatar_url`, `heat_multiplier` (default 1.0), `points_balance` (default 0), `created_at`. Migration 013.
@@ -689,7 +819,7 @@ After the spec loop outputs `<promise>DONE</promise>`, `spec-loop.sh` automatica
 - **Lord join rows** (individual entry tracking): PDA watcher sees round state change but not individual entries. Low priority; entries are visible on-chain
 - **Lord multi-entry loss amount accuracy**: UNIQUE constraint means at most one loss row per player per Lord round. If a player enters multiple times and loses, only the first entry's amount is recorded (ON CONFLICT DO NOTHING drops subsequent inserts). Total loss amount is under-reported for multi-entry losers. Low impact for V1. Potential fix: change UNIQUE constraint to `(wallet, match_id, event, amount_lamports)` or aggregate amounts before insert
 - **Social account linking (X/Discord)**: Removed from scope. TBD future decision — unclear whether self-reported handles or OAuth verification.
-- **Avatar upload / unlock system**: Depends on Loot Crates feature. Only identicon for now.
+- **Avatar unlock system**: Loot-Crate-gated avatar variants are deferred to Phase 4. Basic player upload (Cloudflare Images) is now in scope — see FR-10 / Iteration 3.
 - **Stats pre-aggregation / caching**: On-the-fly computation for now. Add `player_stats_cache` materialized view if latency becomes a problem.
 - **HEAT multiplier computation**: Reserved column, always 1.0. Depends on HEAT feature spec.
 - **Points system**: Reserved column, always 0. Depends on Points feature spec.
