@@ -7,7 +7,7 @@
 | Status | Ready |
 | Priority | P0 |
 | Track | Core |
-| NR_OF_TRIES | 9 |
+| NR_OF_TRIES | 10 |
 
 ---
 
@@ -189,7 +189,7 @@ Each implementation section ends with a `[review]` retrospective gate. After the
 
 #### Claim hot path (debit producer + ledger-derived caps)
 
-- [ ] [backend] In `backend/src/routes/referral.ts` `POST /claim`, replace `getPendingBalanceByUserId` with two ledger-derived checks via the new helpers: claim ≤ `getUserReferralAvailable(userId)` and claim ≤ `getReferralBucketAvailable()`. Keep the existing `referralMinClaimLamports` policy gate. Inside the same `sql.begin` transaction that inserts the `referral_claims` row and emits the queue event, also insert a `fee_bucket_debits` row (`bucket='referral'`, `debit_type='claim'`, `source_id=claim.id`, `status='pending'`). Confirm the existing `insertReferralEarning` / `getPendingBalanceByUserId` are still used elsewhere, or delete them with grep evidence.
+- [x] [backend] In `backend/src/routes/referral.ts` `POST /claim`, replace `getPendingBalanceByUserId` with two ledger-derived checks via the new helpers: claim ≤ `getUserReferralAvailable(userId)` and claim ≤ `getReferralBucketAvailable()`. Keep the existing `referralMinClaimLamports` policy gate. Inside the same `sql.begin` transaction that inserts the `referral_claims` row and emits the queue event, also insert a `fee_bucket_debits` row (`bucket='referral'`, `debit_type='claim'`, `source_id=claim.id`, `status='pending'`). Confirm the existing `insertReferralEarning` / `getPendingBalanceByUserId` are still used elsewhere, or delete them with grep evidence. (done: iteration 10)
 - [ ] [backend] In `backend/src/queue/handlers/referral-claim.ts`, after every `db.updateClaimStatus` call (and the insufficient-balance permanent-fail branch), call `updateFeeBucketDebitStatus` for the same `claim_id` so the debit moves through `processing → completed | failed | error` in lockstep with the claim. Reuse the same DB transaction where claim status updates already use one.
 - [ ] [test] Extend `backend/src/__tests__/referral-routes.test.ts` (or add `referral-claim-ledger.test.ts`) to cover: ledger cap enforcement (per-user and global) returns 422 with the documented `API_ERROR_CODES` envelope; successful claim writes a `fee_bucket_debits` row with `status='pending'`; queue handler success/transient-error/permanent-fail each update the debit's status to match the claim.
 - [ ] [review] Now that the ledger-derived claim caps and debit-lifecycle sync are live and tests show the actual claim → debit transitions, look back with fresh eyes. Hot-path replacements often leave dead helpers, race windows around the `sql.begin` boundary, or missed status edges (e.g. `error → completed`). If a higher-conviction simpler/safer shape is now clear, either adapt the code in place or append a new checklist item below before continuing. If nothing better surfaces, note "no change after review" in the iteration log and proceed.

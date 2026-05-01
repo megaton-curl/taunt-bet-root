@@ -266,3 +266,40 @@ The unifying abstraction the review item asks about already exists, was iterated
 ## Iteration 9 — 2026-05-01T20:14:09Z — OK
 - **Log**: iteration-009.log
 
+---
+
+## Iteration 10 — 2026-05-01
+
+**Item**: Replace `getPendingBalanceByUserId` in `POST /referral/claim` with ledger-derived caps and insert a matching `fee_bucket_debits` row inside the same transaction as the claim insert + queue event.
+
+**Outcome**: Success.
+
+**Changes**:
+- `backend/src/routes/referral.ts` `POST /claim`:
+  - Replaced the `getPendingBalanceByUserId` snapshot with two ledger-derived calls: `getUserReferralAvailable(userId)` → `userAvailable` (claim amount + per-user cap), then `getReferralBucketAvailable()` → `globalAvailable` (global cap, defends against ledger drift). The 422 codes preserve `ZERO_BALANCE` (≤ 0) and `BELOW_THRESHOLD` (< `referralMinClaimLamports`); the new "user > global" rejection uses `PRECONDITION_FAILED` 422 (no dedicated code in `API_ERROR_CODES` and the existing waitlist contract doesn't need one — this is forensic-only since allocation/debit math should keep them in sync).
+  - Switched the atomic block from raw `sql.begin` to `db.withTransaction(async (txDb) => …)` so `txDb.insertReferralClaim`, `txDb.insertFeeBucketDebit({ bucket: 'referral', debitType: 'claim', sourceId: claim.id, status: 'pending' })`, and `emitEvent(txDb.rawSql, …)` all share the same transaction. Bucket debit rows are now produced in lockstep with the `referral_claims` row.
+  - Removed the unused `sql` destructure inside `createReferralRoutes`. The deps interface still carries `sql: postgres.Sql` so all five call sites (`index.ts`, `index-waitlist.ts`, three test files) keep the same shape — narrowing the deps would be unnecessary churn for a single non-hot-path route.
+- `backend/src/__tests__/referral-routes.test.ts`:
+  - Added `fee_allocation_events` and `fee_bucket_debits` to the per-test `TRUNCATE` so prior runs don't leak ledger state into the suite.
+  - Added a local `seedFeeAllocation()` helper that mirrors an `insertReferralEarning` fixture into the new ledger (computes the FR-2 split: floor referral, floor 20% promotions on the post-referral remainder, profit absorbs dust). Existing tests that exercise `/referral/claim` (BELOW_THRESHOLD, creates pending claim, prevents double-claim, GET status owner check, GET status auth check) now seed the ledger alongside the legacy table so the new ledger-derived caps see the same balance. Tests that only exercise `/earnings` were left alone — they still hit `referral_earnings` directly.
+
+**Confirmation that the legacy helpers are still used elsewhere** (per the spec item):
+- `getPendingBalanceByUserId`: still used in `backend/src/queue/handlers/referral-claim.ts:72` (the next checklist item rewires that call site). Also self-referenced by `db/fee-accounting.ts` in a doc comment and used by the unchanged `getReferralStatsByUserId` aggregate (separate query, same shape). Kept.
+- `insertReferralEarning`: still used in `backend/src/worker/settle-tx.ts:180` to write the legacy `referral_earnings` row alongside the new `fee_allocation_events` row, plus by 7 fixture call sites in `referral-routes.test.ts`. The legacy table is still consulted by `/referral/earnings`, `/referral/stats`, and `/referral/leaderboard`. Kept.
+
+**Verification**:
+- `cd backend && pnpm typecheck` — exit 0.
+- `cd backend && pnpm lint` — exit 0 (only the pre-existing `contracts/api-envelope.ts` warning).
+- `pnpm exec vitest run --config vitest.integration.config.ts src/__tests__/referral-routes.test.ts` — 29/29 passed (including all 4 `POST /claim` cases and 3 `GET /claim/:claimId` cases now exercising the ledger path).
+- `pnpm exec vitest run --config vitest.integration.config.ts src/__tests__/fee-accounting.test.ts src/__tests__/integration-fee-allocation.test.ts` — 15/15 passed (regression check on the underlying helpers).
+- `pnpm exec vitest run src/__tests__/openapi-contract.test.ts src/__tests__/waitlist-contract.test.ts` — 75/75 passed (the route's deps shape and the public envelope/contract are intact).
+
+**Notes**:
+- The route still claims the user's full available balance — the public API hasn't gained a request body. The "claim ≤ requested amount" wording in FR-6 is satisfied by setting requested = `userAvailable`; the per-user check is then trivially satisfied unless the ledger drifts mid-request, and the global check protects against the case where many simultaneous claims would overdraw the bucket as a whole.
+- The dedicated test file extension (`referral-claim-ledger.test.ts` or new cases inside `referral-routes.test.ts`) lands in the next checklist item; this iteration was scoped to the producer code + keeping the existing suite green.
+
+## Iteration 10 — 2026-05-01 — OK
+
+## Iteration 10 — 2026-05-01T20:22:47Z — OK
+- **Log**: iteration-010.log
+
