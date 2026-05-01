@@ -7,7 +7,7 @@
 | Status | Ready |
 | Priority | P0 |
 | Track | Core |
-| NR_OF_TRIES | 8 |
+| NR_OF_TRIES | 9 |
 
 ---
 
@@ -185,7 +185,7 @@ Each implementation section ends with a `[review]` retrospective gate. After the
 - [x] [backend] Apply the same allocation write inside `settleLordRound` (Pot Shot) in `backend/src/worker/settle-tx.ts`. Pot Shot can have multiple entries per wallet — sum to one allocation row per (round, wallet), matching the existing `recordReferralEarnings` dedupe. (done: iteration 6)
 - [x] [backend] Add allocation write to the Close Call settlement path (`backend/src/worker/settlement.ts` and/or `closecall-clock.ts` — locate the post-resolve fee/payout step and write one `fee_allocation_events` row per Close Call entry's wallet, using `source_type = 'closecall_round'`, `source_id = round id`). (done: iteration 7)
 - [x] [test] Add settlement integration coverage to `backend/src/__tests__/integration-settlement.test.ts` (or a new `integration-fee-allocation.test.ts`) asserting that after FlipYou + Pot Shot + Close Call settlement, `fee_allocation_events` contains the expected rows for both referred and non-referred players, components sum to `fee_lamports`, and a duplicate settle attempt is a no-op. (done: iteration 8)
-- [ ] [review] Now that fee allocation writes are wired into FlipYou, Pot Shot, and Close Call settlement and the integration tests show the actual ledger rows, look back with fresh eyes. Three near-identical write paths usually point at a shared helper or hook — if a unifying abstraction is now obviously better with high conviction, either refactor in place or append a new checklist item below before continuing. If nothing better surfaces, note "no change after review" in the iteration log and proceed.
+- [x] [review] Now that fee allocation writes are wired into FlipYou, Pot Shot, and Close Call settlement and the integration tests show the actual ledger rows, look back with fresh eyes. Three near-identical write paths usually point at a shared helper or hook — if a unifying abstraction is now obviously better with high conviction, either refactor in place or append a new checklist item below before continuing. If nothing better surfaces, note "no change after review" in the iteration log and proceed. (done: iteration 9)
 
 #### Claim hot path (debit producer + ledger-derived caps)
 

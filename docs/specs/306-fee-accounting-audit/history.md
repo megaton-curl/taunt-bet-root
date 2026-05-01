@@ -238,3 +238,31 @@ of every iteration to understand prior context.
 ## Iteration 8 — 2026-05-01T20:12:05Z — OK
 - **Log**: iteration-008.log
 
+---
+
+## Iteration 9 — 2026-05-01
+
+**Item**: `[review]` retrospective for the Settlement producers section (FlipYou + Pot Shot + Close Call allocation writes + integration coverage).
+
+**Outcome**: No change after review.
+
+**What I looked at**:
+- `backend/src/worker/settle-tx.ts` — `recordReferralEarnings` (lines 132-217) is a single shared helper with one signature: `{ roundId, gameType, feeBps, referralDefaultRateBps, players }`. The dedupe map at lines 144-148 collapses repeated wallets to one allocation row before any DB work runs.
+- Three call sites use it identically: `settleMatch` (FlipYou) at line 454, `settleLordRound` (Pot Shot) at line 742, and `settleRound` (Close Call) in `closecall-clock.ts:525`. Each call wraps in the caller's existing `withTransaction` block so allocation writes share atomicity with settlement.
+- `backend/src/__tests__/integration-fee-allocation.test.ts` exercises all three games through this single helper (FlipYou via the worker path; Pot Shot helper-direct because the on-chain test infra isn't there; Close Call via `clock.tick()`).
+
+**Considered, rejected**:
+- Renaming `recordReferralEarnings` → `recordSettlementFeeAccounting` to reflect the broader scope (the helper now writes a `fee_allocation_events` row for every player, with referral earnings as a side action only when a link exists). The name is mildly stale, but the rename touches 5 sites for a stylistic-only win — not high conviction.
+- Hoisting the helper into `db/fee-accounting.ts`. The helper bridges three sources (profile, referral link, allocation insert) and uses settlement-only context. It belongs near the settlement worker; moving it would muddy the `db/` layer's pure-DB seam.
+- Building a per-game adapter to compute `feeLamports` on-chain-style (single floor on the aggregate pool) instead of per-wallet floor. Iterations 6 and 7 already documented the per-wallet vs. on-chain dust discrepancy as the right accounting unit per FR-1; surfacing it again would just re-litigate that decision.
+
+The unifying abstraction the review item asks about already exists, was iterated on through the section, and is exercised end-to-end. Proceeding to the claim hot path section.
+
+**Verification**:
+- Spec-only edit (one checkbox flip + history append). No code changed.
+
+## Iteration 9 — 2026-05-01 — review (no diff)
+
+## Iteration 9 — 2026-05-01T20:14:09Z — OK
+- **Log**: iteration-009.log
+
