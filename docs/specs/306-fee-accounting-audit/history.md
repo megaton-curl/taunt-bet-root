@@ -147,3 +147,31 @@ of every iteration to understand prior context.
 ## Iteration 5 — 2026-05-01T19:56:29Z — OK
 - **Log**: iteration-005.log
 
+---
+
+## Iteration 6 — 2026-05-01
+
+**Item**: Apply the allocation write inside `settleLordRound` (Pot Shot) in `backend/src/worker/settle-tx.ts`, summing multiple entries per wallet into one allocation row per (round, wallet).
+
+**Outcome**: Success — confirmation iteration. The wiring already lands correctly because of how iteration 5 was structured.
+
+**What was verified**:
+- `recordReferralEarnings` is shared between FlipYou and Pot Shot. Iteration 5 made it write `fee_allocation_events` for every unique player (referred or not). The dedupe map at `settle-tx.ts:144-148` sums multiple entries per wallet into a single `wagerLamports` total before any DB work runs.
+- `settleLordRound` already calls the same hook inside its `db.withTransaction` block (`settle-tx.ts:741-751`) with `serializedEntries.map((e) => ({ wallet: e.player, wagerLamports: e.amountLamports }))`. The hook then collapses repeated wallets to one row keyed by the spec-mandated `(source_type, source_id, wallet)` UNIQUE.
+- Idempotency: a Pot Shot retry hits the UNIQUE-conflict path inside `insertFeeAllocation` (ON CONFLICT DO NOTHING + re-select) and is logged as an idempotent skip — same shape as FlipYou.
+- Per-player attribution: per-wallet `feeLamports = floor(walletWagerSum * feeBps / 10_000)`. The sum across wallets approximates (within at most N−1 lamports of floor-rounding dust) the on-chain `floor(totalAmountLamports * feeBps / 10_000)`. This per-player basis is the right accounting unit per FR-1; the on-chain treasury figure remains the source of truth for treasury inflow.
+
+**Changes**:
+- No code changes. Spec checkbox flipped + history entry appended.
+
+**Verification**:
+- `cd backend && pnpm lint` — exit 0 (only the pre-existing `contracts/api-envelope.ts` warning, unchanged).
+- `cd backend && pnpm typecheck` — exit 0.
+- Skipped vitest: integration coverage for the Pot Shot allocation write lands in the dedicated `[test]` checklist item later in the section.
+
+**Notes**:
+- Close Call still settles via a different path (`worker/settlement.ts` / `closecall-clock.ts`). It remains unwired and is the next checklist item.
+
+## Iteration 6 — 2026-05-01T19:59:19Z — OK
+- **Log**: iteration-006.log
+
