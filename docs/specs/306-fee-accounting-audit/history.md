@@ -330,3 +330,36 @@ The unifying abstraction the review item asks about already exists, was iterated
 ## Iteration 11 — 2026-05-01T20:26:03Z — OK
 - **Log**: iteration-011.log
 
+---
+
+## Iteration 12 — 2026-05-01
+
+**Item**: Add coverage for the ledger-derived claim caps + bucket debit lifecycle: ledger cap enforcement (per-user and global) returns 422 with the documented `API_ERROR_CODES` envelope; successful claim writes a `fee_bucket_debits` row with `status='pending'`; queue handler success / transient-error / permanent-fail each update the debit's status to match the claim.
+
+**Outcome**: Success.
+
+**Changes**:
+- Added `backend/src/__tests__/referral-claim-ledger.test.ts` with 7 tests:
+  1. **`POST /referral/claim` ledger caps — ZERO_BALANCE**: user with no allocations → 422 / `ZERO_BALANCE`.
+  2. **`POST /referral/claim` ledger caps — PRECONDITION_FAILED**: user A has 50M referral allocation; user B has 50M allocation + 60M completed referral debit → per-user available (50M) > global available (40M). Sanity-asserts `getUserReferralAvailable` and `getReferralBucketAvailable` before the request, then asserts 422 / `PRECONDITION_FAILED` and that no `referral_claims` row was created.
+  3. **`POST /referral/claim` debit insertion**: user A has 50M allocation, claim → 202; asserts a `fee_bucket_debits` row exists with `bucket='referral'`, `debit_type='claim'`, `source_id=claimId`, `status='pending'`, `amount_lamports=50000000`, `user_id`/`wallet` populated (proving the same-tx insert from the route).
+  4. **Handler success → debit `completed`**: seeds claim+debit (pending) plus a 2× earnings row so the handler's `getPendingBalanceByUserId` check clears, runs `createClaimHandler` with a default `MockConnection` → both rows end at `completed`.
+  5. **Handler transient error → debit `error`**: seeds claim+debit, swaps `sendRawTransaction` to throw, expects the handler to rethrow (so the queue retries) → both rows end at `error`.
+  6. **Handler insufficient balance → debit `failed`**: seeds claim+debit but no earnings → handler hits the permanent insufficient-balance branch → both rows end at `failed`.
+  7. **Handler max retries → debit `failed`**: seeds claim+debit with `retry_count = MAX_CLAIM_RETRIES − 1`, throws on `sendRawTransaction` → catch branch sees `isFinal = true` and marks both rows `failed`.
+- Registered the new file in `backend/vitest.integration.files.ts`.
+
+**Verification**:
+- `pnpm exec vitest run --config vitest.integration.config.ts src/__tests__/referral-claim-ledger.test.ts` — 7/7 passed.
+- `pnpm exec vitest run --config vitest.integration.config.ts src/__tests__/referral-routes.test.ts src/__tests__/fee-accounting.test.ts src/__tests__/integration-fee-allocation.test.ts` — 44/44 passed (regression check on the surrounding suites).
+- `cd backend && pnpm lint` — exit 0 (only the pre-existing `contracts/api-envelope.ts` warning, unchanged).
+- `cd backend && pnpm typecheck` — exit 0.
+
+**Notes**:
+- The handler tests exercise the queue-handler-level `pending < amount` check that lives upstream of the ledger. Because `getPendingBalanceByUserId` already counts the *current* claim (status `pending|processing|error|completed`) in its subtraction, the seed helper provisions earnings at `2× amountLamports`. That's the minimum needed for `pending ≥ amount` once the active claim is in flight, and it isolates the test from the production-side question of whether the handler should be migrated off `getPendingBalanceByUserId` entirely (out of scope for this iteration; flagged for the follow-on `[review]`).
+- The "global cap" test deliberately stays inside DB seeding rather than driving a second user through the route, so the bucket divergence is unambiguous and not racing the per-user UNIQUE active-claim index.
+
+## Iteration 12 — 2026-05-01 — OK
+## Iteration 12 — 2026-05-01T20:34:34Z — OK
+- **Log**: iteration-012.log
+
