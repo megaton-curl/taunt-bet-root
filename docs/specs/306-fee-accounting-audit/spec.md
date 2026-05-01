@@ -7,7 +7,7 @@
 | Status | Ready |
 | Priority | P0 |
 | Track | Core |
-| NR_OF_TRIES | 12 |
+| NR_OF_TRIES | 13 |
 
 ---
 
@@ -69,63 +69,63 @@ Claims and future promotion/profit spending are recorded as bucket debits. Audit
 For each unique player fee observed during settlement, the backend records one allocation event. This event preserves the economic inputs and derived buckets for that fee.
 
 **Acceptance Criteria:**
-- [ ] Each allocation row stores source type, source id, game type, wallet, optional user id, wager lamports, fee lamports, referrer user id, referral rate bps, referral lamports, promotions lamports, profit lamports, and created timestamp.
-- [ ] Allocation rows are idempotent by source type, source id, and player wallet.
-- [ ] The database rejects allocations where `fee_lamports != referral_lamports + promotions_lamports + profit_lamports`.
-- [ ] Settlement records allocation rows even when the player has no referral link.
-- [ ] FlipYou (`settleMatch`), Pot Shot (`settleLordRound`), and Close Call settlement paths each write one allocation row per unique player per round.
-- [ ] Allocations are go-forward only: rounds settled before migration `026` are not retroactively reconstructed; the audit snapshot reports its `audit_from` cutoff timestamp so finance reviewers know what era is covered.
+- [x] Each allocation row stores source type, source id, game type, wallet, optional user id, wager lamports, fee lamports, referrer user id, referral rate bps, referral lamports, promotions lamports, profit lamports, and created timestamp. <!-- satisfied: backend/migrations/026_fee_accounting_audit.sql:12-45 -->
+- [x] Allocation rows are idempotent by source type, source id, and player wallet. <!-- satisfied: UNIQUE at migrations/026:28-29 + ON CONFLICT DO NOTHING at db/fee-accounting.ts:293 -->
+- [x] The database rejects allocations where `fee_lamports != referral_lamports + promotions_lamports + profit_lamports`. <!-- satisfied: CHECK at migrations/026:31-32, covered by fee-accounting.test.ts -->
+- [x] Settlement records allocation rows even when the player has no referral link. <!-- satisfied: worker/settle-tx.ts:132-217 writes regardless of link; integration-fee-allocation.test.ts:217-225 -->
+- [x] FlipYou (`settleMatch`), Pot Shot (`settleLordRound`), and Close Call settlement paths each write one allocation row per unique player per round. <!-- satisfied: settle-tx.ts:454,742 + closecall-clock.ts:525; integration-fee-allocation.test.ts -->
+- [x] Allocations are go-forward only: rounds settled before migration `026` are not retroactively reconstructed; the audit snapshot reports its `audit_from` cutoff timestamp so finance reviewers know what era is covered. <!-- satisfied: db/fee-accounting.ts:412 MIN(created_at) AS audit_from in snapshot -->
 
 ### FR-2: Deterministic Fee Split
 
 The split is deterministic and integer-safe.
 
 **Acceptance Criteria:**
-- [ ] Referral allocation is `floor(fee_lamports * referral_rate_bps / 10000)`.
-- [ ] Promotions allocation is `floor((fee_lamports - referral_lamports) * 2000 / 10000)`.
-- [ ] Profit allocation is the remainder after referral and promotions, absorbing rounding dust.
-- [ ] Referral rate must be between 0 and 10000 bps inclusive.
+- [x] Referral allocation is `floor(fee_lamports * referral_rate_bps / 10000)`. <!-- satisfied: db/fee-accounting.ts:160 -->
+- [x] Promotions allocation is `floor((fee_lamports - referral_lamports) * 2000 / 10000)`. <!-- satisfied: db/fee-accounting.ts:161-162 -->
+- [x] Profit allocation is the remainder after referral and promotions, absorbing rounding dust. <!-- satisfied: db/fee-accounting.ts:163; tested in fee-accounting.test.ts dust cases -->
+- [x] Referral rate must be between 0 and 10000 bps inclusive. <!-- satisfied: helper validation db/fee-accounting.ts:149-158 + DB CHECK migrations/026:34-35 -->
 
 ### FR-3: Bucket Debit Ledger
 
 Claims and future spends are recorded as debits against explicit buckets.
 
 **Acceptance Criteria:**
-- [ ] Referral claim requests insert a `referral` bucket debit keyed by claim id.
-- [ ] Claim processing keeps the debit status in sync with the claim status.
-- [ ] Audit checks treat `pending`, `processing`, `error`, and `completed` debits as reserved/spent and exclude `failed` debits.
-- [ ] Debit rows are idempotent by bucket, debit type, and source id.
+- [x] Referral claim requests insert a `referral` bucket debit keyed by claim id. <!-- satisfied: routes/referral.ts:723-731; asserted in referral-claim-ledger.test.ts -->
+- [x] Claim processing keeps the debit status in sync with the claim status. <!-- satisfied: queue/handlers/referral-claim.ts:71-74,87-92,144-147,164-170 (all four sites wrapped in db.withTransaction) -->
+- [x] Audit checks treat `pending`, `processing`, `error`, and `completed` debits as reserved/spent and exclude `failed` debits. <!-- satisfied: db/fee-accounting.ts:172-178 RESERVED_OR_SPENT_STATUSES used by getReferralBucketAvailable, getUserReferralAvailable, getFeeAuditSnapshot -->
+- [x] Debit rows are idempotent by bucket, debit type, and source id. <!-- satisfied: UNIQUE at migrations/026:70-71 + ON CONFLICT DO NOTHING at db/fee-accounting.ts:322 -->
 
 ### FR-4: Audit Snapshot
 
 The backend exposes a derived snapshot that reconciles allocations, debits, and available balances.
 
 **Acceptance Criteria:**
-- [ ] Snapshot reports total fees, bucket allocations, active/completed debits, pending claim reserves, failed debits, available balances, allocation count, and debit count.
-- [ ] Snapshot reports invariant failures when allocations do not sum to fees.
-- [ ] Snapshot reports overdrawn buckets when active/completed debits exceed allocated bucket balances.
-- [ ] Admin API exposes the snapshot behind existing admin API key auth.
+- [x] Snapshot reports total fees, bucket allocations, active/completed debits, pending claim reserves, failed debits, available balances, allocation count, and debit count. <!-- satisfied: db/fee-accounting.ts:395-533 getFeeAuditSnapshot returns full FeeAuditSnapshot shape -->
+- [x] Snapshot reports invariant failures when allocations do not sum to fees. <!-- satisfied: db/fee-accounting.ts:435-453 returns invariantViolations -->
+- [x] Snapshot reports overdrawn buckets when active/completed debits exceed allocated bucket balances. <!-- satisfied: db/fee-accounting.ts:498-512 populates overdrawnBuckets -->
+- [ ] Admin API exposes the snapshot behind existing admin API key auth. <!-- gap: no GET /admin/fee-audit/snapshot route in backend/src/routes/admin.ts; no OpenAPI module; no admin-fee-audit.test.ts -->
 
 ### FR-5: Bounded Historical Audit
 
 Checkpoints prevent routine audits from growing without bound while preserving the ability to recompute history.
 
 **Acceptance Criteria:**
-- [ ] A checkpoint table stores period bounds, included row counts, bucket totals, ending balances, previous checkpoint hash, source hash, and created timestamp.
-- [ ] Checkpoints are acceleration records, not the source of truth; raw allocation and debit ledgers remain authoritative.
-- [ ] A checkpoint generator function reads `[previous_ending_at, cutoff_at)` from the ledger, computes bucket totals + ending balances, and writes one checkpoint row.
-- [ ] The generator validates `new_start_balance == previous_ending_balance` before writing and refuses to write on mismatch (caller receives a structured error, not a corrupt row).
-- [ ] An admin endpoint exposes manual checkpoint generation behind the existing admin API key.
+- [x] A checkpoint table stores period bounds, included row counts, bucket totals, ending balances, previous checkpoint hash, source hash, and created timestamp. <!-- satisfied: migrations/026_fee_accounting_audit.sql:93-128 fee_audit_checkpoints -->
+- [x] Checkpoints are acceleration records, not the source of truth; raw allocation and debit ledgers remain authoritative. <!-- satisfied: architectural; documented in migrations/026:1-10 and db/fee-accounting.ts:8-12; no code reads checkpoints as source of truth -->
+- [ ] A checkpoint generator function reads `[previous_ending_at, cutoff_at)` from the ledger, computes bucket totals + ending balances, and writes one checkpoint row. <!-- gap: no generateFeeAuditCheckpoint function exists in db/fee-accounting.ts (line 10 comment notes "a separate generator in a later iteration") -->
+- [ ] The generator validates `new_start_balance == previous_ending_balance` before writing and refuses to write on mismatch (caller receives a structured error, not a corrupt row). <!-- gap: no generator implementation exists -->
+- [ ] An admin endpoint exposes manual checkpoint generation behind the existing admin API key. <!-- gap: no POST /admin/fee-audit/checkpoint route in backend/src/routes/admin.ts -->
 
 ### FR-6: Claim Limits Derived From Buckets
 
 Claim safety checks are derived from the ledger and replace the legacy `getPendingBalanceByUserId` check on the claim hot path.
 
 **Acceptance Criteria:**
-- [ ] `POST /referral/claim` rejects when the requested amount exceeds `(user's referral allocations) − (user's active+completed referral debits)`.
-- [ ] `POST /referral/claim` rejects when the requested amount exceeds the global referral bucket's available balance (sum of all referral allocations minus all active+completed referral debits).
-- [ ] The legacy `getPendingBalanceByUserId` call site is removed from the claim route; the ledger-derived computation is the single source of truth for claim caps.
-- [ ] Per-claim, per-user daily, and global daily caps remain optional policy layers that may sit on top of the derived caps but cannot replace them.
+- [x] `POST /referral/claim` rejects when the requested amount exceeds `(user's referral allocations) − (user's active+completed referral debits)`. <!-- satisfied: routes/referral.ts:679-690 ZERO_BALANCE/BELOW_THRESHOLD via getUserReferralAvailable; tested in referral-claim-ledger.test.ts -->
+- [x] `POST /referral/claim` rejects when the requested amount exceeds the global referral bucket's available balance (sum of all referral allocations minus all active+completed referral debits). <!-- satisfied: routes/referral.ts:704-713 PRECONDITION_FAILED via getReferralBucketAvailable; tested in referral-claim-ledger.test.ts -->
+- [x] The legacy `getPendingBalanceByUserId` call site is removed from the claim route; the ledger-derived computation is the single source of truth for claim caps. <!-- satisfied: routes/referral.ts no longer calls getPendingBalanceByUserId; remaining handler-side use at queue/handlers/referral-claim.ts:78 is a defensive sanity check, not the cap source -->
+- [x] Per-claim, per-user daily, and global daily caps remain optional policy layers that may sit on top of the derived caps but cannot replace them. <!-- satisfied: architectural — no daily caps exist today; ledger derivation is the gate; design supports stacking additional caps on top -->
 
 ---
 
@@ -192,7 +192,7 @@ Each implementation section ends with a `[review]` retrospective gate. After the
 - [x] [backend] In `backend/src/routes/referral.ts` `POST /claim`, replace `getPendingBalanceByUserId` with two ledger-derived checks via the new helpers: claim ≤ `getUserReferralAvailable(userId)` and claim ≤ `getReferralBucketAvailable()`. Keep the existing `referralMinClaimLamports` policy gate. Inside the same `sql.begin` transaction that inserts the `referral_claims` row and emits the queue event, also insert a `fee_bucket_debits` row (`bucket='referral'`, `debit_type='claim'`, `source_id=claim.id`, `status='pending'`). Confirm the existing `insertReferralEarning` / `getPendingBalanceByUserId` are still used elsewhere, or delete them with grep evidence. (done: iteration 10)
 - [x] [backend] In `backend/src/queue/handlers/referral-claim.ts`, after every `db.updateClaimStatus` call (and the insufficient-balance permanent-fail branch), call `updateFeeBucketDebitStatus` for the same `claim_id` so the debit moves through `processing → completed | failed | error` in lockstep with the claim. Reuse the same DB transaction where claim status updates already use one. (done: iteration 11)
 - [x] [test] Extend `backend/src/__tests__/referral-routes.test.ts` (or add `referral-claim-ledger.test.ts`) to cover: ledger cap enforcement (per-user and global) returns 422 with the documented `API_ERROR_CODES` envelope; successful claim writes a `fee_bucket_debits` row with `status='pending'`; queue handler success/transient-error/permanent-fail each update the debit's status to match the claim. (done: iteration 12)
-- [ ] [review] Now that the ledger-derived claim caps and debit-lifecycle sync are live and tests show the actual claim → debit transitions, look back with fresh eyes. Hot-path replacements often leave dead helpers, race windows around the `sql.begin` boundary, or missed status edges (e.g. `error → completed`). If a higher-conviction simpler/safer shape is now clear, either adapt the code in place or append a new checklist item below before continuing. If nothing better surfaces, note "no change after review" in the iteration log and proceed.
+- [x] [review] Now that the ledger-derived claim caps and debit-lifecycle sync are live and tests show the actual claim → debit transitions, look back with fresh eyes. Hot-path replacements often leave dead helpers, race windows around the `sql.begin` boundary, or missed status edges (e.g. `error → completed`). If a higher-conviction simpler/safer shape is now clear, either adapt the code in place or append a new checklist item below before continuing. If nothing better surfaces, note "no change after review" in the iteration log and proceed. (done: iteration 13)
 
 #### Audit snapshot
 

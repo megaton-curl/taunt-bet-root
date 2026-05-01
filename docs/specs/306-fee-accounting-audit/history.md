@@ -363,3 +363,56 @@ The unifying abstraction the review item asks about already exists, was iterated
 ## Iteration 12 — 2026-05-01T20:34:34Z — OK
 - **Log**: iteration-012.log
 
+---
+
+## Iteration 13 — 2026-05-01
+
+**Item**: `[review]` retrospective for the Claim hot path section (ledger-derived caps + debit-lifecycle sync in the route and queue handler).
+
+**Outcome**: Real diff — closed a race window in `referral-claim.ts`.
+
+**What I looked at**:
+- `backend/src/routes/referral.ts` `POST /claim` — already wraps `insertReferralClaim + insertFeeBucketDebit + emitEvent` in a single `db.withTransaction`. No change.
+- `backend/src/queue/handlers/referral-claim.ts` — four call sites updating `claim_status` plus `fee_bucket_debits.status` were sequential, *outside* a transaction. Iteration 11 explicitly flagged this as deferred. I traced what a process crash between the two writes does at each site:
+  - `pending → processing` (line 70-71): retry resets debit on next handler entry. No persistent drift.
+  - `processing → completed` (success path, line 135-136): on retry the handler returns at the `claim.status === "completed"` short-circuit, so the debit stays at `processing`. Audit math: both `processing` and `completed` are in `RESERVED_OR_SPENT_STATUSES`, so the bucket totals are still correct, but the debit row is forensically wrong.
+  - `processing → failed` (insufficient balance, line 81-84): retry returns at the `claim.status === "failed"` short-circuit. Debit stuck at `processing`. **`failed` is excluded from `RESERVED_OR_SPENT_STATUSES`, but `processing` is included → phantom over-debit of the referral bucket.** Real audit drift.
+  - `processing → error|failed` (catch branch, line 153-157): the `error` case is self-healing (retry resets debit). The `failed` case (max retries) has the same phantom-over-debit drift as the insufficient-balance branch.
+- `db.withTransaction` exists on the `Db` interface (`db.ts:69`, `db.ts:110-113`) and re-creates a transactional `Db` whose methods share the same `sql.begin` handle.
+
+**Considered, rejected**:
+- Removing the legacy `getPendingBalanceByUserId` call inside the queue handler (`referral-claim.ts:78`) and switching to `getReferralBucketAvailable + getUserReferralAvailable`. The handler runs *after* the route already pinned a `pending` debit against the bucket; the route's ledger caps are the actual gate. The handler's pre-transfer check is a defensive sanity check on the legacy `referral_earnings` table — replacing it would close the legacy/ledger consistency loop but would force the test fixtures to drop `referral_earnings` entirely. Out of scope for this `[review]`; flagged for the future legacy-helper-retirement work.
+- Renaming `recordReferralEarnings` → `recordSettlementFeeAccounting` (already considered + rejected at iteration 9; nothing new to add).
+
+**Changes**:
+- `backend/src/queue/handlers/referral-claim.ts`: wrapped each `updateClaimStatus + updateFeeBucketDebitStatus` pair in `db.withTransaction` so the two rows commit atomically. Four sites:
+  1. `pending → processing` (line 71-74).
+  2. `processing → failed` insufficient-balance branch (line 87-92).
+  3. `processing → completed` success branch (line 144-147).
+  4. `processing → error | failed` catch branch (line 164-170).
+- Comments updated to call out the audit-snapshot guarantee the wrapping protects.
+
+**Verification**:
+- `pnpm exec vitest run --config vitest.integration.config.ts src/__tests__/referral-claim-ledger.test.ts` — 7/7 passed.
+- `pnpm exec vitest run --config vitest.integration.config.ts src/__tests__/referral-routes.test.ts src/__tests__/referral-claim-ledger.test.ts src/__tests__/fee-accounting.test.ts src/__tests__/integration-fee-allocation.test.ts` — 51/51 passed (regression sweep across the affected surface).
+- `cd backend && pnpm lint` — exit 0 (only the pre-existing `contracts/api-envelope.ts` warning, unchanged).
+- `cd backend && pnpm typecheck` — exit 0.
+
+**Notes**:
+- The status-edge audit found one real correctness issue (`failed` paths leaking phantom over-debits); the success path was already audit-safe by accident because both `processing` and `completed` count as reserved/spent. Wrapping all four sites uniformly is cheaper than threading the distinction through code review every time the snapshot constants change.
+- No checklist additions: the fix lives within the existing item; no new sections were needed.
+
+## Iteration 13 — 2026-05-01 — OK
+
+## Iteration 13 — 2026-05-01T20:42:17Z — COMPLETE
+- **Result**: All checklist items done, verification passed
+- **Log**: iteration-013.log
+
+## Devnet E2E — 2026-05-01T20:42:19Z
+- **Result**: PASS
+
+## Gap Analysis — 2026-05-01T20:49:29Z
+- **Result**: Gap analysis report generated
+- **Report**: gap-analysis.md
+- **Log**: gap-analysis.log
+
