@@ -63,3 +63,32 @@ of every iteration to understand prior context.
 ## Iteration 2 — 2026-05-01T19:43:31Z — OK
 - **Log**: iteration-002.log
 
+---
+
+## Iteration 3 — 2026-05-01
+
+**Item**: Add `backend/src/__tests__/fee-accounting.test.ts` covering `calculateFeeAllocation` and the `fee_allocation_events` CHECK constraint.
+
+**Outcome**: Success.
+
+**Changes**:
+- Added `backend/src/__tests__/fee-accounting.test.ts` with 12 tests:
+  - Pure unit coverage for `calculateFeeAllocation`: 0% bps, 10000 bps, mid-range bps, dust always lands in profit (single-lamport + 7-lamport mid-bps cases), `feeLamports = 0` across the bps grid, max-bps absorbs the entire fee, components-sum-to-fee invariant on a 9 × 10 grid of (fee, bps) pairs, and input-validation throws (negative/non-integer fee, negative/over-10000/non-integer bps).
+  - DB-backed coverage: a hand-crafted `INSERT` whose components don't sum to `fee_lamports` is rejected with the exact constraint name `ck_fee_allocation_components_sum`, and a parallel valid insert succeeds and is cleaned up.
+- Added `src/__tests__/fee-accounting.test.ts` to `vitest.integration.files.ts` (test holds a Postgres handle, so it belongs in the integration job).
+
+**Verification**:
+- `pnpm exec vitest run --config vitest.integration.config.ts src/__tests__/fee-accounting.test.ts` — 12/12 passed.
+- `cd backend && pnpm lint` — exit 0 (only pre-existing `contracts/api-envelope.ts` warning, unchanged).
+- `cd backend && pnpm typecheck` — exit 0.
+
+**Notes**:
+- Migration `026_fee_accounting_audit.sql` had not been applied to the local dev DB; ran it through `psql` and inserted a `_migrations` row so the test can rely on the table being present. Production runs migrations on startup, so no follow-up needed.
+- The DB constraint test uses random `source_id` + `wallet` strings to stay isolated from any concurrent fixture data and explicitly cleans up its own row.
+
+## Iteration 3 — 2026-05-01T19:48:00Z — OK
+- **Log**: iteration-003.log
+
+## Iteration 3 — 2026-05-01T19:50:06Z — OK
+- **Log**: iteration-003.log
+
