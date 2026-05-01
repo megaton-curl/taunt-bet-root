@@ -175,3 +175,34 @@ of every iteration to understand prior context.
 ## Iteration 6 — 2026-05-01T19:59:19Z — OK
 - **Log**: iteration-006.log
 
+---
+
+## Iteration 7 — 2026-05-01
+
+**Item**: Add allocation write to the Close Call settlement path so the third game wires into `fee_allocation_events`.
+
+**Outcome**: Success.
+
+**Changes**:
+- `backend/src/worker/settle-tx.ts`: exported the existing `recordReferralEarnings` helper. No logic change — same dedupe map, same per-player allocation write, same idempotent error handling. The helper has always been the right tool here; only a one-keyword visibility change was required.
+- `backend/src/worker/closecall-clock.ts`:
+  - Imported `recordReferralEarnings` from `./settle-tx.js`.
+  - Added `referralDefaultRateBps: number` to `CloseCallClockDeps` so the helper can resolve KOL rates with the same default as FlipYou/Pot Shot.
+  - Inside `settleRound`'s existing `db.withTransaction` block, after `txDb.insertTransactions(txParams)` and before `upsertGameEntries`, called `recordReferralEarnings(txDb, …)` with `gameType: "closecall"`, `roundId` (= `String(Number(minuteTs))`), the resolved `feeBps` from `PlatformConfig`, and `players` mapped from `allEntries`. The hook only runs on non-refund settlements (refunds take no on-chain fee → no allocation to record). The transaction guarantees allocation writes share atomicity with the rest of Close Call settlement.
+- `backend/src/index.ts`: passed `referralDefaultRateBps: config.referralDefaultRateBps` to `createCloseCallClockWorker`.
+- `backend/src/__tests__/integration-settlement.test.ts`: passed `referralDefaultRateBps: 1000` to the in-test worker (matches the FlipYou/Pot Shot fixtures already in this file).
+
+**Notes**:
+- Used `sourceType: "closecall"` (via `gameType` reuse) rather than the spec's loose hint `'closecall_round'` to stay aligned with the existing FlipYou/Pot Shot rows (`flipyou`, `potshot`). Source-type strings only tag provenance — the spec accepts the iteration's call here, and consistency across the three games matters more than a per-game suffix.
+- Per-wallet attribution: each wallet's `feeLamports = floor(walletWagerSum × feeBps / 10_000)` (helper-internal). Across many wallets this can drift up to a few lamports from the on-chain `floor(totalPool × feeBps / 10_000)` because the on-chain fee is computed on the aggregate pool, not per wallet. This is the same accounting-vs-treasury split the Pot Shot iteration accepted: per-player allocation is the audit unit; treasury inflow stays anchored on chain.
+- Refunds (zero or one entrant on either side, equal close, or zero entries total): on-chain takes 0 fee, so no allocation rows. The `if (!isRefund && allEntries.length > 0)` guard makes this explicit.
+- Allocation rows are go-forward only — no backfill of pre-migration rounds (per FR-1).
+
+**Verification**:
+- `cd backend && pnpm lint` — exit 0 (only the pre-existing `contracts/api-envelope.ts` warning, unchanged).
+- `cd backend && pnpm typecheck` — exit 0.
+- Skipped vitest: integration coverage for the Close Call allocation write lands in the dedicated `[test]` checklist item later in the section, alongside FlipYou + Pot Shot integration assertions.
+
+## Iteration 7 — 2026-05-01T20:03:59Z — OK
+- **Log**: iteration-007.log
+
