@@ -118,3 +118,32 @@ of every iteration to understand prior context.
 ## Iteration 4 — 2026-05-01T19:52:13Z — OK
 - **Log**: iteration-004.log
 
+---
+
+## Iteration 5 — 2026-05-01
+
+**Item**: Extend `recordReferralEarnings` in `backend/src/worker/settle-tx.ts` so FlipYou's `settleMatch` writes one `fee_allocation_events` row per unique player (referred and non-referred).
+
+**Outcome**: Success.
+
+**Changes**:
+- `backend/src/worker/settle-tx.ts`:
+  - Imported `calculateFeeAllocation` from `../db/fee-accounting.js`.
+  - Restructured `recordReferralEarnings` to no longer short-circuit when the player has no profile or no referral link. Every unique player now produces a `fee_allocation_events` row via `db.insertFeeAllocation`. Non-referred players get `referrer_user_id = null`, `referral_rate_bps = 0`, `referral_lamports = 0`. The legacy `referral_earnings` insert still happens only when a referrer exists.
+  - The split is computed once via `calculateFeeAllocation(feeLamports, referrerRateBps)`, and `referrerEarnedLamports` is now sourced from the helper instead of a duplicate `Math.floor` so the two ledgers cannot drift.
+  - Updated docstring + log strings to reflect the broader purpose ("fee accounting row" vs. "referral earning"); preserved the existing duplicate-key idempotent-skip branch.
+  - Function still runs inside the caller's `txDb` so allocation writes share atomicity with the rest of settlement.
+
+**Notes**:
+- The function is shared between FlipYou (`settleMatch`) and Pot Shot (`settleLordRound`). Extending it in place naturally satisfies the next checklist item too — the dedupe map already produces one row per `(round, wallet)` for Pot Shot. The Pot Shot iteration will confirm the wiring and check off.
+- Close Call settles via a different path (`worker/settlement.ts` / `closecall-clock.ts`), so it remains unwired and is the third settlement-producer item.
+- Allocation rows are go-forward only — no backfill of pre-migration rounds (per FR-1).
+
+**Verification**:
+- `cd backend && pnpm lint` — exit 0 (only the pre-existing `contracts/api-envelope.ts` warning, unchanged).
+- `cd backend && pnpm typecheck` — exit 0.
+- Skipped vitest: integration test for the new write path lands in the dedicated test item further down the section.
+
+## Iteration 5 — 2026-05-01T19:56:29Z — OK
+- **Log**: iteration-005.log
+
