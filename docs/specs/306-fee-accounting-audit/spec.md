@@ -7,7 +7,7 @@
 | Status | Ready |
 | Priority | P0 |
 | Track | Core |
-| NR_OF_TRIES | 1 |
+| NR_OF_TRIES | 2 |
 
 ---
 
@@ -175,7 +175,7 @@ Each implementation section ends with a `[review]` retrospective gate. After the
 #### Foundations
 
 - [x] [backend] Create `backend/migrations/026_fee_accounting_audit.sql` with three tables: `fee_allocation_events` (allocation ledger, UNIQUE on `(source_type, source_id, wallet)`, CHECK that `referral_lamports + promotions_lamports + profit_lamports = fee_lamports`, CHECK `referral_rate_bps BETWEEN 0 AND 10000`); `fee_bucket_debits` (bucket debit ledger, UNIQUE on `(bucket, debit_type, source_id)`, CHECK on `bucket IN ('referral','promotions','profit')`, CHECK on `status IN ('pending','processing','error','completed','failed')`); `fee_audit_checkpoints` (`period_start`, `period_end`, allocation/debit row counts, bucket totals, ending balances, `previous_checkpoint_hash`, `source_hash`, `created_at`, with UNIQUE on `period_end`). Include the indexes the audit snapshot query will rely on (`(bucket, status)`, `(created_at)`). (done: iteration 1)
-- [ ] [backend] Create `backend/src/db/fee-accounting.ts` exporting `calculateFeeAllocation(feeLamports, referrerRateBps)` (returns `{referralLamports, promotionsLamports, profitLamports}` using floor-with-dust-to-profit math from FR-2) and the typed DB methods `insertFeeAllocation`, `insertFeeBucketDebit`, `updateFeeBucketDebitStatus`, `getReferralBucketAvailable`, `getUserReferralAvailable`, `getFeeAuditSnapshot`. No call sites yet — pure helpers + DB methods. Wire onto the `Db` interface.
+- [x] [backend] Create `backend/src/db/fee-accounting.ts` exporting `calculateFeeAllocation(feeLamports, referrerRateBps)` (returns `{referralLamports, promotionsLamports, profitLamports}` using floor-with-dust-to-profit math from FR-2) and the typed DB methods `insertFeeAllocation`, `insertFeeBucketDebit`, `updateFeeBucketDebitStatus`, `getReferralBucketAvailable`, `getUserReferralAvailable`, `getFeeAuditSnapshot`. No call sites yet — pure helpers + DB methods. Wire onto the `Db` interface. (done: iteration 2)
 - [ ] [test] Add `backend/src/__tests__/fee-accounting.test.ts` covering `calculateFeeAllocation`: 0% / 100% / mid-range referral rates, single-lamport rounding (dust always lands in profit), `feeLamports = 0`, max-bps = 10000, and that the three components always sum exactly to `feeLamports`. Include CHECK-constraint test that the DB rejects an inserted row whose components don't sum.
 - [ ] [review] Now that the migration, helpers, and unit tests exist and the outcome is visible, look back with fresh eyes. If a simpler or better path is now clear with high conviction (e.g. table shape, helper API surface, or test seams), either adapt the code in place or append a new checklist item below before continuing. If nothing better surfaces, note "no change after review" in the iteration log and proceed.
 
