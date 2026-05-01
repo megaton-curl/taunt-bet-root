@@ -92,3 +92,29 @@ of every iteration to understand prior context.
 ## Iteration 3 — 2026-05-01T19:50:06Z — OK
 - **Log**: iteration-003.log
 
+---
+
+## Iteration 4 — 2026-05-01
+
+**Item**: `[review]` retrospective for the Foundations section (migration + helpers + unit tests).
+
+**Outcome**: No change after review.
+
+**What I looked at**:
+- `backend/migrations/026_fee_accounting_audit.sql` — three tables, CHECK constraints + partial indexes already in place; `wallet`/`updated_at` adds on `fee_bucket_debits` are cheap and forensically useful.
+- `backend/src/db/fee-accounting.ts` — `calculateFeeAllocation` is integer-safe with input validation; the `RESERVED_OR_SPENT_STATUSES` constant maps 1:1 to the FR-3 acceptance language; insert helpers are idempotent on the spec-mandated unique keys; snapshot uses BigInt composition to avoid Number precision loss across many high-value rows.
+- `backend/src/__tests__/fee-accounting.test.ts` — covers helper edge cases (0 fee, dust, max bps, validation throws) plus a DB CHECK round-trip with the exact constraint name.
+
+**Considered, rejected**:
+- Tightening `insertFeeBucketDebit.amountLamports` from `number | string` to `number` only — permissive form doesn't hurt callers; no force-multiplier benefit.
+- Wrapping `getFeeAuditSnapshot` in a `REPEATABLE READ` transaction — snapshot is forensic, not a hot path; the natural inter-query race is acceptable for accounting evidence.
+- Merging `active` + `completed` accumulators in the snapshot — keeping them separate preserves forensic visibility into how much capacity is reserved vs. permanently spent.
+
+**Verification**:
+- Spec-only edit (one checkbox flip + history append). No code changed.
+
+## Iteration 4 — 2026-05-01 — review (no diff)
+
+## Iteration 4 — 2026-05-01T19:52:13Z — OK
+- **Log**: iteration-004.log
+
