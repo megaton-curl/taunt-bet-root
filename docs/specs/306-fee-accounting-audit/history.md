@@ -206,3 +206,35 @@ of every iteration to understand prior context.
 ## Iteration 7 — 2026-05-01T20:03:59Z — OK
 - **Log**: iteration-007.log
 
+---
+
+## Iteration 8 — 2026-05-01
+
+**Item**: Add settlement integration coverage asserting that after FlipYou + Pot Shot + Close Call settlement, `fee_allocation_events` contains the expected rows for both referred and non-referred players, components sum to `fee_lamports`, and a duplicate settle attempt is a no-op.
+
+**Outcome**: Success.
+
+**Changes**:
+- Added `backend/src/__tests__/integration-fee-allocation.test.ts` with three tests:
+  1. **FlipYou full lifecycle** — creates a match via the route, runs the settlement worker (full settle path through `settleMatch`), then asserts two `fee_allocation_events` rows: a non-referred creator (referrer null, rate 0, referral 0) and a referred opponent (referrer + rate set, referral split via the default 1000 bps). Components sum to `fee_lamports` for both rows. A direct replay of `recordReferralEarnings` for the same `(round, wallet)` does not duplicate rows (UNIQUE + ON CONFLICT DO NOTHING).
+  2. **Pot Shot dedupe** — calls the shared `recordReferralEarnings` helper directly with `gameType: "potshot"` and three entries (two from one wallet, one from another). Asserts two allocation rows, the multi-entry wallet's `wager_lamports` is the summed total, and components sum to `fee_lamports`. Replay is a no-op. Helper-direct because Pot Shot lacks the on-chain test infrastructure (decoders, program-id, mock account shapes) FlipYou and Close Call have; iteration 6 already established that the production path goes through this exact helper.
+  3. **Close Call clock tick** — sets up a closed round on the mock connection plus a Hermes price closing higher than open, runs `clock.tick()`, asserts two `fee_allocation_events` rows (referred green + non-referred red). Components sum to `fee_lamports`.
+- `backend/src/__tests__/integration-test-helpers.ts`: added `fee_allocation_events`, `fee_bucket_debits`, and `fee_audit_checkpoints` to `RESET_TABLES` so subsequent test runs start clean.
+- `backend/vitest.integration.files.ts`: registered the new test file so the integration job picks it up.
+
+**Verification**:
+- `pnpm exec vitest run --config vitest.integration.config.ts src/__tests__/integration-fee-allocation.test.ts` — 3/3 passed (≈9s).
+- `pnpm exec vitest run --config vitest.integration.config.ts src/__tests__/integration-settlement.test.ts` — 8/8 still passing (regression check on the helpers change).
+- `cd backend && pnpm lint` — exit 0 (only the pre-existing `contracts/api-envelope.ts` warning, unchanged).
+- `cd backend && pnpm typecheck` — exit 0.
+
+**Notes**:
+- Source-type strings asserted in the test (`flipyou`, `potshot`, `closecall`) match what iterations 5–7 already wired up via the shared helper.
+- The replay assertions rely on the helper's logger producing an "idempotent skip" for the conflicting wallet, which is the production retry path under settlement worker exponential backoff.
+
+## Iteration 8 — 2026-05-01T20:11:30Z — OK
+- **Log**: iteration-008.log
+
+## Iteration 8 — 2026-05-01T20:12:05Z — OK
+- **Log**: iteration-008.log
+
