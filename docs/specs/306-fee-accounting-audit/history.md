@@ -303,3 +303,30 @@ The unifying abstraction the review item asks about already exists, was iterated
 ## Iteration 10 — 2026-05-01T20:22:47Z — OK
 - **Log**: iteration-010.log
 
+---
+
+## Iteration 11 — 2026-05-01
+
+**Item**: In `backend/src/queue/handlers/referral-claim.ts`, after every `db.updateClaimStatus` call (and the insufficient-balance permanent-fail branch), call `updateFeeBucketDebitStatus` so the debit moves through `processing → completed | failed | error` in lockstep with the claim.
+
+**Outcome**: Success.
+
+**Changes**:
+- `backend/src/queue/handlers/referral-claim.ts`: added a paired `db.updateFeeBucketDebitStatus("referral", "claim", claimId, status)` call immediately after each `db.updateClaimStatus(claimId, status, …)` call. Four sites now keep the debit row's status in lockstep with the claim:
+  - `pending → processing` after the initial transition (line 71).
+  - `processing → failed` on the insufficient-balance permanent-fail branch (line 84).
+  - `processing → completed` on transfer success (line 136).
+  - `processing → error | failed` in the catch branch, where `nextStatus = isFinal ? "failed" : "error"` (line 157).
+- The handler currently does not wrap claim status updates in a `db.withTransaction` block, so I followed the same shape (sequential calls, not a new transaction). The spec's wording — "reuse the same DB transaction *where* claim status updates already use one" — explicitly conditions on existing transactions; introducing a new one would be a structural change beyond this checklist item. The audit snapshot tolerates the brief sequential window because both calls hit the same row keyed by `claim_id`.
+- `updateFeeBucketDebitStatus` returns `undefined` for legacy claims that pre-date migration `026` (no debit row exists). That is the documented no-op behavior; no extra guard needed.
+
+**Verification**:
+- `cd backend && pnpm lint` — exit 0 (only the pre-existing `contracts/api-envelope.ts` warning, unchanged).
+- `cd backend && pnpm typecheck` — exit 0.
+- Skipped vitest: dedicated handler-lifecycle coverage is the next checklist item ("queue handler success/transient-error/permanent-fail each update the debit's status to match the claim").
+
+## Iteration 11 — 2026-05-01 — OK
+
+## Iteration 11 — 2026-05-01T20:26:03Z — OK
+- **Log**: iteration-011.log
+
