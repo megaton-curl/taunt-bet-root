@@ -416,3 +416,56 @@ The unifying abstraction the review item asks about already exists, was iterated
 - **Report**: gap-analysis.md
 - **Log**: gap-analysis.log
 
+## Gap-resolution pass — 2026-05-01
+
+The autonomous loop terminated at iteration 13 marking `COMPLETE`, but the
+gap analysis caught four unfinished items from FR-4 and FR-5: the admin
+snapshot endpoint, the checkpoint generator, the checkpoint admin endpoint,
+and the matching tests. The data layer was already done — only route
+wrappers and the generator function were missing.
+
+**Item**: Close FR-4 + FR-5 gaps in one pass.
+
+**Outcome**: Success — all 4 gaps resolved, both `[review]` retrospective
+gates closed, all 3 N/A coverage stubs marked.
+
+**Changes**:
+- `backend/src/db/fee-accounting.ts` — added `FeeAuditCheckpoint` type,
+  `FeeAuditCheckpointContinuityError` and `FeeAuditCheckpointCutoffError`
+  classes, `getLatestFeeAuditCheckpoint`, and `generateFeeAuditCheckpoint`
+  with continuity validation and deterministic SHA-256 `source_hash` over
+  canonical-ordered row IDs.
+- `backend/src/db.ts` — re-exported the new type and error classes.
+- `backend/src/routes/admin.ts` — added `GET /admin/fee-audit/snapshot` and
+  `POST /admin/fee-audit/checkpoint`. Plain `c.json()` shape matches the
+  rest of the admin sub-router (admin routes are excluded from the public
+  OpenAPI contract per `backend/CLAUDE.md`). Continuity / cutoff errors
+  map to `409` with structured diff payloads.
+- `backend/src/__tests__/admin-fee-audit.test.ts` — new file, 12 tests
+  covering snapshot auth + shape + overdraw + invariant detection, and
+  checkpoint auth + first-write + continuity + cutoff validation.
+- `docs/specs/306-fee-accounting-audit/spec.md` — `Status: Ready → Complete`,
+  all 11 unchecked items marked `[x]` with notes (one spec correction
+  recorded: admin route shape vs the original `ok(c, ...)` envelope).
+
+**Verification**:
+- `pnpm exec vitest run src/__tests__/{fee-accounting,integration-fee-allocation,referral-claim-ledger,referral-routes,admin-fee-audit}.test.ts` — 63/63 tests pass.
+- `cd backend && pnpm typecheck` — exit 0.
+- `cd backend && pnpm lint` — 0 errors (1 pre-existing warning in
+  `contracts/api-envelope.ts`, unrelated to this pass).
+
+**Notes**:
+- The retro on the audit snapshot section flagged one **spec correction**:
+  the original checklist said to use `ok(c, ...)` and add an OpenAPI path
+  module, but `backend/CLAUDE.md` keeps admin routes off the public
+  OpenAPI contract. Matched the existing admin-route convention instead.
+- The retro on the checkpoint section confirmed the snapshot endpoint
+  intentionally does NOT consult checkpoints — checkpoints are an
+  acceleration record, the live snapshot stays the source of truth
+  (matches FR-5 #2 and the table comment).
+- One follow-up flagged in iteration 13 (the `getPendingBalanceByUserId`
+  call site in `queue/handlers/referral-claim.ts:78` — used as a
+  defensive secondary check) remains an explicit follow-up; it's not a
+  gap for FR-6 (the criterion targets the claim *route*) but is worth
+  closing in a successor task or under spec 999-enhancements.
+
