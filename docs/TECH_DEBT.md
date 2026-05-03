@@ -13,6 +13,13 @@ Track temporary hacks, relaxed rules, and shortcuts here.
 
 ## Medium Priority (Before Launch)
 
+### [Waitlist] `ProfileResponse.stats` is dead-typed
+- **Date**: 2026-04-30
+- **Location**: `waitlist/src/lib/profile-api.ts` — `ProfileResponse.stats: ProfileStatsResponse`
+- **What**: Backend `/profile/me` no longer returns a `stats` field (split out to `GET /profile/stats` on 2026-04-30 per `docs/specs/008-user-profile/spec.md`). The waitlist type still declares `stats` and `ProfileStatsResponse`, but no code reads them — `TelegramCard.tsx` only consumes `telegramLinked`. Runtime is unaffected (extra field is ignored if absent), but the TS type lies about the contract.
+- **Current mitigation**: Field is unread.
+- **Proper solution**: Drop `stats: ProfileStatsResponse` from `ProfileResponse` and delete the unused `ProfileStatsResponse` interface in `waitlist/src/lib/profile-api.ts`.
+
 ### [Backend] `rateLimitGlobal` is route-local, not app-global
 - **Date**: 2026-04-21
 - **Location**: `backend/src/middleware/rate-limit.ts`, `backend/src/index.ts`, `backend/src/index-waitlist.ts`
@@ -64,6 +71,14 @@ Track temporary hacks, relaxed rules, and shortcuts here.
 - **Current mitigation**: Two queries each hit a small partial index; performance is fine until expired-row count dominates.
 - **Proper solution**: Periodically delete rows where `ends_at IS NOT NULL AND ends_at < now() - INTERVAL '90 days'` (or archive to a history table for audit). Alternatively, add a recurring `VACUUM`-friendly retention worker.
 - **Why not now**: At launch volume the index alone is sufficient.
+
+### [Backend] Spec 306 invariant-violation test mutates schema
+- **Date**: 2026-05-02
+- **Location**: `backend/src/__tests__/admin-fee-audit.test.ts` — `flags invariant violations when components do not sum to fee`
+- **What**: To exercise the snapshot's `invariantViolations` path, the test temporarily drops the `ck_fee_allocation_components_sum` CHECK on `fee_allocation_events`, inserts a row that violates the invariant, asserts the snapshot surfaces it, then deletes the row and re-adds the constraint. Schema mutation in a test against the shared dev/CI Postgres is unusual; if the `try/finally` ever fails to restore the constraint, the next test run starts with a missing CHECK.
+- **Current mitigation**: Cleanup uses `DROP CONSTRAINT IF EXISTS` + delete-then-VALID-re-add so the test is re-runnable even if a prior run aborted. `beforeEach` truncates the table between tests, bounding cross-test impact.
+- **Proper solution**: Move the invariant-violation case to a transaction-scoped fixture — open a `BEGIN`, drop the CHECK, insert the bad row, run assertions, `ROLLBACK`. The schema mutation never escapes the transaction, removing the "what if cleanup fails" failure mode entirely. Alternatively, expose a test-only helper that bypasses the helper-layer's CHECK alignment and writes via a partition or a separate test-only table.
+- **Why not now**: The test passes reliably and the cleanup path is robust. Risk is bounded enough that fixing it during the simplify pass would have added churn for a hypothetical failure mode.
 
 ### [Reward Economy] `idx_point_balances_season_balance` is unused
 - **Date**: 2026-04-29
