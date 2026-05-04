@@ -7,7 +7,21 @@ Track temporary hacks, relaxed rules, and shortcuts here.
 
 ## High Priority (Fix ASAP)
 
-(none)
+### [Webapp] Round/match consumers still expect wallet strings for `creator`/`winner`/`entries[].player`
+- **Date**: 2026-05-04
+- **Location**: `webapp/src/pages/flip-you/`, `webapp/src/pages/pot-shot/`, `webapp/src/pages/close-call/` — anywhere those fields are read off `/flip-you/by-id`, `/flip-you/history`, `/flip-you/verify`, `/pot-shot/current`, `/pot-shot/history`, `/pot-shot/by-id`, `/pot-shot/verify`, `/closecall/current-round`, `/closecall/history`, `/closecall/by-id`.
+- **What**: Those response fields are now `PlayerRef = { userId, username, avatarUrl }` instead of base58 wallet strings. Frontend code that does `truncateAddress(round.creator)` / `match.player1` / `entries[].player` as a string will break or render `[object Object]`. The change closes a casual wallet leak (see `docs/PRIVACY.md`).
+- **Current mitigation**: None. Webapp is a consult-only submodule from the backend's perspective; this is a deliberate breaking contract change documented for the frontend team to migrate against.
+- **Proper solution**: Frontend reads `creator.username` / `creator.userId` / `creator.avatarUrl`; replaces wallet truncation with username; uses `avatarUrl` (or identicon hashed off `userId`, not wallet) where avatars are rendered. Same swap for `winner` and per-entry `player`.
+- **Why not now**: Out of scope for this workspace (frontend team owns the migration).
+
+### [Webapp] Flip You lobby + live match should switch off `getProgramAccounts` / on-chain account fetching
+- **Date**: 2026-05-04
+- **Location**: `webapp/src/pages/flip-you/api.ts` — `fetchAllOpenMatches`, `fetchClaimableMatches`, `fetchMatch`, `fetchMatchByMatchId`.
+- **What**: Backend now serves the same data wallet-free via `GET /flip-you/open` (lobby), `GET /flip-you/mine` (auth, caller's matches across phases), and the existing `GET /flip-you/by-id/{matchId}`. Frontend currently reads on-chain (`program.account.flipYouMatch.all` / `.fetch`) for these, which exposes other players' wallets to the user's RPC traffic and to anything inspecting it (devtools, browser extensions, traffic analysis). The new endpoints align Flip You with the Pot Shot/Close Call pattern (already backend-driven) and remove the only remaining application-layer wallet leak.
+- **Current mitigation**: None. The on-chain reads still work; this is a cleanup, not a regression.
+- **Proper solution**: Replace `fetchAllOpenMatches` with `GET /flip-you/open`. Replace `fetchClaimableMatches` with `GET /flip-you/mine`. Replace `fetchMatch` / `fetchMatchByMatchId` polling with `GET /flip-you/by-id/{matchId}`. Keep WS PDA subscriptions for change-detection only (refetch from backend on change), not for rendering. Per-game UX trade-off: ~3-5s lag between on-chain join and lobby refresh, same as Pot Shot today; race conditions handled by on-chain `joinMatch` failing gracefully when phase is no longer `waiting`.
+- **Why not now**: Out of scope for this workspace (frontend team owns the migration). Note: even after this, on-chain accounts remain enumerable by any RPC client — this fix removes the leak from *our users*, not from the world.
 
 ---
 
