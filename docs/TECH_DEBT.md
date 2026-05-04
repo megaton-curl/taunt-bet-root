@@ -108,3 +108,11 @@ Items that work today but deserve a proper implementation once the platform matu
 - **Current mitigation**: `undecodeablePdas` set in settlement worker, try/catch per-account in poll loop.
 - **Proper solution**: (1) Admin "close any PDA" instruction that skips deserialization (transfer lamports + zero data), (2) Pre-deploy cleanup script that closes all game accounts before upgrade, (3) Account versioning (`version: u8` as first field) so decoders can branch on layout version.
 - **Why not now**: Dev phase — redeploys are frequent, accounts are low-value, and the workaround is adequate.
+
+### [Spec 307] Single combined `admin` role for payout pause/approve/reject
+- **Date**: 2026-05-04
+- **Location**: `peek/src/server/access-policy.ts` — `PEEK_ACTION_RULES` for `payout.pause.set`, `payout.controls.update`, `payout.claim.approve`, `payout.claim.reject`. Spec: `docs/specs/307-payout-pause-and-review/spec.md`.
+- **What**: Spec 307 ships every payout admin action gated by the same `admin` role. There is no split between "operator who can pause" and "operator who can approve high-value claims". The audit trail (`operator_events`, `payout.*` actions) is the only safety net distinguishing decisions made by different operators.
+- **Current mitigation**: Audit log captures actor email + before/after diff for every action. `/operations/payouts` recent-decisions list surfaces the trail to peers.
+- **Proper solution**: Add a `treasury_operator` sub-role. Leave pause/threshold edit on `admin`, move approve/reject to `treasury_operator|admin`. Update `PEEK_ACTION_RULES` and `PEEK_ROLE_POLICY`.
+- **Why not now**: There is no concrete role-separation requirement today (no second peer with limited scope, no compliance-driven split). Adding the role split before the need exists would block routine ops on a privilege we do not yet need to enforce.
