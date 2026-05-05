@@ -22,9 +22,9 @@ Closing the on-chain ↔ off-chain mapping is **architecturally infeasible** in 
 
 1. Anyone can call `getProgramAccounts(<our_program_id>)` on a Solana RPC and receive every match/round account, including the `creator`/`joiner`/entry pubkeys.
 2. Each on-chain account carries the `match_id` (or minute-`round_id` for Close Call) used as PDA seed.
-3. Our public `*/by-id/*` endpoints look up the same `match_id` and return a `PlayerRef` for the participants.
+3. Our public `*/by-id/*` and live current-round endpoints look up the same identifiers and return a `PlayerRef` for the participants.
 
-A scraper joining (1)+(3) reconstructs `wallet ↔ (userId, username, avatarUrl)` for every active and historical participant. Removing the `by-id` endpoints does not solve this — the same join can be performed via `/history` (the wallet-free response still returns the same `match_id`s, joined back to chain).
+A scraper joining (1)+(3) reconstructs `wallet ↔ (userId, username, avatarUrl)` for every active and historical participant. Removing the `by-id` endpoints does not solve this — the same join can be performed via `/history`, `GET /pot-shot/current`, or `GET /closecall/current-round` because those wallet-free responses still expose round identifiers and ordered entry amounts that can be joined back to chain.
 
 The only architectures that break this join are:
 
