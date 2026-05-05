@@ -67,3 +67,19 @@ Questions that should be explicitly included in the external audit packet becaus
 - **Confidence:** Medium (have reasoning)
 - **Fix Direction:** Accepted as a documented trust assumption for now. Snapshotting fee/treasury would require account layout, IDL, decoder, deployment, and in-flight-account handling.
 - **Status:** Accepted Risk
+
+### [LOW] FlipYou Initialize Config Can Re-Unpause
+
+- **Category:** Document As Trust Assumption
+- **Surface:** `solana/programs/flipyou/src/instructions/initialize_config.rs`
+- **Game:** FlipYou
+- **Threat actor:** FlipYou config authority
+- **Invariant:** Operational pause/unpause authority is an explicit trusted role.
+- **Issue:** `initialize_config` uses `init_if_needed` and always writes `paused = false`, so the existing config authority can call it again to re-unpause the game.
+- **Exploit Path:** Config authority pauses FlipYou, then calls `initialize_config` instead of `set_paused(false)`.
+- **Impact:** No new privilege boundary is crossed because the same authority can already unpause via `set_paused(false)`, but the duplicate path should be known before external audit.
+- **Proof:** `initialize_config.rs` derives the singleton `flipyou_config` PDA with `init_if_needed` and resets `paused` to `false`.
+- **Discovered via:** Claude scan
+- **Confidence:** High (have code proof)
+- **Fix Direction:** Documented as accepted behavior for now. If we want a single unpause path later, split first-time initialization from config updates or preserve the current `paused` value when the account already exists.
+- **Status:** Accepted Risk
