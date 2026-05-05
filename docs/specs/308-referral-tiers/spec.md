@@ -9,6 +9,10 @@
 | Track | Extended |
 | NR_OF_TRIES | 0 |
 
+> **Affected by amendment** [2026-05-05 — Rate override expiry + KOL→override rename](../300-referral-system/amendments/2026-05-05-rate-overrides.md):
+> - The "KOL override" referenced below is now called the **rate override** (`referral_rate_overrides`). It still always wins, but only while `expires_at > now()`; expired rows fall through to tier.
+> - The `tier.source` enum value `"kol"` is now `"override"`. Resolution precedence is **active rate-override → tier → default**.
+
 ---
 
 ## Overview

@@ -9,6 +9,9 @@
 | Track | Extended |
 | NR_OF_TRIES | 33 |
 
+> **Amendments:**
+> - [2026-05-05 — Rate override expiry + KOL→override rename](amendments/2026-05-05-rate-overrides.md): `referral_kol_rates` is renamed to `referral_rate_overrides` with a NOT NULL `expires_at` column; new code creators get a best-effort 1500 bps / 90-day initial override; resolution skips expired rows. Treat references to `referral_kol_rates`, "KOL row", or `tier.source: "kol"` below as historical — current spelling is `referral_rate_overrides` / "rate override" / `tier.source: "override"`.
+
 ---
 
 ## Overview
@@ -18,7 +21,7 @@ A Hyperliquid-style referral system where any player can set a custom referral c
 ## User Stories
 
 - As a player, I want to set a custom referral code so that I can invite friends and earn passive rewards from their gameplay
-- As a new player, I want to use a referral code so that I receive a signup benefit (fee rebate or bonus reward)
+- As a new player, I want to use a referral code so that I can be linked to the player who invited me
 - As a referrer, I want to see how many players I've referred and how much I've earned so that I can track my referral performance
 - As a referrer, I want to claim my accumulated earnings so that I receive SOL in my wallet
 - As an operator, I want to set custom referral rates for KOL users so that partnership agreements are honored
@@ -97,22 +100,14 @@ When a player signs up or connects their wallet via a referral link (`taunt.bet/
 - [x] Self-referral (`referrer_user_id = referee_user_id`) is rejected <!-- satisfied: routes/referral.ts rejects when `codeRow.user_id === userId` -->
 - [x] Referral link is stored in `referral_links` table with `created_at` timestamp <!-- satisfied: migrations/010_referral.sql creates table; db.ts insertReferralLink -->
 
-### FR-3: Referee Fee Rebate
+### FR-3: Referee-Side Fee Rewards Removed
 
-Referred players receive a **fixed 10% rebate on their own fees** (1000 bps of fee_lamports), accruing as a claimable SOL balance. This is permanent and not configurable — every referred player gets 10% back on every game, forever.
-
-**Economics:**
-- On a 1 SOL wager with 500 bps fee: fee = 0.05 SOL, referee rebate = 0.005 SOL
-- Rebate is calculated and stored at settlement time, same transaction as the referrer earning
-- Fee is charged in full on-chain — rebate accrues off-chain as claimable SOL
-- Rebate shares the same claim flow as referrer earnings (unified pending balance per user)
+Referred players no longer accrue claimable SOL from their own fees. Referral economics are referrer-only: settlement records the referrer's fee share, and claimable balance is computed only from `referrer_earned_lamports` minus active/completed claims.
 
 **Acceptance Criteria:**
-- [x] After a referred player's game settles, a rebate row is recorded in `referral_earnings.referee_rebate_lamports` <!-- satisfied: settle-tx.ts:156-168 calculates and inserts; integration.test.ts verifies rebate amount -->
-- [x] Rebate is exactly 1000 bps of fee_lamports (fixed, not configurable) <!-- satisfied: settle-tx.ts:156 Math.floor((feeLamports * 1000) / 10_000); line 168 refereeRebateRateBps: 1000 -->
-- [x] Rebate accrues to the referee's claimable balance (same claim flow as referrer earnings) <!-- satisfied: db.ts getPendingBalanceByUserId sums referrer_earned + referee_rebate minus claims -->
-- [x] Benefit is communicated in the UI on the referral page and at code entry <!-- satisfied: ReferralPage.tsx unauthenticated state describes 10% rebate; ProfileSettings.tsx success message; ReferralClaimCard.tsx breakdown -->
-- [x] A player who is both a referrer AND a referee sees a single combined pending balance <!-- satisfied: db.ts getPendingBalanceByUserId unified calculation -->
+- [x] `referral_earnings` stores referrer earnings only; no referee-side fee reward columns remain. <!-- satisfied: migrations/010_referral.sql; migrations/025_remove_referee_rebates.sql -->
+- [x] Pending balance is `SUM(referrer_earned_lamports) - SUM(claims)` for the referrer. <!-- satisfied: backend/src/db/referrals.ts getPendingBalanceByUserId -->
+- [x] Referral apply UI and API copy do not promise a referee-side fee reward. <!-- satisfied: backend/src/routes/referral.ts; waitlist/src/components/ReferralCodeCard.tsx; waitlist/src/components/ReferralLinkCard.tsx -->
 
 ### FR-4: Referrer Fee Share
 
@@ -125,7 +120,7 @@ When a referred player completes a game, the referrer earns a share of the platf
 - Duration: **permanent** — referrer earns from their referees' games indefinitely
 - Platform revenue impact: 1000 bps (10%) haircut on fee revenue from referred players (referrer share only; referee reward is non-fee-based)
 
-**KOL override:** Admin can set a custom referrer rate per user (stored in DB). Wallet is retained as secondary metadata for payout/admin visibility. This supports partnership agreements where a KOL may receive a higher share (e.g., 2000-3000 bps of total fee). Default rate applies to all non-KOL referrers.
+**Rate override (formerly "KOL override"):** An operator can set a custom referrer rate per user, stored in `referral_rate_overrides` (renamed 2026-05-05 from `referral_kol_rates`) with a NOT NULL `expires_at` timestamp. Wallet is retained as secondary metadata for payout/admin visibility. This supports partnership agreements where a partner may receive a higher share (e.g., 2000-3000 bps of total fee). The override only wins while `expires_at > now()`; expired rows fall through to tier or default. Permanent deals use a far-future `expires_at` (e.g. `2099-01-01`).
 
 **Settlement hook:** After each game settles, the existing settlement worker checks if the player has a referrer → calculates earnings → inserts into `referral_earnings` table. No additional RPC calls. No on-chain changes.
 
@@ -269,8 +264,6 @@ referral_earnings (
   fee_lamports              BIGINT NOT NULL,
   referrer_earned_lamports  BIGINT NOT NULL,
   referrer_rate_bps         INTEGER NOT NULL,
-  referee_rebate_lamports   BIGINT NOT NULL,
-  referee_rebate_rate_bps   INTEGER NOT NULL,  -- always 1000 for v1
   created_at                TIMESTAMPTZ DEFAULT now(),
   UNIQUE (referee_user_id, round_id)  -- idempotency: one earning per player per round
 )
@@ -287,15 +280,18 @@ referral_claims (
   processed_at      TIMESTAMPTZ
 )
 
--- KOL custom referrer rates (overrides default 1000 bps)
-referral_kol_rates (
+-- Manual referrer-rate overrides (overrides tier and default 1000 bps).
+-- Renamed 2026-05-05 from `referral_kol_rates`; gained NOT NULL `expires_at`.
+referral_rate_overrides (
   user_id         TEXT PRIMARY KEY,
   wallet          TEXT NOT NULL UNIQUE,
-  rate_bps        INTEGER NOT NULL,  -- e.g., 2000 = 20% of total fee (= 100 bps of wager)
-  set_by          TEXT NOT NULL,     -- admin wallet
+  rate_bps        INTEGER NOT NULL,        -- e.g., 2000 = 20% of total fee (= 100 bps of wager)
+  set_by          TEXT NOT NULL,           -- admin wallet or 'auto:initial-90d'
+  expires_at      TIMESTAMPTZ NOT NULL,    -- override only wins while > now()
   created_at      TIMESTAMPTZ DEFAULT now(),
   updated_at      TIMESTAMPTZ DEFAULT now()
 )
+-- Index: (expires_at) for admin "expiring soon" queries
 ```
 
 **Acceptance Criteria:**
@@ -619,13 +615,13 @@ Note: `referral.game_settled` earnings are written synchronously in the settleme
 - [x] [backend] Database migration `011_referral.sql`: create `referral_codes`, `referral_links`, `referral_earnings`, `referral_claims`, `referral_kol_rates` tables with all constraints and indexes per FR-8 (done: iteration 1)
 - [x] [backend] DB client methods in `db.ts`: `insertReferralCode`, `getReferralCodeByWallet`, `getReferralCodeByCode`, `upsertReferralCode` for code CRUD (done: iteration 3)
 - [x] [backend] DB client methods: `insertReferralLink`, `getReferralLinkByReferee`, referral link queries (done: iteration 4)
-- [x] [backend] DB client methods: `insertReferralEarning`, `getPendingBalanceByUserId(userId)` (sum referrer_earned where user_id=referrer + sum referee_rebate where user_id=referee, minus completed claims), `getReferralEarnings(userId, page, limit)`, `getReferralStats(userId)` (done: iteration 5)
+- [x] [backend] DB client methods: `insertReferralEarning`, `getPendingBalanceByUserId(userId)` (sum referrer_earned where user_id=referrer, minus completed/active claims), `getReferralEarnings(userId, page, limit)`, `getReferralStats(userId)` (done: iteration 5)
 - [x] [backend] DB client methods: `insertReferralClaim`, `getReferralClaim`, `updateClaimStatus`, `getReferrerRate(wallet)` (check kol_rates, fallback to env default) (done: iteration 6)
 
 #### Backend — API Endpoints
 - [x] [backend] `routes/referral.ts`: `POST /referral/code` — set player-chosen code (3-16 chars, `[a-z0-9-]`, unique). Requires JWT auth. Returns `{ code, url }` (FR-1, FR-7) (done: iteration 7)
 - [x] [backend] `routes/referral.ts`: `GET /referral/code` — return current code for authenticated user, or 404 (FR-7) (done: iteration 8)
-- [x] [backend] `routes/referral.ts`: `POST /referral/apply` — link referee to referrer. Validate: code exists, no self-referral, no existing referrer. Returns `{ referrer, benefit: "10% fee rebate on all games" }` (FR-2, FR-7) (done: iteration 9)
+- [x] [backend] `routes/referral.ts`: `POST /referral/apply` — link referee to referrer. Validate: code exists, no self-referral, no existing referrer. Returns `{ referrerUserId, benefit: "Referral linked" }` (FR-2, FR-7) (done: iteration 9)
 - [x] [backend] `routes/referral.ts`: `GET /referral/stats` — return referredCount, activeCount (7d), totalVolumeLamports, totalEarnedLamports, pendingLamports for authenticated user. All values as lamport strings (FR-5, FR-7) (done: iteration 10)
 - [x] [backend] `routes/referral.ts`: `GET /referral/earnings` — paginated per-game earnings log with roundId, gameType, refereeUserId, wagerLamports, earnedLamports, createdAt. Query params: page, limit (FR-5, FR-7) (done: iteration 11)
 - [x] [backend] `routes/referral.ts`: `POST /referral/claim` — validate pending balance > min threshold (env `REFERRAL_MIN_CLAIM_LAMPORTS`, default 10M = 0.01 SOL), snapshot amount, insert claim row + emit `referral.claim_requested` event in same DB tx. Return 202 `{ claimId, amountLamports, status: "pending" }` (FR-6, FR-7) (done: iteration 12)
@@ -633,7 +629,7 @@ Note: `referral.game_settled` earnings are written synchronously in the settleme
 - [x] [backend] Register referral routes in `index.ts`, mount at `/referral` prefix with JWT auth middleware (done: iteration 14)
 
 #### Backend — Settlement Integration
-- [x] [backend] Settlement hook in `settle-tx.ts`: after each game settlement DB write, check `referral_links` for the settled player(s). If referrer exists, calculate `referrer_earned = fee_lamports * referrer_rate_bps / 10000` and `referee_rebate = fee_lamports * 1000 / 10000` (fixed 10%). Insert into `referral_earnings` in the same DB transaction. Use `getReferrerRate(userId)` for KOL override (FR-4, FR-10) (done: iteration 15)
+- [x] [backend] Settlement hook in `settle-tx.ts`: after each game settlement DB write, check `referral_links` for the settled player(s). If referrer exists, calculate `referrer_earned = fee_lamports * referrer_rate_bps / 10000`. Insert into `referral_earnings` in the same DB transaction. Use `getReferrerRate(userId)` for KOL override (FR-4, FR-10) (done: iteration 15)
 - [x] [backend] Wrap settlement DB writes in `sql.transaction()` for atomicity — referral earning insert MUST be in the same transaction as the game settlement update (FR-10 + System Invariant 4) (done: iteration 16)
 
 #### Backend — Claim Queue Handler
@@ -649,13 +645,13 @@ Note: `referral.game_settled` earnings are written synchronously in the settleme
 - [x] [frontend] `/referrals` route + `ReferralPage` shell: unauthenticated state shows connect-wallet prompt with referral program description. Authenticated state renders feature sections. Wrap in `RouteErrorBoundary` (FR-9c) (done: iteration 22)
 - [x] [frontend] Referral page §1: "Your Referral Link" card — custom code input (3-16 chars, `[a-z0-9-]`) + "Set Code" button (if none), display code + full URL + Copy Link button with clipboard feedback. "Change code" option with inline validation (FR-9c §1) (done: iteration 23)
 - [x] [frontend] Referral page §2: Stats summary card — four stat boxes (Referred Players, Active 7d, Total Volume, Total Earned) from `GET /referral/stats`. SOL values via lamports→SOL formatting. Loading skeleton (FR-9c §2) (done: iteration 24)
-- [x] [frontend] Referral page §3: Pending balance card — show unified pending balance prominently. Breakdown: "From referrals: X SOL" + "From fee rebates: Y SOL". Claim button disabled below threshold, loading during claim, success toast with Solana explorer tx link (FR-9c §3, FR-6) (done: iteration 25)
+- [x] [frontend] Referral page §3: Pending balance card — show referrer-only pending balance prominently. Claim button disabled below threshold, loading during claim, success toast with Solana explorer tx link (FR-9c §3, FR-6) (done: iteration 25)
 - [x] [frontend] Referral page §4: Earnings history table — paginated from `GET /referral/earnings`. Columns: Date, Game, Referee (username), Wager, Your Earning. Empty state message. Pagination controls (FR-9c §4) (done: iteration 26)
 - [x] [frontend] Profile settings: "Referral Code" section in profile settings tab. If no referrer: input + Apply button. If already referred: read-only "Referred by: [username]". Error states inline (FR-9d) (done: iteration 27)
 
 #### Testing
 - [x] [test] Backend unit tests for referral routes: set custom code (happy path + validation + uniqueness), apply (happy path + self-referral + duplicate), stats, earnings pagination, claim flow (happy + zero balance + below threshold + concurrent) (done: iteration 28)
-- [x] [test] Backend integration test: settle a game for a referred player → verify `referral_earnings` row with correct referrer_earned + referee_rebate amounts (done: iteration 29)
+- [x] [test] Backend integration test: settle a game for a referred player → verify `referral_earnings` row with correct referrer_earned amount (done: iteration 29)
 - [x] [test] Add local deterministic E2E coverage for primary user flow(s) in `e2e/local/**` (or mark N/A with reason for non-web/non-interactive specs) (done: iteration 30)
 - [x] [test] Add visual route/state coverage in `e2e/visual/**`; run `pnpm test:visual` and update baselines only for intentional UI changes (done: iteration 31)
 - [x] [test] Update visual baselines for `/referrals` page (new page) and sidebar (new nav item). Run `pnpm test:visual` to identify failures, then `pnpm test:visual:update` to regenerate. **Before committing**: read old baseline and new screenshot for each changed page (use Read tool on PNG files). Evaluate: **PASS** (changes clearly match spec intent) → commit; **REVIEW** (unexpected areas changed) → save diff images to `docs/specs/300-referral-system/visual-review/`, describe concerns; **FAIL** → fix code (done: iteration 32)
@@ -702,8 +698,6 @@ makes sense from a player's perspective.
 - [ ] Claim earnings → verify SOL arrives in wallet
 - [ ] Attempt self-referral → verify blocked
 - [ ] Attempt to change referrer → verify blocked
-- [ ] Referee fee rebate accrues after playing a game (visible in pending balance)
-- [ ] Referral page shows breakdown: "From referrals: X" + "From fee rebates: Y"
 
 ### Iteration Instructions
 
@@ -735,7 +729,7 @@ After the spec loop outputs `<promise>DONE</promise>`, `spec-loop.sh` automatica
   - `GET  /referral/code` — get player's current referral code
   - `POST /referral/apply` — link authenticated player to a referrer via code
   - `GET  /referral/referrer` — check if player has a referrer (returns referrer user_id + code)
-  - `GET  /referral/stats` — referral summary (referred count, active count, volume, earned, rebate, pending)
+  - `GET  /referral/stats` — referral summary (referred count, active count, volume, earned, pending)
   - `GET  /referral/referrals` — list referred users (last 10, newest first)
   - `GET  /referral/earnings` — paginated per-game earnings log (`?page=&limit=`)
   - `POST /referral/claim` — request async payout of pending earnings (returns 202 + claim ID)
@@ -743,7 +737,7 @@ After the spec loop outputs `<promise>DONE</promise>`, `spec-loop.sh` automatica
 - **DB Tables** (migration `011_referral.sql` + `012_referral_claim_retry.sql`):
   - `referral_codes` — `id SERIAL PK`, `wallet TEXT UNIQUE`, `code TEXT UNIQUE`, `created_at`, `updated_at`
   - `referral_links` — `id SERIAL PK`, `referrer_wallet TEXT`, `referee_wallet TEXT UNIQUE`, `created_at`; index on `referrer_wallet`
-  - `referral_earnings` — `id SERIAL PK`, `referrer_wallet`, `referee_wallet`, `round_id`, `game_type`, `wager_lamports BIGINT`, `fee_lamports BIGINT`, `referrer_earned_lamports BIGINT`, `referrer_rate_bps INT`, `referee_rebate_lamports BIGINT`, `referee_rebate_rate_bps INT`, `created_at`; `UNIQUE(referee_wallet, round_id)` idempotency guard; indexes on `referrer_wallet`, `referee_wallet`, `round_id`
+  - `referral_earnings` — `id SERIAL PK`, `referrer_wallet`, `referee_wallet`, `round_id`, `game_type`, `wager_lamports BIGINT`, `fee_lamports BIGINT`, `referrer_earned_lamports BIGINT`, `referrer_rate_bps INT`, `created_at`; `UNIQUE(referee_wallet, round_id)` idempotency guard; indexes on `referrer_wallet`, `referee_wallet`, `round_id`
   - `referral_claims` — `id UUID PK DEFAULT gen_random_uuid()`, `wallet`, `amount_lamports BIGINT`, `status TEXT CHECK(pending|processing|error|completed|failed)`, `tx_signature`, `error`, `retry_count INT DEFAULT 0`, `requested_at`, `processed_at`; partial unique index `idx_referral_claims_wallet_active` prevents concurrent active claims per wallet
   - `referral_kol_rates` — `wallet TEXT PK`, `rate_bps INT`, `set_by TEXT`, `created_at`, `updated_at`
 - **Key Files**:
@@ -757,7 +751,7 @@ After the spec loop outputs `<promise>DONE</promise>`, `spec-loop.sh` automatica
   - `backend/migrations/011_referral.sql` — creates all 5 tables
   - `backend/migrations/012_referral_claim_retry.sql` — adds `retry_count`, `error` status, concurrent claim guard
 - **Integration Points**:
-  - **Settlement**: `recordReferralEarnings()` in `settle-tx.ts` is called after flipyou and pot-shot settlement. For each player, looks up `referral_links` for a referrer, checks `referral_kol_rates` for custom rate, calculates earnings/rebate, inserts into `referral_earnings`. Errors are logged but never bubble (referral must not fail settlement). `UNIQUE(referee_wallet, round_id)` provides idempotency on retries.
+  - **Settlement**: `recordReferralEarnings()` in `settle-tx.ts` is called after flipyou and pot-shot settlement. For each player, looks up `referral_links` for a referrer, checks `referral_kol_rates` for custom rate, calculates referrer earnings, inserts into `referral_earnings`. Errors are logged but never bubble (referral must not fail settlement). `UNIQUE(referee_wallet, round_id)` provides idempotency on retries.
   - **Event Queue (spec 301)**: `POST /referral/claim` atomically inserts a `referral_claims` row + emits `referral.claim_requested` event in the same DB transaction via `emitEvent()`. The claim handler (`referral-claim.ts`) is registered at startup in `index.ts:187-190` before the event worker starts.
   - **Claim handler flow**: load claim -> verify not already completed/failed -> update to `processing` -> re-verify `getPendingBalance() >= amount` -> `SystemProgram.transfer` from `serverKeypair` -> record `tx_signature` -> `completed`. Transient failures increment `retry_count`; permanent failure after 5 retries.
 
@@ -766,10 +760,11 @@ After the spec loop outputs `<promise>DONE</promise>`, `spec-loop.sh` automatica
 ## Key Decisions (from refinement)
 - Referral codes are always player-chosen (3-16 chars, `[a-z0-9-]`); no auto-generation
 - Entirely off-chain for v1 per System Invariant 7; no on-chain program changes
-- Referee rebate fixed at 1000 bps (10%) of fee, not configurable; referrer rate defaults to 1000 bps but overridable via KOL table
+- Referrer rate defaults to 1000 bps but is overridable via KOL table
+- Fee allocation for future audit/ledger checks: referral allocation is taken first according to the referrer's effective rate; 20% of the remaining fee is earmarked for crates and promotions; the remaining 80% of the post-referral remainder is platform profit. These buckets should drive future overspend/double-spend limits and reconciliation checks.
 - Settlement integration uses `db.withTransaction()` for atomicity (referral earning insert in same tx as game settlement)
 - `referral.game_settled` earnings written synchronously in settlement tx; only claims use async queue
-- `getPendingBalance` is a unified calculation: SUM(referrer_earned) + SUM(referee_rebate) - SUM(claims)
+- `getPendingBalance` is a referrer-only calculation: SUM(referrer_earned) - SUM(claims)
 - Frontend auth mock needed for visual tests (mock mode has no backend for JWT auth)
 - Loop signal detection fixed mid-implementation: `jq` extraction of assistant text before tag search (was matching tags in tool results)
 - Pre-existing `HealthDeps` typecheck error fixed in iteration 33 (added missing `sql` parameter from spec 301)

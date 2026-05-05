@@ -132,7 +132,7 @@ Replace the current custom Cloudflare JWT/JWKS verifier with `jose` as part of t
 |------|----------------|-----------|
 | Identity | `player_profiles` | user list, wallet lookup, usernames, created dates |
 | Linked accounts | `linked_accounts`, `telegram_link_tokens` | Telegram linkage state, token redemption audit, orphaned/expired link states |
-| Referrals | `referral_codes`, `referral_links`, `referral_earnings`, `referral_claims`, `referral_kol_rates` | referral graph, KOL performance, claim state, rebate/referrer economics |
+| Referrals | `referral_codes`, `referral_links`, `referral_earnings`, `referral_claims`, `referral_rate_overrides` | referral graph, rate-override performance, claim state, referrer economics |
 | Games | `rounds`, `closecall_rounds`, `game_entries`, `transactions` | game history, participant history, settlement state, tx audit |
 | Queue | `event_queue` | retries, dead letters, stuck async work |
 | Rewards | `reward_config`, `player_points`, `point_grants`, `reward_pool`, `reward_pool_fundings`, `crate_drops` | points, crates, pool funding, payout state |
@@ -157,8 +157,8 @@ The app should feel like an internal ops console, not a marketing dashboard.
 
 ### Business Development Surfaces
 
-- `/growth/referrals` - referral graph, top referrers, KOL rates, referred player quality, claims.
-- `/growth/kol` - KOL-specific view if referral data becomes too dense for one page.
+- `/growth/referrals` - referral graph, top referrers, rate overrides, referred player quality, claims.
+- `/growth/overrides` - rate-override view (rate, wallet, set_by, expires_at, performance) for partnership/BD inspection.
 - `/growth/telegram` - Telegram link funnel and account lookup.
 
 ### Operations Surfaces
@@ -226,7 +226,7 @@ Page and action authorization should be defined locally in `peek`, not in enviro
 - [x] Initial roles are limited to `business` and `admin`. <!-- satisfied: PeekRole union in lib/access-policy.ts; access-policy.ts:42-43 rejects others -->
 - [x] A verified email resolves to one effective role; `admin` is the superset role and wins if exact-email and wildcard-domain entries both match. <!-- satisfied: access-policy.ts:96-112 (admin returns immediately) -->
 - [x] Route prefixes can require `business`, `admin`, or both; sensitive routes such as `/audit` require `admin`. <!-- satisfied: access-policy.ts:150-152 (PEEK_ROUTE_RULES → /audit: admin) -->
-- [x] Mutation action ids can require one or more roles, for example `kol_rate.update` requiring `business` or `admin`. <!-- satisfied: access-policy.ts:154-159 (PEEK_ACTION_RULES) -->
+- [x] Mutation action ids can require one or more roles, for example `rate_override.update` requiring `business` or `admin`. <!-- satisfied: access-policy.ts:154-159 (PEEK_ACTION_RULES) -->
 - [x] Unknown route prefixes use the documented default access behavior; unknown mutation action ids deny. <!-- satisfied: access-policy.ts:148 default + 201-217 (unknown action returns null → false) -->
 - [x] Unit tests cover exact email, wildcard domain, admin precedence, route allow/deny, action allow/deny, case normalization, and invalid policy entries. <!-- satisfied: peek/src/server/__tests__/access-policy.test.ts -->
 
@@ -281,7 +281,7 @@ The current user detail page should become the primary support and audit page fo
 - [x] User detail shows profile identity from `player_profiles`: user id, username, wallet, created date, avatar URL if present, heat multiplier, and profile points slot. <!-- satisfied: peek/src/server/db/queries/get-peek-user-detail.ts:108-144 -->
 - [x] User detail shows linked account state from `linked_accounts`, including Telegram metadata when present. <!-- satisfied: get-peek-user-detail.ts fetchLinkedAccounts -->
 - [x] User detail shows latest Telegram link token records from `telegram_link_tokens` for support/audit context. <!-- satisfied: get-peek-user-detail.ts fetchRecentTelegramLinkTokens -->
-- [x] User detail shows referral code, inbound referrer, outbound referees, KOL rate if present, earnings, rebates, and claim states. <!-- satisfied: fetchOutboundReferees, fetchKolRate, fetchReferralEarnings, fetchRecentReferralClaims in get-peek-user-detail.ts -->
+- [x] User detail shows referral code, inbound referrer, outbound referees, active rate override (rate + expires_at) if present, earnings, and claim states. <!-- satisfied: fetchOutboundReferees, fetchRateOverride, fetchReferralEarnings, fetchRecentReferralClaims in get-peek-user-detail.ts -->
 - [x] User detail shows points balance, lifetime points, recent point grants, recent crate drops, and challenge assignment summary. <!-- satisfied: fetchPlayerPoints, fetchRecentPointGrants, fetchRecentCrateDrops, fetchChallengeSummary -->
 - [x] User detail shows recent game entries and transactions across FlipYou, Pot Shot, and Close Call. <!-- satisfied: fetchRecentGameEntries, fetchRecentTransactions -->
 - [x] User detail flags obvious attention states: failed claim, dead queue event for the user, active fraud flag, pending SOL crate payout, or suspicious referral self/loop inconsistency. <!-- satisfied: get-peek-user-detail.ts:186-192 computeAttention; user-detail-view.tsx:128-145 AttentionStrip -->
@@ -293,7 +293,7 @@ The current user detail page should become the primary support and audit page fo
 Business development should be able to inspect referral quality, KOL performance, and claim/payment state without raw SQL.
 
 **Acceptance Criteria:**
-- [x] Referral overview shows total referrers, referred users, activated referred users, referral earnings, referee rebates, pending claims, failed claims, and KOL count. <!-- satisfied: get-growth-referrals.ts getGrowthReferralOverview (eight FR-4 metrics) -->
+- [x] Referral overview shows total referrers, referred users, activated referred users, referral earnings, pending claims, failed claims, and KOL count. <!-- satisfied: get-growth-referrals.ts getGrowthReferralOverview (seven FR-4 metrics) -->
 - [x] Top referrers table includes referral code, user id, username, wallet, referee count, active referee count, referred wager volume, referrer earnings, and pending claim amount. <!-- satisfied: get-growth-referrals.ts listTopReferrers; growth-referrers-table.tsx -->
 - [x] KOL table reads from `referral_kol_rates` and shows rate, wallet, set_by, created_at, updated_at, and linked performance metrics. <!-- satisfied: get-growth-referrals.ts listKolPerformance; growth-kol-table.tsx -->
 - [x] Claim table reads from `referral_claims` and filters by status, user, amount, requested date, processed date, tx signature, and error. <!-- satisfied: get-growth-referrals.ts listReferralClaims; growth-claims-table.tsx + growth-claims-filter-bar.tsx -->
@@ -510,7 +510,7 @@ Keep the implementation close to existing `peek` conventions and cheap to operat
 - [x] [test] Expanded user-detail query + component tests for full, sparse, and sensitive-section audit (calls audit writer when sensitive sections render). (done: iteration 26)
 
 #### Growth + KOL (FR-7)
-- [x] [engine] Growth/referral queries: overview metrics (referrers, referred users, activated, earnings, rebates, pending claims, failed claims, KOL count); top-referrers; `referral_kol_rates` with linked performance; claim filters by status/user/amount/date/tx/error; graph navigation queries. (done: iteration 27)
+- [x] [engine] Growth/referral queries: overview metrics (referrers, referred users, activated, earnings, pending claims, failed claims, KOL count); top-referrers; `referral_kol_rates` with linked performance; claim filters by status/user/amount/date/tx/error; graph navigation queries. (done: iteration 27)
 - [x] [frontend] `/growth/referrals` (overview + top-referrers + claims) and `/growth/kol` (KOL table with rate, wallet, set_by, timestamps, performance) with filtered tables, drill-down to user detail, empty states, and access checks. (done: iteration 28)
 - [x] [test] Growth/referral query + page tests for referrers, KOL rows, claims, filters, drill-down, and empty states. (done: iteration 29)
 
