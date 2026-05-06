@@ -165,7 +165,7 @@ Legend:
 - [x] Pending balance + claim (on-chain SOL)
 - [x] KOL custom rates (`referral_kol_rates`)
 - [x] Stats + earnings endpoints
-- [x] Referee rebate
+- [x] Referrer earnings
 - [ ] Rate scaling with lifetime attributed volume (`[TBD %]` → `[TBD %]`) — `todo` + `tokenomics`
 - [ ] KOL tier thresholds — `tokenomics`
 - [ ] Tier maintenance rule (min new wagers in 6 months) — `todo` + `tokenomics`

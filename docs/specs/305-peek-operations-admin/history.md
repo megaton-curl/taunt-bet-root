@@ -866,10 +866,9 @@ of every iteration to understand prior context.
     `queries[0]`'s "no telegram_link_tokens" assertion still holds.
   - **KOL rate** — `referral_kol_rates` lookup returning rate_bps, set_by,
     created_at, updated_at, or `null` when the user is not a KOL.
-  - **Referral earnings summary** — `referral_earnings` aggregated across both
-    `referrer_user_id = userId` *and* `referee_user_id = userId` so the user
-    detail page surfaces both inbound rebates and outbound referrer earnings;
-    sums kept as `::text` to preserve BIGINT precision.
+  - **Referral earnings summary** — `referral_earnings` aggregated by
+    `referrer_user_id = userId` so the user detail page surfaces outbound
+    referrer earnings; sums kept as `::text` to preserve BIGINT precision.
   - **Recent referral claims** — `referral_claims` rows with status, retry
     count, tx signature, error, and timestamps; bounded by `recentLimit`.
   - **Player points (canonical ledger)** — `player_points.balance` +
@@ -981,7 +980,7 @@ of every iteration to understand prior context.
     `telegram_link_tokens`. `StatusChip` tones reflect provider status
     (active=positive, revoked=negative) and token redemption state.
   - `Referrals` — inbound referrer card + referral-code metadata + KOL
-    rate block (or empty state) + earnings/rebate summary + recent
+    rate block (or empty state) + earnings summary + recent
     claims (status-chipped: paid=positive, failed/error=negative,
     processing=info) + outbound referees (each linkified to their own
     `/users/[userId]`).
@@ -1081,7 +1080,7 @@ of every iteration to understand prior context.
   without touching SQL again.
 - Five exported entry points, each bounded server-side and using only
   existing tables (no migrations):
-  - `getGrowthReferralOverview()` — eight FR-4 metrics with full
+  - `getGrowthReferralOverview()` — seven FR-4 metrics with full
     bookkeeping (`id`, `label`, `value`, `valueDisplay`, `unit`, `source`,
     `windowLabel`, `asOf`, `definition`, `freshness`, `drilldownHref`):
     `growth.referrers` (distinct `referral_links.referrer_user_id`),
@@ -1089,10 +1088,9 @@ of every iteration to understand prior context.
     `growth.activated_referred_users` (referees with at least one
     `game_entries` row),
     `growth.referrer_earnings_lamports`,
-    `growth.referee_rebates_lamports`,
     `growth.pending_claims_lamports` (`status in pending/processing`),
     `growth.failed_claims` (`status in failed/error`),
-    `growth.kol_count` (`referral_kol_rates`). All eight metrics share the
+    `growth.kol_count` (`referral_kol_rates`). All seven metrics share the
     same `generatedAt` timestamp; lamports are formatted via a manual
     thousands grouper to avoid Number coercion of u64 platform sums.
   - `listTopReferrers({ limit })` — per-referrer aggregate joining
@@ -5057,4 +5055,3 @@ of every iteration to understand prior context.
 - **Result**: Gap analysis report generated
 - **Report**: gap-analysis.md
 - **Log**: gap-analysis.log
-

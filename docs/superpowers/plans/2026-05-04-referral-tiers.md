@@ -1930,7 +1930,7 @@ git commit -m "spec(308-referral-tiers): declare REFERRAL_TIER_* env vars in App
 **Files:**
 - None (verification only)
 
-- [ ] **Step 1: Run the full backend test suite**
+- [x] **Step 1: Run the full backend test suite**
 
 ```bash
 cd backend && pnpm test
@@ -1938,7 +1938,7 @@ cd backend && pnpm test
 
 Expected: 0 failures. Pay attention to any unexpected snapshot diffs in OpenAPI / contract tests — the `tier` block addition is intended.
 
-- [ ] **Step 2: Run lint and typecheck**
+- [x] **Step 2: Run lint and typecheck**
 
 ```bash
 cd backend && pnpm lint && pnpm typecheck
@@ -1946,7 +1946,7 @@ cd backend && pnpm lint && pnpm typecheck
 
 Expected: clean.
 
-- [ ] **Step 3: Run cross-repo verify**
+- [x] **Step 3: Run cross-repo verify**
 
 ```bash
 ./scripts/verify
@@ -1954,7 +1954,7 @@ Expected: clean.
 
 Expected: exit code 0.
 
-- [ ] **Step 4: Verify dev defaults via env**
+- [x] **Step 4: Verify dev defaults via env**
 
 ```bash
 cd backend && REFERRAL_TIER_WINDOW_DAYS=2 REFERRAL_TIER_RECOMPUTE_HOURS=1 pnpm dev &
@@ -1965,7 +1965,7 @@ kill %1
 
 Expected: dev server boots, `/health` returns 200, log line `[referral-tier] boot ran` appears.
 
-- [ ] **Step 5: Mark spec checklist test items**
+- [x] **Step 5: Mark spec checklist test items**
 
 In `docs/specs/308-referral-tiers/spec.md`, update the three remaining unchecked items in the Tests section:
 
@@ -1973,7 +1973,7 @@ In `docs/specs/308-referral-tiers/spec.md`, update the three remaining unchecked
 - The integration-test checkboxes flip to `[x]` after Tasks 10, 11, 15.
 - The two N/A items (`e2e/local/**`, `e2e/visual/**`, `e2e/devnet/**`) are pre-checked with the rationale already in spec text.
 
-- [ ] **Step 6: Final commit**
+- [x] **Step 6: Final commit**
 
 ```bash
 git add docs/specs/308-referral-tiers/spec.md
