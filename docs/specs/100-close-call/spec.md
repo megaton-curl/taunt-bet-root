@@ -83,15 +83,31 @@ Players choose GREEN (bull) or RED (bear) with any amount within platform limits
 
 Outcome based on strict comparison of candle close vs open price from Pyth Network oracle. No DOJI threshold — exact equality triggers refund.
 
+> **Trust-model note (2026-05-06, audit-prep Option A).** The on-chain program currently
+> trusts the backend signer (`round.server`) to relay Pyth-signed prices via instruction
+> arguments — there is no on-chain `PriceUpdateV2` validation today. Settlement is gated
+> to `caller == round.server` (see `settle_round.rs`, CC-1) and the boundary VAAs that
+> back each settle are archived in `closecall_candles.hermes_vaa` and exposed via
+> `GET /closecall/by-id/:roundId` so anyone can replay them off-chain against Pyth's
+> guardian set. The trust surface is therefore "operator key custody + Pyth signature
+> authenticity," with cryptographic auditability after the fact.
+>
+> **Upgrade path (CC-9).** Replace the price/expo instruction args with a Pyth
+> `PriceUpdateV2` account verified via `pyth-solana-receiver-sdk` in a post-update +
+> consume + close pattern (net rent zero, net steady-state state zero). With on-chain
+> verification the caller restriction can be relaxed to permissionless, matching FlipYou
+> and Pot Shot's commit-reveal model. The VAA archival above transitions to belt-and-
+> suspenders.
+
 **Acceptance Criteria:**
-- [x] GREEN wins if close price > open price (strict) <!-- satisfied: settle_round.rs:114 close_price > open_price → Outcome::Green -->
-- [x] RED wins if close price < open price (strict) <!-- satisfied: settle_round.rs:116 else → Outcome::Red -->
-- [x] Equal price (close == open): full refund, no fee <!-- satisfied: settle_round.rs:112 close_price == open_price → Refund; bankrun closecall.ts:739 -->
-- [x] Price data sourced from Pyth Network on-chain price account <!-- satisfied: pyth.rs:54 parse_price_update() PriceUpdateV2 deserialization -->
-- [x] Open price stored in round PDA at creation time <!-- satisfied: create_round.rs:66-67 open_price + open_price_expo from Pyth -->
-- [x] Close price read from Pyth account at settlement time <!-- satisfied: settle_round.rs:87 parse_price_update() at settle -->
-- [x] On-chain program verifies Pyth price account directly <!-- satisfied: pyth.rs:67-69 feed_id verification; pyth.rs:73-74 freshness check -->
-- [x] Supported asset at launch: BTC/USD <!-- satisfied: Pyth feed ID e62df6c8... (BTC/USD) in CloseCallConfig; config.ts:86 -->
+- [x] GREEN wins if close price > open price (strict) <!-- satisfied: settle_round.rs close_price > open_price → Outcome::Green -->
+- [x] RED wins if close price < open price (strict) <!-- satisfied: settle_round.rs else → Outcome::Red -->
+- [x] Equal price (close == open): full refund, no fee <!-- satisfied: settle_round.rs close_price == open_price → Refund; bankrun closecall.ts -->
+- [x] Open price stored in round PDA at creation time <!-- satisfied: bet.rs is_new_round path stores open_price + open_price_expo -->
+- [x] Close price recorded on settlement and bound to the captured boundary VAA <!-- satisfied: closecall-clock.ts settleRound resolves cached/persisted boundary at minute_ts+60; refuses fresh-fetch (CC-2) -->
+- [ ] On-chain program verifies Pyth price account directly <!-- deferred: CC-9 / Option A is the current trust posture (see Trust-model note above). Settle currently restricted to round.server (CC-1) with off-chain VAA archival via /closecall/by-id/:roundId verification block. -->
+- [x] Settlement boundary is auditable post-hoc via the archived VAA <!-- satisfied: closecall_candles.hermes_vaa persisted by captureBoundaryPrice; CloseCallRoundVerificationSchema exposes boundaryFeedId + boundaryMinuteTs + boundaryVaaBase64 -->
+- [x] Supported asset at launch: BTC/USD <!-- satisfied: Pyth feed ID e62df6c8... (BTC/USD) in CloseCallConfig; pyth-poster.ts BTC_USD_FEED_ID -->
 
 ### FR-4: Payout and Fee
 
@@ -132,7 +148,8 @@ Oracle-resolved settlement. No commit-reveal — no server secret. Backend reads
 **Acceptance Criteria:**
 - [x] Settlement triggered by backend after candle close <!-- satisfied: closecall-clock.ts settlePreviousRound() on tick -->
 - [x] Round state machine: BETTING → LOCKED → SETTLED or REFUNDED <!-- satisfied: state.rs:12-17 Open→Settled|Refunded; LOCKED is time-based within Open (place_bet.rs:43 rejects after betting_ends_at) -->
-- [x] On-chain program reads Pyth price account at settlement <!-- satisfied: settle_round.rs:87 parse_price_update() -->
+- [ ] On-chain program reads Pyth price account at settlement <!-- deferred: CC-9 — settle currently takes close_price as instruction arg, gated to round.server (CC-1). See FR-3 trust-model note. -->
+- [x] Backend submits captured boundary price (not a fresh post-candle fetch) <!-- satisfied: closecall-clock.ts settleRound uses cachedBoundaryPrice / closecall_candles fallback; no Hermes fresh-fetch (CC-2) -->
 - [x] Double-settle prevention via phase state machine <!-- satisfied: settle_round.rs:62 requires phase==Open -->
 - [x] Settlement transaction is atomic (all payouts or all refunds in one tx) <!-- satisfied: single Solana tx, all transfers in one instruction handler -->
 - [x] Timeout refund available permissionlessly after resolve deadline <!-- satisfied: timeout_refund.rs:39 no authority check, only is_expired(); bankrun closecall.ts:881 -->
