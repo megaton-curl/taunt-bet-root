@@ -5,7 +5,7 @@ This devcontainer provides a reproducible development environment with persisten
 ## Features
 
 ### Installed Tools
-- **Node.js 20 LTS** - JavaScript/TypeScript runtime with npm, yarn, and pnpm
+- **Node.js 22 LTS** - JavaScript/TypeScript runtime with npm, yarn, and pnpm
 - **Go 1.22** - Go programming language with workspace setup
 - **GitHub CLI** (`gh`) - Repository management
 - **Solana/Agave (beta channel by default)** - includes `solana`, `cargo-build-sbf`, validator tooling

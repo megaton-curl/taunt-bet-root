@@ -50,6 +50,10 @@ USER vscode
 # One-command installer provides: Rust, Solana CLI, Anchor CLI (AVM), Node.js (nvm), Yarn, Surfpool
 RUN curl --proto '=https' --tlsv1.2 -sSfL https://solana-install.solana.workers.dev | bash
 
+# Backend scripts and CI expect Node 22 features such as --env-file-if-exists.
+ARG NODE_VERSION=22
+RUN bash -ic "nvm install ${NODE_VERSION} && nvm alias default ${NODE_VERSION} && nvm use ${NODE_VERSION}"
+
 # Default to Agave beta to keep SBF platform-tools modern enough for current crates.
 # This avoids build breaks on older SBF Cargo toolchains (e.g. edition2024 parsing).
 # NOTE: Commented out — agave-install command does not exist in current toolchain.
@@ -59,12 +63,13 @@ RUN curl --proto '=https' --tlsv1.2 -sSfL https://solana-install.solana.workers.
 # PATH order matters: .avm/bin BEFORE .cargo/bin so AVM's anchor wins over any cargo-installed copy
 ENV PATH="/home/vscode/.avm/bin:/home/vscode/.cargo/bin:/home/vscode/.local/share/solana/install/active_release/bin:${PATH}"
 
-# Additional global npm packages not included in the one-command installer
-RUN bash -ic "npm install -g pnpm@10.33.0 @openai/codex @anthropic-ai/claude-code @anthropic-ai/sandbox-runtime"
+# Additional global npm packages not included in the one-command installer.
+RUN bash -ic "nvm use ${NODE_VERSION} && npm install -g pnpm@10.33.0 @openai/codex @anthropic-ai/claude-code @anthropic-ai/sandbox-runtime"
 
-# Persist PATH for interactive shells (ENV only applies to Docker build + postStartCommand)
-# nvm is already sourced in .bashrc by the installer; just add Solana/AVM paths
-RUN echo 'export PATH="$HOME/.avm/bin:$HOME/.cargo/bin:$HOME/.local/share/solana/install/active_release/bin:$PATH"' >> /home/vscode/.bashrc
+# Persist PATH for interactive shells (ENV only applies to Docker build + postStartCommand).
+# nvm is already sourced in .bashrc by the installer; default to the repo baseline Node.
+RUN echo "nvm use --silent ${NODE_VERSION} >/dev/null 2>&1 || true" >> /home/vscode/.bashrc \
+    && echo 'export PATH="$HOME/.avm/bin:$HOME/.cargo/bin:$HOME/.local/share/solana/install/active_release/bin:$PATH"' >> /home/vscode/.bashrc
 
 # Default Solana config (keypair is restored from SOLANA_DEPLOYER_KEY env at startup)
 RUN solana config set --url localhost

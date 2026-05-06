@@ -22,3 +22,6 @@ node_modules/
 # Images
 .clip-images/
 .worktrees/
+
+# Local-only bot service — never committed
+/robots/
