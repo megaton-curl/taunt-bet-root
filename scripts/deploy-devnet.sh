@@ -158,10 +158,25 @@ init_config() {
   local idl_path="target/idl/$name.json"
   local kp_path="$HOME/.config/solana/id.json"
 
+  # Per-program config PDA seeds. Used for the existence check below; all
+  # three games now use strict `init` (audit H-1) so trying to init a config
+  # that already exists is a hard error, not a no-op. Skip the init call
+  # entirely when the PDA is already populated.
+  local seed
+  case "$name" in
+    flipyou)  seed="flipyou_config" ;;
+    potshot)  seed="lord_config" ;;
+    closecall) seed="closecall_config" ;;
+    platform) seed="platform_config" ;;
+    *) seed="" ;;
+  esac
+
   node --input-type=module -e "
-import { Connection, Keypair } from '@solana/web3.js';
+import { Connection, Keypair, PublicKey, SystemProgram } from '@solana/web3.js';
 import { AnchorProvider, Program, Wallet } from '@coral-xyz/anchor';
 import { readFileSync } from 'fs';
+
+const BPF_LOADER_UPGRADEABLE = new PublicKey('BPFLoaderUpgradeab1e11111111111111111111111');
 
 const idl = JSON.parse(readFileSync('${idl_path}', 'utf8'));
 const conn = new Connection('${RPC}', 'confirmed');
@@ -169,8 +184,24 @@ const kp = Keypair.fromSecretKey(Uint8Array.from(JSON.parse(readFileSync('${kp_p
 const provider = new AnchorProvider(conn, new Wallet(kp), { commitment: 'confirmed' });
 const program = new Program(idl, provider);
 
+const seed = '${seed}';
+const [configPda] = seed
+  ? PublicKey.findProgramAddressSync([Buffer.from(seed)], program.programId)
+  : [null, null];
+
+const existing = configPda ? await conn.getAccountInfo(configPda, 'confirmed') : null;
+if (existing) {
+  console.log('  Config already exists (OK)');
+  process.exit(0);
+}
+
+const methods = program.methods;
+const [programDataPda] = PublicKey.findProgramAddressSync(
+  [program.programId.toBuffer()],
+  BPF_LOADER_UPGRADEABLE,
+);
+
 try {
-  const methods = program.methods;
   if ('initializePlatform' in methods) {
     await methods
       .initializePlatform(kp.publicKey)
@@ -178,16 +209,25 @@ try {
       .rpc();
     console.log('  Platform config initialized');
   } else if ('initializeConfig' in methods) {
+    // Game inits (audit H-1): the program upgrade authority must co-sign
+    // alongside the chosen game authority. The deploy keypair is both here.
+    const baseAccounts = {
+      authority: kp.publicKey,
+      upgradeAuthority: kp.publicKey,
+      program: program.programId,
+      programData: programDataPda,
+      systemProgram: SystemProgram.programId,
+    };
     $(case "$name" in
       closecall)
         echo "
     const feedHex = 'e62df6c8b4a85fe1a67db44dc12de5db330f7ac66b72dc658afedf0f4a415b43';
     const feedId = Array.from(Buffer.from(feedHex, 'hex'));
-    await methods.initializeConfig(feedId, 30, 10).rpc();
+    await methods.initializeConfig(feedId, 30, 10).accounts(baseAccounts).rpc();
     "
         ;;
       *)
-        echo "await methods.initializeConfig().rpc();"
+        echo "await methods.initializeConfig().accounts(baseAccounts).rpc();"
         ;;
     esac)
     console.log('  Config initialized');
@@ -198,7 +238,7 @@ try {
   if (e.message?.includes('already in use')) {
     console.log('  Config already exists (OK)');
   } else {
-    console.error('  Config init failed:', e.message?.slice(0, 100));
+    console.error('  Config init failed:', e.message?.slice(0, 200));
   }
 }
 " 2>&1
