@@ -286,3 +286,6 @@ of every iteration to understand prior context.
 ## Iteration 11 — 2026-05-08T14:16:05Z — OK
 - **Log**: iteration-011.log
 
+## Iteration 12 — 2026-05-08T14:20:18Z — OK
+- **Log**: iteration-012.log
+
