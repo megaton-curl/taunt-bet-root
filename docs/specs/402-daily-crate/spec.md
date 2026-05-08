@@ -7,7 +7,7 @@
 | Status | Ready |
 | Priority | P1 |
 | Track | Economy |
-| NR_OF_TRIES | 14 |
+| NR_OF_TRIES | 15 |
 | Replaces | Per-game `crate.drop` flow in spec 400 |
 | Authors | (assigned at refine time) |
 
@@ -609,7 +609,7 @@ Each item is one autonomous iteration (one `claude -p` invocation). Tests are bu
 
 **Phase 5: Per-Round Removal & Cleanup**
 
-- [ ] [backend] Remove the `CRATE_DROP` emit block (~lines around 177) from `backend/src/queue/handlers/game-settled.ts` that emits `trigger_type='game_settled'`; surrounding logic (points grant, challenge progress, pool funding) untouched. Other CRATE_DROP emits (challenge engine, completion bonus) keep emitting for `'challenge_completed'`/`'bonus_completed'` triggers. Append the two FR-9 entries to `docs/TECH_DEBT.md` (per-round-crate-drop removal note + event-naming-convention note). Add a banner near the top of `docs/specs/400-challenge-engine/spec.md` (under the `## Meta` table) noting that FR-5 per-round path is overridden by spec 402 with a link. Integration test: settle a flipyou + closecall + potshot round each, assert no `crate_drops` row with `trigger_type='game_settled'` is created; complete a challenge that rewards a crate and assert the `crate_drops` row still inserts with `trigger_type='challenge_completed'`. Verify: `cd backend && pnpm lint && pnpm typecheck && pnpm test` (FR-9).
+- [x] [backend] Remove the `CRATE_DROP` emit block (~lines around 177) from `backend/src/queue/handlers/game-settled.ts` that emits `trigger_type='game_settled'`; surrounding logic (points grant, challenge progress, pool funding) untouched. Other CRATE_DROP emits (challenge engine, completion bonus) keep emitting for `'challenge_completed'`/`'bonus_completed'` triggers. Append the two FR-9 entries to `docs/TECH_DEBT.md` (per-round-crate-drop removal note + event-naming-convention note). Add a banner near the top of `docs/specs/400-challenge-engine/spec.md` (under the `## Meta` table) noting that FR-5 per-round path is overridden by spec 402 with a link. Integration test: settle a flipyou + closecall + potshot round each, assert no `crate_drops` row with `trigger_type='game_settled'` is created; complete a challenge that rewards a crate and assert the `crate_drops` row still inserts with `trigger_type='challenge_completed'`. Verify: `cd backend && pnpm lint && pnpm typecheck && pnpm test` (FR-9). (done: iteration 15)
 
 **Phase 6: Peek Admin (FR-10)**
 
