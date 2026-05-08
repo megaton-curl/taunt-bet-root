@@ -196,3 +196,33 @@ of every iteration to understand prior context.
 ## Iteration 8 — 2026-05-08T13:34:48Z — OK
 - **Log**: iteration-008.log
 
+## Iteration 9 — Phase 3 POST /crates/daily/claim (FR-6, FR-8)
+
+- Added `backend/src/routes/crates-daily.ts` with `createCratesDailyRoutes({ db })` exposing `POST /claim`. The factory mounts under `/crates/daily` so the existing `app.use("/crates/*", createJwtAuthMiddleware({ requireAllMethods: true }))` middleware in `index.ts` already protects it; no new middleware wiring needed.
+  - Body: Zod-validated `{ day_id }` against the canonical `^\d{4}-\d{2}-\d{2}$` regex. Malformed inputs land on the standard `defaultHook` returning 422 `VALIDATION_FAILED`.
+  - Future/today guard runs **before** any DB call: `dayId >= todayDayIdUtc()` returns 400 `INVALID_DAY_ID`.
+  - Run-status guard reads `daily_crate_runs` outside the transaction (read-only): missing or `'processing'` → 425 `DAILY_CRATE_NOT_READY`; `'failed'` → 503 `DAILY_CRATE_RUN_FAILED`. Adding `425` to `ErrorStatus` in `contracts/api-envelope.ts` was the only envelope-types change.
+  - Wallet resolution via `db.getProfileByUserId(userId)` runs before the transaction (404 `PROFILE_NOT_FOUND` if missing). The resolved wallet is the only delivery wallet emitted on grant/payout events — never trusts client input.
+  - Inside `db.withTransaction`: `SELECT … FOR UPDATE` on `daily_crate_rewards (user_id, day_id)` serializes concurrent claims; missing row returns 409 `NO_CRATE_EARNED`. Non-`'earned'` status takes the replay path (returns 200 with persisted outcome + proof material; `'held'` is masked to public `'pending'` with no `hold_reason` exposure). `'earned'` triggers the per-outcome transition:
+    - **Points**: `claimed_at = now()`, `status = 'grant_queued'`, then `emitEvent(POINTS_GRANT, { sourceType: 'daily_crate', sourceId, userId, wallet, amount, metadata: { dayId, configVersion, tier, rollValue, rewardHash } })`. The downstream handler chain (iteration 7) advances `'grant_queued' → 'granted'` atomically with the `point_grants` write.
+    - **SOL**: payout-controls read via `createPayoutControlsDb(txDb.rawSql)` inside the transaction → `evaluateGate` (spec 307). Hold → `status = 'held'` with the returned `hold_reason`, no event, no reservation. Proceed → `SELECT FOR UPDATE` on `reward_pool (id=1)`, sufficient → decrement + `status = 'payout_queued'` + `emitEvent(CRATE_SOL_PAYOUT, { source: 'daily_crate', rewardId, userId, wallet, amountLamports, idempotency_key: 'daily_crate_reward:{id}' })`; insufficient → `status = 'awaiting_funds'`, no transfer, no event (FR-7 retry tail picks it up later).
+- Added 5 new error codes in `backend/src/contracts/api-errors.ts` (`DAILY_CRATE_NOT_READY`, `DAILY_CRATE_RUN_FAILED`, `NO_CRATE_EARNED`, `INVALID_DAY_ID`, `PAYOUT_CONTROLS_MISSING`). Codes are SCREAMING_SNAKE_CASE per envelope rules; no shipped code was renamed.
+- Wired `createCratesDailyRoutes` into `index.ts` at `/crates/daily` (right after the existing `/crates` mount) and into the OpenAPI contract test (`buildSpecApp`) so the new route appears in the generated spec and stays envelope-conformant.
+- Authored `backend/src/__tests__/crates-daily-claim.test.ts` (16 integration tests, registered in `vitest.integration.files.ts`):
+  - **Happy paths**: points → 200 `'grant_queued'`, POINTS_GRANT payload + metadata round-trip, sourceId is the BIGINT id as TEXT; full pipeline (claim → handler) lands `'granted'` and credits `point_balances`. SOL with funded pool → 200 `'payout_queued'`, pool decremented exactly by `contents_amount`, single CRATE_SOL_PAYOUT emitted with `source='daily_crate'` and `idempotency_key='daily_crate_reward:{id}'`. SOL with empty pool → 200 `'awaiting_funds'`, pool unchanged, zero payout events.
+  - **Gate paths**: above-threshold → 200, internal `'held'` with `hold_reason='above_threshold'`, public response masked to `'pending'` with no operator metadata leakage. Globally paused → `hold_reason='global_pause'`. Both verify zero pool reservation and zero event emission.
+  - **Replay**: second call returns 200 with the persisted outcome, exactly one POINTS_GRANT exists post-second-call. Held replay still reports public `'pending'`, never exposes `holdReason`/`failureReason`/`reviewedAt`.
+  - **Concurrency**: two parallel claim requests via `Promise.all` against the same `(user, day)` — both return 200, exactly one event emitted, row reaches `'grant_queued'`. The FOR UPDATE on the reward row is the serialization point.
+  - **Status guards**: missing run row → 425, `'processing'` run → 425, `'failed'` run → 503, missing reward row → 409, `day_id >= today UTC` → 400, malformed `day_id` → 422, missing JWT → 401.
+  - Each test uses a fresh `Keypair.generate()` user + `_` suffix so cleanup is naturally scoped to `day_id` (TEST_DAY_ID = `'2024-02-03'`, plus `'2024-02-04'` for the failed-run / processing-run cases). `afterAll` deletes both day_ids; `beforeEach` truncates the global `RESET_TABLES` and re-seeds the run row.
+- Verified `pnpm lint:self` (1 pre-existing unused-eslint-disable warning unrelated to this iteration, 0 errors), `pnpm typecheck:self` (clean), `pnpm test:unit:self` (350 tests pass — same as iteration 8; new tests are integration-only). Targeted check for TS changes is `pnpm lint && pnpm typecheck`; both green.
+- Verified the new + regression suites directly:
+  - `pnpm vitest --config vitest.integration.config.ts --run src/__tests__/crates-daily-claim.test.ts` → all 16 tests pass.
+  - `pnpm vitest --config vitest.integration.config.ts --run src/__tests__/points-and-crates-routes.test.ts src/__tests__/daily-crate-points-grant.test.ts src/__tests__/daily-crate-payout.test.ts` → 16 tests pass (no regression on the existing routes/handlers).
+  - `pnpm vitest --config vitest.unit.config.ts --run src/__tests__/openapi-contract.test.ts` → 11 tests pass; the new `/crates/daily/claim` route is in the generated spec, every 2xx body uses the success envelope, every 4xx/5xx body uses the error envelope.
+- Skipped the full `pnpm test:integration:self` run: same pre-existing `taunt_bet_dev`-vs-`rng_utopia_dev` infra gap noted in iterations 2/3/4/5/6/7/8 (multiple unrelated test files construct their own SQL connections that hardcode the database name). Unrelated to this iteration's contract.
+- Outcome: ✅ Item 9 complete.
+
+## Iteration 9 — 2026-05-08T13:52:38Z — OK
+- **Log**: iteration-009.log
+
