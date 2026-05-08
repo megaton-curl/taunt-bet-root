@@ -250,3 +250,39 @@ of every iteration to understand prior context.
 ## Iteration 10 — 2026-05-08T14:02:54Z — OK
 - **Log**: iteration-010.log
 
+## Iteration 11 — Phase 3 public `/configs/:version` and `/rewards/:rewardId/verify` (FR-8)
+
+- Extended `backend/src/routes/crates-daily.ts` with two unauthenticated public endpoints:
+  - `GET /configs/:version` — looks up the committed daily-crate config in the deployment-cluster registry. Returns `{ version, configHash (live registry SHA256/JCS), tiers[{ tier, thresholdLamports, outcomes[{ itemType, amount, ppm }] }] }`. Unknown versions → 404 `CONFIG_NOT_FOUND`. Malformed version param → 400 `INVALID_PARAMS` (the OpenAPI regex `^\d+$` short-circuits non-numeric input to 422 `VALIDATION_FAILED` before the handler runs; the handler still validates positive-integer for defense-in-depth). Sets `Cache-Control: public, max-age=86400, immutable`.
+  - `GET /rewards/:rewardId/verify` — loads the `daily_crate_rewards` row by id, resolves the matching config + tier from the cluster registry, then **independently recomputes `rollValue` (via `rollDailyCrateOutcome`) and `rewardHash` (via `computeRewardHash`) from the persisted seed + the live config**. Compares all three of `(configHashMatch, rollValueMatch, rewardHashMatch)` against the persisted row; any mismatch logs `daily_crate.integrity_error` (searchable ops marker, includes the stored vs. recomputed digest triple + check booleans) and returns 500 `INTEGRITY_ERROR`. Happy-path response carries `userId, dayId, configVersion, configHash, dayLamports, tier, boundarySlot, boundaryBlockTime, blockhash, rollValue, crateType, contentsAmount, rewardHash, tierOutcomes (full ppm list of the selected tier), selectedOutcomeRange { startInclusive, endExclusive }`. Wallet, claim status, hold reason, claimed/granted timestamps are deliberately not in the SELECT list — they cannot leak. Sets `Cache-Control: public, max-age=86400, immutable`.
+- New OpenAPI components: `DailyCrateConfigOutcome`, `DailyCrateConfigTier`, `DailyCrateConfigResponse`, `DailyCrateOutcomeRange`, `DailyCrateVerifyResponse`. Both routes register through the shared `envelope()` + `ErrorEnvelopeSchema` helpers so the existing `openapi-contract.test.ts` invariants (every 2xx body wraps in success envelope, every 4xx/5xx body wraps in error envelope) hold without further test changes.
+- Added three error codes to `backend/src/contracts/api-errors.ts`: `CONFIG_NOT_FOUND`, `REWARD_NOT_FOUND`, `INTEGRITY_ERROR`. Codes are SCREAMING_SNAKE_CASE per envelope rules; no shipped code was renamed.
+- Extended `backend/src/middleware/rate-limit.ts` with a new optional `methods?: readonly string[]` config (default `['POST']` for backwards compatibility). When `'GET'` is in the list the existing sliding-window per-identity-then-IP fallback path runs on GET requests too. Identity-extraction's `c.req.json()` call is wrapped in a try/catch that already handles bodyless requests; for GET it always falls through to the IP fallback (`x-forwarded-for` → `x-real-ip` → `'unknown-ip'`). No changes to the existing call sites — `auth/*`, `flip-you/*`, `pot-shot/*`, `closecall/bet` still default to POST-only.
+- Restructured the JWT middleware mount in `backend/src/index.ts`. The previous broad `app.use("/crates/*", JWT(requireAllMethods=true))` now becomes:
+  - `/crates/*` default JWT (POST-only) — protects `/crates/daily/claim`.
+  - Specific GET overrides for `/crates/mine`, `/crates/daily/today`, `/crates/daily/pending` (all `requireAllMethods: true`).
+  - IP rate limit (`methods: ['GET']`) on `/crates/daily/configs/*` and `/crates/daily/rewards/*`.
+  - Public GETs `/crates/daily/configs/:version` and `/crates/daily/rewards/:rewardId/verify` carry no JWT requirement.
+  This matches the existing `/flip-you/*` "default-POST + per-route override" pattern and keeps every previously-protected path protected. Verified by inspection: every auth-required route still has explicit `requireAllMethods: true` middleware applied to its exact path before the route mount.
+- Authored `backend/src/__tests__/crates-daily-public.test.ts` (7 integration tests, registered in `vitest.integration.files.ts`):
+  - `/configs/:version` happy path: returns the live registry's v1 config, asserts the `configHash` matches `getDailyCrateConfigHash(getActiveDailyCrateConfig('devnet'))` byte-exact, asserts every tier's ppm sum equals 1_000_000, asserts the `Cache-Control: public, max-age=86400, immutable` header.
+  - `/configs/:version` unknown version → 404 `CONFIG_NOT_FOUND`.
+  - `/configs/:version` malformed param → 400/422 (handler-side or OpenAPI-validator-side, both are envelope-shaped errors).
+  - `/verify` round-trip: seeds a reward with the canonical `rollDailyCrateOutcome` + `computeRewardHash` pipeline using a known blockhash, then asserts the response matches every persisted field byte-exact (rewardHash, rollValue, configHash, etc.), the `selectedOutcomeRange` brackets the stored `roll_value` (`startInclusive ≤ rollValue < endExclusive`), the range width equals the selected outcome's ppm, the cache header is set, and operator-only fields (`wallet`, `status`, `holdReason`, `failureReason`, `claimedAt`, `grantedAt`) are absent from the wire.
+  - `/verify` unknown rewardId → 404 `REWARD_NOT_FOUND`.
+  - `/verify` tampered persisted row: bumps `roll_value` by 1, asserts 500 `INTEGRITY_ERROR` (both `rollValueMatch` and `rewardHashMatch` flip to false; the ops alert log line `daily_crate.integrity_error` fires with stored vs. recomputed digests for both).
+  - `/verify` unknown config version: forces `config_version=9999` on the row, asserts 404 `CONFIG_NOT_FOUND` (the registry-lookup miss is the structural reason).
+- Verified `pnpm lint:self` (1 pre-existing unused-eslint-disable warning in `api-envelope.ts` unrelated to this iteration, 0 errors), `pnpm typecheck:self` (clean), `pnpm test:unit:self` (350 tests pass — same as iteration 10; new tests are integration-only). Targeted check for TS changes is `pnpm lint && pnpm typecheck`; both green.
+- Verified the new + regression suites directly:
+  - `pnpm vitest --config vitest.integration.config.ts --run src/__tests__/crates-daily-public.test.ts` → all 7 tests pass.
+  - `pnpm vitest --config vitest.integration.config.ts --run src/__tests__/crates-daily-claim.test.ts src/__tests__/crates-daily-today-pending.test.ts src/__tests__/crates-daily-public.test.ts` → all 33 tests pass (16 + 10 + 7), no regression on the iteration-9/10 paths now that the JWT middleware path is `default-POST + per-path GET overrides` instead of broad `requireAllMethods`.
+  - `pnpm vitest --config vitest.unit.config.ts --run src/__tests__/openapi-contract.test.ts` → all 11 tests pass; the new `/configs/:version` and `/rewards/:rewardId/verify` routes appear in the auto-generated spec, every 2xx body uses the success envelope, every 4xx/5xx body uses the error envelope, no `bearerAuth` security entry on either public route.
+- Skipped the full `pnpm test:integration:self` run: same pre-existing `taunt_bet_dev`-vs-`rng_utopia_dev` infra gap noted in iterations 2–10 (multiple unrelated test files construct their own SQL connections that hardcode the database name). Unrelated to this iteration's contract.
+- Outcome: ✅ Item 11 complete.
+
+## Iteration 11 — 2026-05-08T14:14:30Z — OK
+- **Log**: iteration-011.log
+
+## Iteration 11 — 2026-05-08T14:16:05Z — OK
+- **Log**: iteration-011.log
+
