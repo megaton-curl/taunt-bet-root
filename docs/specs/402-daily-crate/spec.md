@@ -7,6 +7,7 @@
 | Status | Ready |
 | Priority | P1 |
 | Track | Economy |
+| NR_OF_TRIES | 0 |
 | Replaces | Per-game `crate.drop` flow in spec 400 |
 | Authors | (assigned at refine time) |
 
