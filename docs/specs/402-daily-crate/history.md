@@ -72,3 +72,23 @@ of every iteration to understand prior context.
 ## Iteration 3 — 2026-05-08T12:31:39Z — OK
 - **Log**: iteration-003.log
 
+## Iteration 4 — Phase 1 tier/roll/reward-hash pure helpers (FR-4, FR-5, FR-3)
+
+- Extended `backend/src/services/daily-crate.ts`:
+  - `determineTier(config, dayLamports)` — single forward scan, breaking once a strictly-greater threshold is seen (registry order is validated as strictly ascending). Returns the last tier whose `threshold_lamports <= dayLamports`, or `null` when below floor.
+  - `rollDailyCrateOutcome(blockhash, userId, dayId, configVersion, tier)` — canonicalizes `{ domain: "daily_crate_roll:v1", blockhash, user_id, day_id, config_version, tier }` (snake_case keys per spec), SHA256s, reads first 8 bytes as BE u64 via `Buffer.readBigUInt64BE` (avoids Number truncation), `mod 1_000_000n`, then walks `tier.outcomes` accumulating ppm and returns the first whose running sum strictly exceeds `rollValue`, plus the selected outcome's range `[startInclusive, endExclusive)`. Integer-only — ppm sums fit comfortably in Number (always ≤ 1_000_000), comparison is strict-`>`. Throws on impossible no-selection (defensive against config corruption that bypassed Zod).
+  - `computeRewardHash(input)` — accepts mixed bigint/number numeric fields; coerces via `toSafeInteger` which throws on non-integer / non-finite / out-of-Number-safe-range bigints (per spec, every numeric field comfortably fits in 2^53; bumping past that requires `daily_crate:v2` semantics). Builds the canonical reward envelope, JCS, SHA256, hex.
+- Authored `backend/src/__tests__/fixtures/generate-daily-crate-vectors.py` — independent Python JCS+SHA256 reference. Hand-transcribes the launch v1 mainnet config (13 tiers × 12-13 outcomes each), defines `jcs_bytes(obj) = json.dumps(sort_keys=True, separators=(',',':'), ensure_ascii=False).encode('utf-8')` (verified equivalent to the JS `canonicalize` v3 package on the restricted ASCII/integer/bool/null input set the spec uses), and emits 6 hand-picked test cases covering tier 1, 3, 5, 8, and 13 with diverse `(blockhash, user_id, day_id)` combinations. Output committed to `daily-crate-vectors.json` alongside the script.
+- Authored `backend/src/__tests__/daily-crate-roll.test.ts` (32 tests, pure unit — no DB):
+  - `determineTier` (4 tests): below floor returns null; each threshold returns its tier; just-above-lower / just-below-upper between any adjacent thresholds returns the lower tier (covers the spec's worked example `0.6 SOL → tier 3`); above-top returns the top tier.
+  - Cross-language fixtures (7 tests): JS-side `getDailyCrateConfigHash` matches the Python `config_hash`, then for each of 6 fixture cases JS reproduces the Python `rollValue`, outcome (item_type/amount/ppm), `outcomeRange`, and `rewardHash` byte-exact. Drift in either the JS canonicalization or the launch config content fails the test.
+  - Determinism + integer invariants (3 tests): same inputs always yield same output; `rollValue` and outcomeRange bounds are integers in valid range; varying user_id changes the roll.
+  - Distribution sweep (13 tests, one per launch-config tier): walk every roll 0..999_999, count outcome hits, assert each count equals the declared `ppm`. This is the strongest possible structural check — catches off-by-one in the strict-`>` boundary, accidental skip/double-count, and any FP creep.
+  - `computeRewardHash` invariants (5 tests): stable across calls; identical bytes for number-vs-bigint numeric inputs; changes when any single field changes; rejects non-integer / NaN inputs; rejects bigints exceeding 2^53.
+- Verified `pnpm lint:self` (1 pre-existing warning unrelated to this iteration, 0 errors), `pnpm typecheck:self` (clean), `pnpm test:unit:self` (338 tests pass, +32 from this iteration — was 306 pre-iteration). Targeted check for TS changes is `pnpm lint && pnpm typecheck`; both green.
+- Skipped `pnpm test:integration:self`: same pre-existing infra gap as iterations 2/3 (Postgres only on Unix socket, fixture DB name mismatch). This iteration is pure-function-only — no DB schema or query touched — so integration tests are not load-bearing here.
+- Outcome: ✅ Item 4 complete.
+
+## Iteration 4 — 2026-05-08T12:42:34Z — OK
+- **Log**: iteration-004.log
+
