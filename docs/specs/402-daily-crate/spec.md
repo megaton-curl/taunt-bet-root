@@ -7,7 +7,7 @@
 | Status | Ready |
 | Priority | P1 |
 | Track | Economy |
-| NR_OF_TRIES | 0 |
+| NR_OF_TRIES | 2 |
 | Replaces | Per-game `crate.drop` flow in spec 400 |
 | Authors | (assigned at refine time) |
 
@@ -575,7 +575,7 @@ Each item is one autonomous iteration (one `claude -p` invocation). Tests are bu
 
 **Phase 0: Schema & Migration**
 
-- [ ] [backend] Add migration `backend/migrations/032_daily_crate.sql`: `CREATE TABLE daily_crate_runs` (per FR-3, with status CHECK and the table-level `status='completed' ⇒ all seed/config fields populated` CHECK), `CREATE TABLE daily_crate_rewards` (per FR-3, with status CHECK, hold_reason CHECK, `crate_type` CHECK, `contents_amount > 0` CHECK, `UNIQUE (user_id, day_id)`); create the three FR-9 step-3 indexes on `daily_crate_rewards` (`idx_daily_crate_rewards_user_pending` partial, `idx_daily_crate_rewards_retry` partial, `idx_daily_crate_rewards_day_status`); create `idx_game_entries_daily_crate_settled_user` partial index on `game_entries`; assert pre-condition `SELECT COUNT(*) FROM crate_drops WHERE trigger_type='game_settled'` is 0 (fail migration otherwise); ALTER `crate_drops` trigger_type CHECK to allow only `('challenge_completed','bonus_completed')`; ALTER `point_grants` source_type CHECK preserving every value currently in `018_reward_economy.sql` and adding `'daily_crate'`; `INSERT INTO payout_controls (claim_kind) VALUES ('daily_crate_sol') ON CONFLICT DO NOTHING`. Migration runs cleanly on fresh dev DB and is idempotent on re-run. Verify: `cd backend && pnpm migrate && pnpm typecheck && pnpm test` (FR-3, FR-9).
+- [x] [backend] Add migration `backend/migrations/032_daily_crate.sql`: `CREATE TABLE daily_crate_runs` (per FR-3, with status CHECK and the table-level `status='completed' ⇒ all seed/config fields populated` CHECK), `CREATE TABLE daily_crate_rewards` (per FR-3, with status CHECK, hold_reason CHECK, `crate_type` CHECK, `contents_amount > 0` CHECK, `UNIQUE (user_id, day_id)`); create the three FR-9 step-3 indexes on `daily_crate_rewards` (`idx_daily_crate_rewards_user_pending` partial, `idx_daily_crate_rewards_retry` partial, `idx_daily_crate_rewards_day_status`); create `idx_game_entries_daily_crate_settled_user` partial index on `game_entries`; assert pre-condition `SELECT COUNT(*) FROM crate_drops WHERE trigger_type='game_settled'` is 0 (fail migration otherwise); ALTER `crate_drops` trigger_type CHECK to allow only `('challenge_completed','bonus_completed')`; ALTER `point_grants` source_type CHECK preserving every value currently in `018_reward_economy.sql` and adding `'daily_crate'`; `INSERT INTO payout_controls (claim_kind) VALUES ('daily_crate_sol') ON CONFLICT DO NOTHING`. Migration runs cleanly on fresh dev DB and is idempotent on re-run. Verify: `cd backend && pnpm migrate && pnpm typecheck && pnpm test` (FR-3, FR-9). (done: iteration 1)
 
 **Phase 1: Config & Pure Helpers**
 
