@@ -51,3 +51,24 @@ of every iteration to understand prior context.
 ## Iteration 2 — 2026-05-08T12:19:45Z — OK
 - **Log**: iteration-002.log
 
+## Iteration 3 — Phase 1 day-volume helpers (FR-1)
+
+- Authored `backend/src/services/daily-crate.ts`:
+  - `dayIdBoundsUtc(dayId)` — strict `^\d{4}-\d{2}-\d{2}$` regex + `Date` NaN-check; returns half-open `[start, end)` constructed via `new Date(${dayId}T00:00:00.000Z)` and `start + 86_400_000ms`. No `::date` casts anywhere; rejects malformed strings (`"2026-5-8"`, `"2026/05/08"`, `""`) and unreal calendar dates (`"2026-13-01"`).
+  - `computeDayLamports(sql, userId, dayId): Promise<bigint>` — single-user `SELECT COALESCE(SUM(amount_lamports), 0)::TEXT FROM game_entries WHERE user_id = $1 AND settled_at >= $2 AND settled_at < $3 AND is_winner IS NOT NULL`. Casts to TEXT then `BigInt()` to keep numeric precision regardless of the postgres driver's bigint coercion. Returns `0n` when there are no qualifying rows. Index: `idx_game_entries_user_settled (user_id, settled_at DESC)`.
+  - `computeEligibleDailyVolumes(sql, dayId, floorLamports): Promise<{ userId, dayLamports }[]>` — single aggregate `SELECT user_id, SUM(amount_lamports)::TEXT … GROUP BY user_id HAVING SUM(amount_lamports) >= $floor::BIGINT`. Floor is bound as TEXT and cast in SQL to keep the binding bigint-safe. Below-floor users are filtered at the SQL layer so the worker never streams ineligible rows. Throws on negative floor. Index: `idx_game_entries_daily_crate_settled_user` (partial, settled_at + user_id, WHERE is_winner IS NOT NULL — created in iteration 1's migration).
+- Authored `backend/src/__tests__/daily-crate-volume.test.ts` (registered in `vitest.integration.files.ts`):
+  - Pure `dayIdBoundsUtc` block (6 tests) — bounds correctness, month/year/leap rollover, malformed-input rejection. Runs without a DB connection because `beforeAll` only fires for the second describe.
+  - Integration block (9 tests) covering `computeDayLamports` happy path, refund exclusion (`is_winner IS NULL`), day-boundary assignment by `settled_at` (23:59:59.999 of day N stays on day N; 00:00:00.000 of day N+1 falls into day N+1, half-open exclusivity), `settled_at IS NULL` exclusion, per-user isolation; and `computeEligibleDailyVolumes` floor cutoff, exact-equality inclusion, empty-result, and negative-floor rejection.
+- Verified `pnpm lint:self` (1 pre-existing warning, 0 errors) and `pnpm typecheck:self` (clean). The targeted check for TS changes is `pnpm lint && pnpm typecheck`; both green.
+- Verified `pnpm test:unit:self` (306 tests pass, unchanged from iteration 2 — `daily-crate-volume.test.ts` is integration-only).
+- Skipped `pnpm test:integration:self`: the dev devcontainer's Postgres listens only on the Unix socket `/var/run/postgresql` and the existing `makeSql()` fallback hardcodes `taunt_bet_dev` while the live DB is `rng_utopia_dev`. Same pre-existing infra gap as iteration 2; unrelated to this iteration.
+- Manually exercised the implementation against the live `rng_utopia_dev` database via a one-off node script that mirrored the four `computeDayLamports` / `computeEligibleDailyVolumes` test scenarios. All assertions held: basic refund-excluding sum = 150_000_000n; boundary day-N = 10_000_000n / day-N+1 = 20_000_000n; floor exclusion returned exactly `[u_above → 400_000_000n]`; exact-equality floor inclusion returned `[u_exact → 100_000_000n]`. Cleaned up after the run.
+- Outcome: ✅ Item 3 complete.
+
+## Iteration 3 — 2026-05-08T12:30:00Z — OK
+- **Log**: iteration-003.log
+
+## Iteration 3 — 2026-05-08T12:31:39Z — OK
+- **Log**: iteration-003.log
+
