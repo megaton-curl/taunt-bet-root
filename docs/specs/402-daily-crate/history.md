@@ -92,3 +92,23 @@ of every iteration to understand prior context.
 ## Iteration 4 — 2026-05-08T12:42:34Z — OK
 - **Log**: iteration-004.log
 
+## Iteration 5 — Phase 2 boundary-slot helper (FR-3)
+
+- Authored `backend/src/worker/daily-crate-compute.ts` with the `findBoundarySlot(connection, targetUnixSeconds, { startSlot, maxSearchSlots? })` helper. Public surface area: a tiny `BoundarySlotConnection` interface (only `getBlockTime` and `getBlock`) — the real `@solana/web3.js` `Connection` already satisfies it, but unit tests can supply a 20-line mock. Walks slots forward from `startSlot`; on each slot calls `getBlockTime`; null (skipped/unfinalized) is silently passed over; the first non-null `blockTime >= targetUnixSeconds` triggers a single `getBlock(slot, { maxSupportedTransactionVersion: 0, commitment: "finalized", transactionDetails: "none", rewards: false })` and returns `{ slot, blockTime, blockhash: block.blockhash }`. The walk stops at the chosen slot — `getBlockTime` is never invoked beyond it, so the RPC bill is proportional to the gap, not the search budget. `maxSearchSlots` defaults to 10 000 (~67 min at 400 ms/slot) — bounds RPC traffic for misconfigured targets.
+  - Defensive guards: rejects non-positive integer `targetUnixSeconds`, rejects negative/non-integer `startSlot`, rejects non-positive `maxSearchSlots`, rejects null block on the chosen slot, rejects empty-string `blockhash` field. Throws a descriptive error when the search budget is exhausted before the target is met.
+  - Why the caller supplies `startSlot`: the next iteration's `runDailyCrateComputation` will compute it via `currentSlot + (targetUnixSeconds - currentBlockTime) / 0.4` and pass it in. Keeping the estimate out of this primitive means the unit test's mock surface stays narrow (no `getSlot` mock needed) and the estimate logic gets tested where it lives, rather than smeared across two helpers.
+- Authored `backend/src/worker/__tests__/daily-crate-compute.test.ts` (12 tests, pure unit — no DB, no live RPC):
+  - Happy paths: target lands on a slot exactly; target falls between slots (returns first strictly past); start slot already meets target → returns it directly with one `getBlockTime` call.
+  - Skipped-slot handling: null `blockTime` interleaved before/after the boundary; helper passes over them and picks the first non-null ≥ target.
+  - "Never reads past" invariant: mock `getBlockTime` is wired to throw on any slot beyond the test's known stream; assert the helper visited exactly `[startSlot..chosenSlot]`. Catches any future regression that walks one slot too far.
+  - Search-budget exhaustion: stream of below-target slots → `maxSearchSlots: 3` → throws `/no slot with block_time >=/`; `getBlock` never called.
+  - GetBlock config assertion: the chosen-slot call is made with `{ maxSupportedTransactionVersion: 0, commitment: "finalized", transactionDetails: "none", rewards: false }` — `transactionDetails: "none"` keeps the RPC payload minimal since we only need `blockhash`.
+  - Error paths: `getBlock → null`, `getBlock → block with empty blockhash` both throw.
+  - Input validation: rejects target ≤ 0, target non-integer, negative startSlot, non-integer startSlot, maxSearchSlots ≤ 0.
+- Verified `pnpm lint:self` (1 pre-existing unused-eslint-disable warning unrelated to this iteration, 0 errors), `pnpm typecheck:self` (clean), `pnpm test:unit:self` (350 tests pass — was 338 pre-iteration; +12 from the new file). Targeted check for TS changes is `pnpm lint && pnpm typecheck`; both green.
+- Skipped `pnpm test:integration:self`: same pre-existing infra gap as iterations 2/3/4 (Postgres only on Unix socket, fixture DB name mismatch). This iteration is pure-helper-only with no DB or live Solana RPC dependency — integration tests are not load-bearing here.
+- Outcome: ✅ Item 5 complete.
+
+## Iteration 5 — 2026-05-08T12:50:16Z — OK
+- **Log**: iteration-005.log
+
