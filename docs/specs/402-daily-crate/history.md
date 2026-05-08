@@ -289,3 +289,31 @@ of every iteration to understand prior context.
 ## Iteration 12 — 2026-05-08T14:20:18Z — OK
 - **Log**: iteration-012.log
 
+## Iteration 13 — Phase 4 reward-pool-fund FR-7 retry tail
+
+- Extended `backend/src/queue/handlers/reward-pool-fund.ts` with the FR-7 retry tail. After the existing fund-pool transaction commits (only when the funding actually applied — duplicate-roundId replays skip the tail), the handler scans `daily_crate_rewards WHERE status='awaiting_funds' AND crate_type='sol' ORDER BY created_at ASC` using the partial `idx_daily_crate_rewards_retry` index. Batch size defaults to 100, override via `reward_config` key `daily_crate_retry_batch_size`.
+- Each candidate runs in its own `db.withTransaction` so a single row's failure (e.g. profile missing) does not poison the rest of the batch and never rolls back the funding write. Per row:
+  - Resolve canonical wallet via `db.getProfileByUserId(row.user_id)` outside the tx; missing profile logs and skips.
+  - Inside the tx: `SELECT FOR UPDATE` the `reward_pool` singleton FIRST, then `SELECT FOR UPDATE` the reward row (consistent ordering with the iteration-9 claim path's pool-then-reward lock to prevent deadlocks if both fire concurrently).
+  - Re-read the locked reward `status` — anything other than `'awaiting_funds'` (operator-driven approval, claim-path replay, etc. between the unlocked SELECT and the FOR UPDATE) is a no-op.
+  - `evaluateGate({ claim_kind: 'daily_crate_sol' })` via `createPayoutControlsDb`. Hold → set `status='held'` with `hold_reason`, no reservation, no event, return.
+  - Sufficient pool → decrement `balance_lamports` + bump `lifetime_paid` on `reward_pool`, transition reward to `'payout_queued'`, emit `CRATE_SOL_PAYOUT` with `source: 'daily_crate'`, the resolved wallet, and `idempotency_key='daily_crate_reward:{id}'`.
+  - Insufficient pool → debug-log + return (no row mutation, no reservation). Opportunistic-no-FIFO: a single mega-prize candidate can't starve smaller subsequent rows because the next iteration of the for-loop still gets the (unchanged) pool balance and tries them.
+- Exposed `payPendingDailyCrateSolRewards(db, batchSize)` from the module so peek's "approve held → re-enter retry" action (Phase 6) can call it directly without going through the queue.
+- Integration tests in `backend/src/__tests__/reward-pool-fund-retry-tail.test.ts` (registered in `vitest.integration.files.ts`), 6 tests:
+  - **Opportunistic-no-FIFO**: large (oldest, 1 SOL) + small (newer, 0.005 SOL) `awaiting_funds` rows. Funding deposits 100M lamports — covers small but not large. Asserts: large stays `awaiting_funds`, small → `payout_queued`, pool = 95M, exactly one CRATE_SOL_PAYOUT emitted with `source='daily_crate'`, correct rewardId/wallet/amount/idempotency_key.
+  - **Subsequent fund covers large**: first fund (deposits 20M) is insufficient → row stays awaiting, no event. Second fund (deposits 200M, pool now 220M) covers it → `payout_queued`, pool = 20M, one event.
+  - **Above-threshold gate-hold**: threshold set below row amount → row → `'held'` with `hold_reason='above_threshold'`, no pool debit (still 20M post-deposit), zero events.
+  - **Global-pause gate-hold**: `pause_enabled=true` → row → `'held'` with `hold_reason='global_pause'`, zero events.
+  - **No-op when no pending rows**: pool funded, zero events, no row mutations.
+  - **Dedupe safety**: replaying the same `roundId` skips the funding insert AND the retry tail (the `didFund` guard) — no double-spend, single event count, pool unchanged.
+- Verified `pnpm lint:self` (1 pre-existing unused-eslint-disable warning unrelated to this iteration in `api-envelope.ts`, 0 errors), `pnpm typecheck:self` (clean), `pnpm test:unit:self` (350 tests pass — same as iteration 11; new tests are integration-only). Targeted check for TS changes is `pnpm lint && pnpm typecheck`; both green.
+- Verified the new + regression integration suites directly:
+  - `PGHOST=/var/run/postgresql PGUSER=vscode PGDATABASE=rng_utopia_dev pnpm vitest --config vitest.integration.config.ts --run src/__tests__/reward-pool-fund-retry-tail.test.ts` → all 6 tests pass.
+  - `pnpm vitest --config vitest.integration.config.ts --run src/__tests__/reward-funding-and-points.test.ts` → all 5 tests pass (no regression on the existing handler behavior — funding + dedupe + downstream points-grant paths unchanged).
+- Skipped the full `pnpm test:integration:self` run: same pre-existing `taunt_bet_dev`-vs-`rng_utopia_dev` infra gap noted in iterations 2–11 (multiple unrelated test files construct their own SQL connections that hardcode the database name). Unrelated to this iteration's contract.
+- Outcome: ✅ Item 12 complete (Phase 4 FR-7 retry tail).
+
+## Iteration 14 — 2026-05-08T17:30:44Z — OK
+- **Log**: iteration-014.log
+

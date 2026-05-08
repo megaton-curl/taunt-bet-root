@@ -7,7 +7,7 @@
 | Status | Ready |
 | Priority | P1 |
 | Track | Economy |
-| NR_OF_TRIES | 13 |
+| NR_OF_TRIES | 14 |
 | Replaces | Per-game `crate.drop` flow in spec 400 |
 | Authors | (assigned at refine time) |
 
@@ -605,7 +605,7 @@ Each item is one autonomous iteration (one `claude -p` invocation). Tests are bu
 
 **Phase 4: Reward Pool Retry Tail**
 
-- [ ] [backend] Extend `backend/src/queue/handlers/reward-pool-fund.ts` with the FR-7 retry tail: after the existing fund-pool transaction commits, run a bounded batch (default 100, configurable via `reward_config` key `daily_crate_retry_batch_size`) over `daily_crate_rewards WHERE status='awaiting_funds' AND crate_type='sol' ORDER BY created_at ASC` using `idx_daily_crate_rewards_retry`. For each row inside its own transaction: lock the reward row + `reward_pool` singleton (consistent order — pool first); resolve canonical wallet from `player_profiles`; run `payoutGate({ claim_kind: 'daily_crate_sol', amount, reviewed_at })`; gate-hold sets `status='held'` with `hold_reason`, no reservation, continue to next row; gate-proceed checks `balance >= contents_amount` — insufficient skips (opportunistic-no-FIFO, no blocking); sufficient decrements pool, sets `status='payout_queued'`, emits `CRATE_SOL_PAYOUT` with `idempotency_key='daily_crate_reward:{id}'` and resolved wallet. Stop on batch exhausted or no more pending rows. Integration tests: seed two pending SOL rows (large then small), fund pool sufficient for the small only → small paid first, large remains `awaiting_funds`; subsequent fund event covers large → large paid; gate-held row not reserved or emitted; concurrent fund events safe (no double-spend on the pool singleton). Verify: `cd backend && pnpm lint && pnpm typecheck && pnpm test` (FR-7).
+- [x] [backend] Extend `backend/src/queue/handlers/reward-pool-fund.ts` with the FR-7 retry tail: after the existing fund-pool transaction commits, run a bounded batch (default 100, configurable via `reward_config` key `daily_crate_retry_batch_size`) over `daily_crate_rewards WHERE status='awaiting_funds' AND crate_type='sol' ORDER BY created_at ASC` using `idx_daily_crate_rewards_retry`. For each row inside its own transaction: lock the reward row + `reward_pool` singleton (consistent order — pool first); resolve canonical wallet from `player_profiles`; run `payoutGate({ claim_kind: 'daily_crate_sol', amount, reviewed_at })`; gate-hold sets `status='held'` with `hold_reason`, no reservation, continue to next row; gate-proceed checks `balance >= contents_amount` — insufficient skips (opportunistic-no-FIFO, no blocking); sufficient decrements pool, sets `status='payout_queued'`, emits `CRATE_SOL_PAYOUT` with `idempotency_key='daily_crate_reward:{id}'` and resolved wallet. Stop on batch exhausted or no more pending rows. Integration tests: seed two pending SOL rows (large then small), fund pool sufficient for the small only → small paid first, large remains `awaiting_funds`; subsequent fund event covers large → large paid; gate-held row not reserved or emitted; concurrent fund events safe (no double-spend on the pool singleton). Verify: `cd backend && pnpm lint && pnpm typecheck && pnpm test` (FR-7). (done: iteration 13)
 
 **Phase 5: Per-Round Removal & Cleanup**
 
