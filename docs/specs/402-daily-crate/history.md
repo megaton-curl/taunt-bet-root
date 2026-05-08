@@ -112,3 +112,34 @@ of every iteration to understand prior context.
 ## Iteration 5 — 2026-05-08T12:50:16Z — OK
 - **Log**: iteration-005.log
 
+## Iteration 6 — Phase 2 daily-crate compute worker (FR-3, FR-4, FR-5)
+
+- Extended `backend/src/worker/daily-crate-compute.ts` with full per-day driver:
+  - `runDailyCrateComputation(sql, connection, dayId, options)` returns one of `'completed' | 'already_completed' | 'busy' | 'failed'` and never throws — RPC/work errors leave the row in `'processing'` for retry until `attempt_count >= maxAttempts` (default 5), at which point the row transitions to `'failed'` with `failure_reason` set and a `daily_crate.run_failed` log line.
+  - `tryClaimRun(sql, dayId, heartbeatStaleMinutes)` issues `INSERT ... ON CONFLICT DO NOTHING RETURNING`; on conflict, reads existing row (returns `'already_completed'` if status='completed') and otherwise attempts the stale-takeover `UPDATE ... WHERE last_attempted_at < now() - $heartbeatStaleMinutes::INT * INTERVAL '1 minute'` (atomic — concurrent takeover attempts both return zero updated rows when row is fresh).
+  - `lockSeedAndConfig(...)` writes `boundary_slot, boundary_block_time, blockhash` via `UPDATE ... WHERE boundary_slot IS NULL` (first-write-wins), samples `getActiveDailyCrateConfig(cluster)` and writes `config_version, config_hash` via `UPDATE ... WHERE config_version IS NULL` (one day, one config — every retry reads the locked values back). Re-reads the row authoritatively after writing, then resolves the locked config from the current registry and asserts the hash matches what the registry produces today (drift here means a shipped config was edited in source — fairness-breaking).
+  - `prepareRewardRows(...)` calls `computeEligibleDailyVolumes` with the locked tier-1 floor, then per user calls `determineTier` → `rollDailyCrateOutcome` → `computeRewardHash`. Crate type derives from outcome `item_type` (`'sol' → 'sol'`, anything else → `'points'`).
+  - `materializeRewards(...)` runs the chunked multi-row INSERT pattern inside a single `sql.begin` transaction. Each chunk is `INSERT INTO daily_crate_rewards ${tx(chunk, ...keys)} ON CONFLICT (user_id, day_id) DO NOTHING`. Heartbeat `UPDATE daily_crate_runs SET last_attempted_at = now()` runs between chunks. Rollback semantics are postgres-native: on any throw before COMMIT the entire reward write rolls back atomically.
+  - `estimateBoundaryStartSlot(connection, targetUnixSeconds)` probes `getBlockTime` near `getSlot()`, walks back until it finds a finalized slot to anchor a recent (slot, block_time) pair, then projects backward to give `findBoundarySlot` a runway before the boundary.
+  - `startDailyCrateWorker(sql, connection, options)` runs reconciliation over yesterday + previous N=14 days oldest-first at boot, then schedules `setTimeout` to fire at the next 00:15 UTC and re-arms after each tick. Errors caught at every level; the worker never crashes the process. `timer.unref()` so the timer doesn't keep Node alive solely for this worker.
+- Wired `startDailyCrateWorker(sql, connection, { cluster: config.cluster })` into `backend/src/index.ts` startup right after `startReferralTierWorker`.
+- Integration tests in `backend/src/__tests__/daily-crate-compute.test.ts` (registered in `vitest.integration.files.ts`), 8 tests, real Postgres + tiny in-process Solana mock:
+  - **Happy path**: 3 game_entries seeded (2 above floor, 1 below). Worker writes 2 reward rows. Asserts `run_row.status='completed'`, all seed/config fields persisted, every reward carries `config_version=1`, `config_hash` matches the active registry's hash for v1, blockhash matches the boundary block, status='earned'. Tiers correctly assigned (250M lamports → tier 2, 600M → tier 3).
+  - **No eligible users**: only sub-floor wager. Worker writes zero rewards but still marks the run completed.
+  - **Idempotent re-run**: first run inserts 1 reward, second run returns `already_completed` and the existing row is byte-identical (id, reward_hash, created_at all unchanged).
+  - **Race**: two concurrent `runDailyCrateComputation` calls. Asserts one returns 'completed' and the other backs off (returns 'busy' if row was still processing when re-read, or 'already_completed' if the first finished by then). Reward rows written exactly once.
+  - **Recovery**: pre-populate `daily_crate_runs` with seed + config locked + stale heartbeat. Worker takes over via stale-takeover, runs with a Connection that throws on every method, completes successfully (proves the locked-seed path needs zero RPC).
+  - **Transactional rollback**: deliberate `sql.begin` block that mirrors the worker's pattern and aborts mid-tx, asserts zero reward rows post-rollback. Tests the rollback semantics the worker relies on.
+  - **Config lock**: pre-populate run row with seed + config_version=1 already locked. Worker reads back the locked values rather than re-sampling the registry. Asserts every reward carries the locked version/hash.
+  - **Retry-budget exhaustion**: pre-populate run row at attempt_count=5 with stale heartbeat. Stale-takeover increments to 6, exceeds the budget; throwing connection causes work to fail; row transitions to 'failed' with `failure_reason` set. Asserts `daily_crate.run_failed` log path and `failed` terminal state.
+- Verified `pnpm lint:self` (1 pre-existing warning unrelated, 0 errors), `pnpm typecheck:self` (clean), `pnpm test:unit:self` (350 tests pass, no regression — same as iteration 5; the new tests are all integration tests). Targeted check for TS changes is `pnpm lint && pnpm typecheck`; both green.
+- Verified the new integration suite directly: `PGHOST=/var/run/postgresql PGUSER=vscode PGDATABASE=rng_utopia_dev pnpm vitest --config vitest.integration.config.ts --run src/__tests__/daily-crate-compute.test.ts` → all 8 tests pass against the live `rng_utopia_dev` DB. Cleanup is scoped to test-owned `dayId` strings (`'2024-01-10'..'2024-01-17'`, far in the past) plus `wallet LIKE 'TestWallet_dailycomp_<TS>_%'` so the suite is fully order-independent and leaves no production data behind.
+- Skipped the full `pnpm test:integration:self` run: the existing `makeSql()` fallback hardcodes `taunt_bet_dev` (the dev devcontainer's PG database is `rng_utopia_dev`), causing every pre-existing integration test that uses the fallback to fail with `database "taunt_bet_dev" does not exist`. Same pre-existing infra gap noted in iterations 2/3/4/5; unrelated to this iteration's changes. Pointing PGDATABASE/PGHOST/PGUSER at the local DB lets every existing fallback resolve correctly, but iteration 6 only owns the new test file's behavior.
+- Outcome: ✅ Item 6 complete.
+
+## Iteration 6 — 2026-05-08T13:05:00Z — OK
+- **Log**: iteration-006.log
+
+## Iteration 6 — 2026-05-08T13:06:43Z — OK
+- **Log**: iteration-006.log
+
