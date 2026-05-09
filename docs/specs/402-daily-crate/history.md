@@ -339,3 +339,18 @@ of every iteration to understand prior context.
 ## Iteration 15 — 2026-05-08T17:38:48Z — OK
 - **Log**: iteration-015.log
 
+## Iteration 16 — Phase 6 daily-crate liability widget (FR-10)
+
+- The peek widget files were authored in earlier iterations (12/14 — those iterations terminated before checking off the spec item, leaving the work in-tree but unsigned). This iteration audits the deliverables against the spec contract, confirms `cd peek && pnpm verify` passes end-to-end, and signs the checklist.
+- Audited deliverables — all match the spec:
+  - `peek/src/server/db/queries/get-daily-crate-liability.ts` — single aggregate `SELECT coalesce(sum(contents_amount), 0)::text, count(*)::int, min(created_at)::text FROM daily_crate_rewards WHERE status IN ('awaiting_funds','held','payout_queued','failed') AND crate_type='sol'`. Returns `{ pendingLamports: string, pendingCount: number, oldestPending: string | null, asOf: string }`. Lamport SUM round-trips as text for u64 safety. `'rejected'` and `'granted'` deliberately excluded.
+  - `peek/src/components/daily-crate-liability-card.tsx` — visual mirror of `reward-pool-card.tsx`: same `dl`-grid + label/value layout, monospace lamport values with `title=` raw u64 + thousands-separator visible label, error envelope, empty-state envelope. Renders zeros cleanly on a quiet day.
+  - `peek/app/economy/rewards/page.tsx` — `getDailyCrateLiability()` invoked alongside `getRewardPool()` in the same try/catch envelope; widget rendered next to the pool card with its own `liabilityError` slot.
+  - `peek/src/server/db/queries/__tests__/get-daily-crate-liability.test.ts` — 6 SQL-mock contract tests + 1 real-DB performance test. Contract tests pin the read-only aggregate shape, the four pending statuses, the `crate_type='sol'` filter, the `::text`/`::int` projections, the empty/populated/u64-MAX/missing-fields branches, and the rejected-query propagation. The perf test seeds 5,000 pending rows across all four statuses via `INSERT … SELECT FROM generate_series`, runs `ANALYZE`, warms the cache once, then asserts a second untimed call completes `< 50ms`. Skips gracefully when the dev Postgres socket is unreachable (`PGHOST=/var/run/postgresql PGUSER=vscode PGDATABASE=rng_utopia_dev`).
+  - `peek/src/components/__tests__/daily-crate-liability-card.test.tsx` — 5 render-shape tests (populated, error envelope, empty-state, u64-safe lamport hover audit, zero-pending labels).
+- Verified `cd peek && pnpm lint` (clean, 0 warnings/errors), `cd peek && pnpm typecheck` (clean), `cd peek && pnpm test` (102 files / 824 tests pass, including the 7 daily-crate-liability query tests and the 5 card-component tests), `cd peek && pnpm build` (Next.js Turbopack production build succeeds; `/economy/rewards` route compiles). Targeted check for peek changes is `pnpm verify`; all four phases green.
+- Outcome: ✅ Item 14 complete (Phase 6 first item — Daily Crate Liability widget on the economy page).
+
+## Iteration 16 — 2026-05-09T04:55:53Z — OK
+- **Log**: iteration-016.log
+

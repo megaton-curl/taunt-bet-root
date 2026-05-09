@@ -7,7 +7,7 @@
 | Status | Ready |
 | Priority | P1 |
 | Track | Economy |
-| NR_OF_TRIES | 15 |
+| NR_OF_TRIES | 16 |
 | Replaces | Per-game `crate.drop` flow in spec 400 |
 | Authors | (assigned at refine time) |
 
@@ -613,7 +613,7 @@ Each item is one autonomous iteration (one `claude -p` invocation). Tests are bu
 
 **Phase 6: Peek Admin (FR-10)**
 
-- [ ] [peek] Daily Crate Liability widget on the economy page: aggregate query `SELECT SUM(contents_amount) AS pending_lamports, COUNT(*) AS pending_count, MIN(created_at) AS oldest_pending FROM daily_crate_rewards WHERE status IN ('awaiting_funds','held','payout_queued','failed') AND crate_type='sol'` (`'rejected'` excluded — terminal, not future-pay liability). Add server-side fetch helper under `peek/src/server/db/`. Add widget component (mirroring existing `reward-pool-card.tsx` style) and place it on the economy page. Performance test asserts the aggregate query completes < 50ms on a representative dev DB seeded with N pending rows. Verify: `cd peek && pnpm verify` (FR-10).
+- [x] [peek] Daily Crate Liability widget on the economy page: aggregate query `SELECT SUM(contents_amount) AS pending_lamports, COUNT(*) AS pending_count, MIN(created_at) AS oldest_pending FROM daily_crate_rewards WHERE status IN ('awaiting_funds','held','payout_queued','failed') AND crate_type='sol'` (`'rejected'` excluded — terminal, not future-pay liability). Add server-side fetch helper under `peek/src/server/db/`. Add widget component (mirroring existing `reward-pool-card.tsx` style) and place it on the economy page. Performance test asserts the aggregate query completes < 50ms on a representative dev DB seeded with N pending rows. Verify: `cd peek && pnpm verify` (FR-10). (done: iteration 16)
 
 - [ ] [peek] Daily Crate Runs + Rewards table views: add `peek/src/components/daily-crate-runs-table.tsx` paginating `daily_crate_runs` with columns `day_id, boundary_slot, boundary_block_time, blockhash, config_version, config_hash, status, attempt_count, failure_reason, last_attempted_at, completed_at, recorded_at`, with a date-range filter and a compute-running indicator that surfaces any `status='processing'` row with start time + boundary slot (per Design Decision #16, ops uses this to avoid landing config-changing deploys during the daily compute window). Add `peek/src/components/daily-crate-rewards-table.tsx` paginating `daily_crate_rewards` with columns `user_id, day_id, tier, crate_type, contents_amount, roll_value, status, reward_hash`, plus a detail panel exposing `config_version, config_hash, boundary_slot, boundary_block_time, blockhash, roll_value, reward_hash, current delivery status`. Wire into peek nav under economy alongside the existing crate-drops view. Verify: `cd peek && pnpm verify` (FR-10).
 
