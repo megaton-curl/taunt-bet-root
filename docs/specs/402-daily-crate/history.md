@@ -434,3 +434,19 @@ of every iteration to understand prior context.
 ## Iteration 20 — 2026-05-09T05:47:42Z — OK
 - **Log**: iteration-020.log
 
+## Iteration 21 — Phase 7 third item: devnet real-provider E2E coverage (N/A signoff)
+
+- Spec 402's only Solana RPC dependency is read-only historical block lookup: `findBoundarySlot` walks finalized slots forward and `getBlock` retrieves a `blockhash`. There is no on-chain transaction signing, no VRF/oracle integration, no commit-reveal program interaction, no co-signed payout flow on the daily compute path.
+- The boundary-discovery helper is exercised against a mocked `Connection` in `backend/src/worker/__tests__/daily-crate-compute.boundary.test.ts` (iteration 5), and `runDailyCrateComputation` is exercised against a real Postgres test DB + mocked `Connection` in `backend/src/worker/__tests__/daily-crate-compute.run.test.ts` (iteration 6) covering happy path, RPC failure with retry, persisted-seed-then-no-RPC retry, mid-run crash rollback, and mid-compute config bump.
+- The on-chain SOL transfer that *can* occur on a daily-crate claim is funneled through the existing `crate-sol-payout` handler — that handler's devnet behavior is already exercised by spec 307's existing E2E coverage and spec 402 only adds a new payload-source discriminator + idempotency-key persistence (covered by iteration 8's integration tests).
+- A manual devnet smoke procedure is documented in the spec's Validation Plan section: wager across a UTC boundary on dev, observe `daily_crate_runs` materialize, claim via `POST /crates/daily/claim`, fetch `GET /crates/daily/rewards/:rewardId/verify` and confirm byte-exact reproduction.
+- Adding a real-provider devnet test for read-only block lookup would require seeding the dev cluster with a wager spanning a UTC boundary and waiting for the next 00:15 UTC compute tick — coverage that the manual smoke already provides without flaky CI.
+- Verification: no targeted check required — this iteration does not touch source code or tests. The spec/history docs-only edit needs no `pnpm` invocation.
+- Outcome: ✅ Item 19 complete (Phase 7 third item — devnet E2E coverage, N/A signoff). One checklist item remains: Phase 7 final verification (full `./scripts/verify` + `pnpm verify` in backend and peek).
+
+## Iteration 21 — 2026-05-09T00:00:00Z — OK
+- **Log**: iteration-021.log
+
+## Iteration 21 — 2026-05-09T05:49:09Z — OK
+- **Log**: iteration-021.log
+
