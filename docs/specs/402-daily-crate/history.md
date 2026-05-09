@@ -423,3 +423,14 @@ of every iteration to understand prior context.
 ## Iteration 19 — 2026-05-09T05:46:20Z — OK
 - **Log**: iteration-019.log
 
+## Iteration 20 — Phase 7 second item: visual E2E coverage (N/A signoff)
+
+- This spec ships no player-facing webapp UI. The `webapp/` is the frontend team's surface and is read-only from this workspace per project rules (`docs/CLAUDE.md` "Scope Boundary"). The visual snapshot suite under `e2e/visual/**` is bound to webapp routes; spec 402 does not add any.
+- Peek admin views (FR-10 — Daily Crate Liability widget, runs/rewards tables, payouts-held integration) live in the `peek/` Next.js app and are out of `e2e/visual/**` scope. Their correctness is covered by peek's own integration suite — `peek/src/server/db/queries/__tests__/get-held-claims.test.ts`, `peek/src/server/mutations/__tests__/daily-crate.test.ts`, `peek/src/server/__tests__/access-policy.test.ts`, and the Vitest server-component tests around `daily-crate-runs-table.tsx` / `daily-crate-rewards-table.tsx` / `daily-crate-liability-card.tsx` — exercised by `cd peek && pnpm verify` in iterations 16–18.
+- Adding placeholder webapp visual baselines for a backend/admin spec would be ceremony, not coverage. Spec text already carries the N/A rationale on the Phase 7 line; this iteration signs the checkbox.
+- Verification: no targeted check required — this iteration does not touch source code or tests. The spec/history docs-only edit needs no `pnpm` invocation.
+- Outcome: ✅ Item 18 complete (Phase 7 second item — visual E2E coverage, N/A signoff).
+
+## Iteration 20 — 2026-05-09T05:47:42Z — OK
+- **Log**: iteration-020.log
+

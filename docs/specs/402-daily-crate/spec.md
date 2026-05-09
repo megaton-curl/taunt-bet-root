@@ -7,7 +7,7 @@
 | Status | Ready |
 | Priority | P1 |
 | Track | Economy |
-| NR_OF_TRIES | 19 |
+| NR_OF_TRIES | 20 |
 | Replaces | Per-game `crate.drop` flow in spec 400 |
 | Authors | (assigned at refine time) |
 
@@ -622,7 +622,7 @@ Each item is one autonomous iteration (one `claude -p` invocation). Tests are bu
 **Phase 7: Test Gates & Final Verification**
 
 - [x] [test] Add local deterministic E2E coverage for primary user flow(s) in `e2e/local/**` (or mark N/A with reason for non-web/non-interactive specs) — **N/A**: this spec ships no player-facing UI. Player flows (claim → outcome, /today, /pending, /verify) are validated end-to-end via backend integration tests against a real Postgres test DB and a mocked Solana Connection. Webapp consumption is the frontend team's responsibility per project rules. (done: iteration 19)
-- [ ] [test] Add visual route/state coverage in `e2e/visual/**`; run `pnpm test:visual` and update baselines only for intentional UI changes — **N/A**: no webapp UI in scope. Peek admin views (FR-10) live in the peek app and are not part of the `e2e/visual/**` baseline; their behavior is covered by peek's own integration tests.
+- [x] [test] Add visual route/state coverage in `e2e/visual/**`; run `pnpm test:visual` and update baselines only for intentional UI changes — **N/A**: no webapp UI in scope. Peek admin views (FR-10) live in the peek app and are not part of the `e2e/visual/**` baseline; their behavior is covered by peek's own integration tests. (done: iteration 20)
 - [ ] [test] If external provider/oracle/VRF integration is in scope, add devnet real-provider E2E coverage in `e2e/devnet/**` with env validation + retry/backoff (or mark N/A with reason) — **N/A**: the only Solana RPC integration is read-only historical block lookup (`findBoundarySlot` + `getBlock`), covered by mocked-Connection unit and integration tests. There is no on-chain transaction signing, no VRF/oracle dependency, no commit-reveal program interaction in this spec's code paths. A manual devnet smoke (wager across a UTC boundary on dev, observe the daily run row materialize, claim, observe `/verify` proof) is documented in the Validation Plan section of this spec.
 - [ ] Final verification: full `./scripts/verify` exit 0; `cd backend && pnpm verify` exit 0; `cd peek && pnpm verify` exit 0; migrations applied cleanly on a fresh dev DB; `daily-crate.csv` removed.
 
