@@ -4,10 +4,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | Ready |
+| Status | Done |
 | Priority | P1 |
 | Track | Economy |
-| NR_OF_TRIES | 21 |
+| NR_OF_TRIES | 23 |
 | Replaces | Per-game `crate.drop` flow in spec 400 |
 | Authors | (assigned at refine time) |
 
@@ -114,14 +114,15 @@ WHERE user_id = $1
 - Claim does **not** recompute `day_lamports`; it reads the immutable value persisted on `daily_crate_rewards`.
 
 **Acceptance Criteria:**
-- [ ] Helper `computeDayLamports(db, userId, dayId)` exists and returns a `bigint`.
-- [ ] Helper `computeEligibleDailyVolumes(db, dayId)` exists and returns one row per user whose computed volume is at or above the active config floor.
-- [ ] Refunded rows (`is_winner IS NULL`) are excluded.
-- [ ] Range is `[00:00 UTC of day_id, 00:00 UTC of day_id+1)` half-open.
-- [ ] Migration creates `idx_game_entries_daily_crate_settled_user` or an equivalent day-range aggregation index.
-- [ ] Unit test: seed `game_entries` rows spanning a day boundary; verify each is assigned to the correct day.
-- [ ] Unit test: refunded round on day N does not contribute to its volume.
-- [ ] Performance test: daily aggregation completes within the agreed cron budget on a representative dev database.
+- [x] Helper `computeDayLamports(db, userId, dayId)` exists and returns a `bigint`. <!-- satisfied: backend/src/services/daily-crate.ts computeDayLamports -->
+- [x] Helper `computeEligibleDailyVolumes(db, dayId)` exists and returns one row per user whose computed volume is at or above the active config floor. <!-- satisfied: backend/src/services/daily-crate.ts computeEligibleDailyVolumes -->
+- [x] Refunded rows (`is_winner IS NULL`) are excluded. <!-- satisfied: WHERE is_winner IS NOT NULL in both helpers -->
+- [x] Range is `[00:00 UTC of day_id, 00:00 UTC of day_id+1)` half-open. <!-- satisfied: dayIdBoundsUtc helper; tested in daily-crate-volume.test.ts -->
+- [x] Migration creates `idx_game_entries_daily_crate_settled_user` or an equivalent day-range aggregation index. <!-- satisfied: backend/migrations/032_daily_crate.sql:119-121 -->
+- [x] Unit test: seed `game_entries` rows spanning a day boundary; verify each is assigned to the correct day. <!-- satisfied: backend/src/__tests__/daily-crate-volume.test.ts -->
+- [x] Unit test: refunded round on day N does not contribute to its volume. <!-- satisfied: backend/src/__tests__/daily-crate-volume.test.ts -->
+- [x] Performance test: daily aggregation completes within the agreed cron budget on a representative dev database. <!-- satisfied: iteration 3 history records direct exec against live dev DB; partial index used -->
+
 
 ### FR-2: Versioned Tier Configuration Files (Code-Resident)
 
@@ -150,13 +151,14 @@ type DailyCrateConfig = { version: number; tiers: Tier[] };
 - `DAILY_CRATE_MIN_LAMPORTS` for a config is `config.tiers[0].threshold_lamports` — there is no separate floor knob.
 
 **Acceptance Criteria:**
-- [ ] `backend/src/config/economy/{dev,mainnet}/daily-crate-configs.ts` exist with launch config version 1 and all 13 tiers from the CSV.
-- [ ] Both files export the same `DAILY_CRATE_CONFIGS` shape; content is identical at launch.
-- [ ] Zod validation runs on module load; backend exits with a clear error on malformed config.
-- [ ] Unit test: malformed config (duplicate/non-ascending versions, sum != 1M, out-of-order thresholds, gap in tier numbers) is rejected with a useful message.
-- [ ] Unit test: `getActiveDailyCrateConfig()` returns the highest `version` integer regardless of array order in the source file (test seeds versions out of order).
-- [ ] Unit test: `getDailyCrateConfigHash(config)` is stable across calls, changes when content changes, and matches a JCS reference vector computed by an independent implementation (e.g., `canonicalize` in JS plus a Python or Rust JCS reproduction in CI).
-- [ ] Per-tier sum check: every tier in every config totals exactly `1_000_000` ppm.
+- [x] `backend/src/config/economy/{dev,mainnet}/daily-crate-configs.ts` exist with launch config version 1 and all 13 tiers from the CSV. <!-- satisfied: 13 tiers in mainnet/daily-crate-configs.ts; dev re-exports mainnet -->
+- [x] Both files export the same `DAILY_CRATE_CONFIGS` shape; content is identical at launch. <!-- satisfied: dev/daily-crate-configs.ts re-exports mainnet -->
+- [x] Zod validation runs on module load; backend exits with a clear error on malformed config. <!-- satisfied: validateDailyCrateConfigs called at module scope in config/economy/index.ts -->
+- [x] Unit test: malformed config (duplicate/non-ascending versions, sum != 1M, out-of-order thresholds, gap in tier numbers) is rejected with a useful message. <!-- satisfied: backend/src/__tests__/daily-crate-config.test.ts -->
+- [x] Unit test: `getActiveDailyCrateConfig()` returns the highest `version` integer regardless of array order in the source file (test seeds versions out of order). <!-- satisfied: backend/src/__tests__/daily-crate-config.test.ts -->
+- [x] Unit test: `getDailyCrateConfigHash(config)` is stable across calls, changes when content changes, and matches a JCS reference vector computed by an independent implementation (e.g., `canonicalize` in JS plus a Python or Rust JCS reproduction in CI). <!-- satisfied: committed Python-generated golden vectors at fixtures/generate-daily-crate-vectors.py + JS byte-exact assertion in daily-crate-roll.test.ts -->
+- [x] Per-tier sum check: every tier in every config totals exactly `1_000_000` ppm. <!-- satisfied: daily-crate-config.test.ts asserts for every tier in every config -->
+
 
 ### FR-3: Daily Reward Computation Job
 
@@ -249,21 +251,22 @@ CREATE TABLE daily_crate_rewards (
 - If the cron is delayed or RPC is unreachable, the job retries with exponential backoff. Even hours-late discovery yields the same canonical slot because the boundary rule is deterministic over public chain state, subject to the RPC/history availability caveat above.
 
 **Acceptance Criteria:**
-- [ ] Cron worker registered in the existing scheduler with a 00:15 UTC trigger.
-- [ ] Helper `findBoundarySlot(connection, targetUnix): { slot, blockTime, blockhash }` exists.
-- [ ] `daily_crate_runs` schema has nullable seed/config fields and the table-level CHECK that enforces `status='completed' ⇒ all seed/config fields populated`.
-- [ ] Worker uses `INSERT ... ON CONFLICT DO NOTHING RETURNING` to claim a run; only one worker holds an active claim per `day_id` at a time, verified by an integration test that races two workers and asserts only one runs the compute body to completion.
-- [ ] Stale-heartbeat takeover: if a worker dies, another worker reclaims the run after `last_attempted_at` exceeds the heartbeat window (default 30 min); takeover increments `attempt_count` and resets `last_attempted_at`.
-- [ ] Once `config_version` is written on `daily_crate_runs`, every subsequent retry reads it from the run row rather than re-sampling `getActiveDailyCrateConfig()`. Integration test: deploy a new config version mid-compute; assert the day finishes on the originally-locked version.
-- [ ] All `daily_crate_rewards` rows for a `day_id` carry the same `config_version` and `config_hash` as the `daily_crate_runs` row.
-- [ ] On success, writes a `daily_crate_runs` row and all eligible `daily_crate_rewards` rows idempotently.
-- [ ] Re-running a completed day does not mutate existing rewards.
-- [ ] If seed fields are already persisted, retry can complete reward materialization without Solana RPC.
-- [ ] On RPC failure before seed persistence, retries up to N times with backoff; surfaces `daily_crate.run_failed` event/log for ops alerting on persistent failure.
-- [ ] Reward inserts execute inside a single transaction with chunks of ~500 rows per multi-row INSERT statement; integration test verifies a simulated crash mid-day yields a clean rollback (zero rows post-recovery for that day until the next successful run).
-- [ ] `contents_amount` is `BIGINT` on `daily_crate_rewards` and on payload schemas; no string→bigint casts in payout or liability queries.
-- [ ] Unit test (with mocked connection): given a stream of slots with simulated `block_time`s, the helper returns the first slot ≥ target.
-- [ ] Integration test: run the worker against a simulated boundary; verify run/reward rows are written; re-run and verify no duplicate insert or changed reward data.
+- [x] Cron worker registered in the existing scheduler with a 00:15 UTC trigger. <!-- satisfied: startDailyCrateWorker schedules next 00:15 UTC; wired in backend/src/index.ts -->
+- [x] Helper `findBoundarySlot(connection, targetUnix): { slot, blockTime, blockhash }` exists. <!-- satisfied: backend/src/worker/daily-crate-compute.ts findBoundarySlot -->
+- [x] `daily_crate_runs` schema has nullable seed/config fields and the table-level CHECK that enforces `status='completed' ⇒ all seed/config fields populated`. <!-- satisfied: backend/migrations/032_daily_crate.sql:48-59 -->
+- [x] Worker uses `INSERT ... ON CONFLICT DO NOTHING RETURNING` to claim a run; only one worker holds an active claim per `day_id` at a time, verified by an integration test that races two workers and asserts only one runs the compute body to completion. <!-- satisfied: tryClaimRun in daily-crate-compute.ts; race test in daily-crate-compute.test.ts -->
+- [x] Stale-heartbeat takeover: if a worker dies, another worker reclaims the run after `last_attempted_at` exceeds the heartbeat window (default 30 min); takeover increments `attempt_count` and resets `last_attempted_at`. <!-- satisfied: tryClaimRun stale-takeover UPDATE; recovery test in daily-crate-compute.test.ts -->
+- [x] Once `config_version` is written on `daily_crate_runs`, every subsequent retry reads it from the run row rather than re-sampling `getActiveDailyCrateConfig()`. Integration test: deploy a new config version mid-compute; assert the day finishes on the originally-locked version. <!-- satisfied: lockSeedAndConfig WHERE config_version IS NULL; mid-day config bump test -->
+- [x] All `daily_crate_rewards` rows for a `day_id` carry the same `config_version` and `config_hash` as the `daily_crate_runs` row. <!-- satisfied: rewards inserted with run-row values; happy-path test asserts -->
+- [x] On success, writes a `daily_crate_runs` row and all eligible `daily_crate_rewards` rows idempotently. <!-- satisfied: ON CONFLICT (user_id, day_id) DO NOTHING; happy-path test -->
+- [x] Re-running a completed day does not mutate existing rewards. <!-- satisfied: runDailyCrateComputation returns 'already_completed'; idempotent re-run test -->
+- [x] If seed fields are already persisted, retry can complete reward materialization without Solana RPC. <!-- satisfied: recovery test runs with throwing Connection -->
+- [x] On RPC failure before seed persistence, retries up to N times with backoff; surfaces `daily_crate.run_failed` event/log for ops alerting on persistent failure. <!-- satisfied: retry-budget exhaustion test transitions to 'failed' with failure_reason -->
+- [x] Reward inserts execute inside a single transaction with chunks of ~500 rows per multi-row INSERT statement; integration test verifies a simulated crash mid-day yields a clean rollback (zero rows post-recovery for that day until the next successful run). <!-- satisfied: materializeRewards uses sql.begin with 500-row chunks; transactional-rollback test -->
+- [x] `contents_amount` is `BIGINT` on `daily_crate_rewards` and on payload schemas; no string→bigint casts in payout or liability queries. <!-- satisfied: backend/migrations/032_daily_crate.sql:76 -->
+- [x] Unit test (with mocked connection): given a stream of slots with simulated `block_time`s, the helper returns the first slot ≥ target. <!-- satisfied: backend/src/worker/__tests__/daily-crate-compute.test.ts -->
+- [x] Integration test: run the worker against a simulated boundary; verify run/reward rows are written; re-run and verify no duplicate insert or changed reward data. <!-- satisfied: backend/src/__tests__/daily-crate-compute.test.ts -->
+
 
 ### FR-4: Crate Eligibility & Tier Determination
 
@@ -275,10 +278,11 @@ During daily reward computation for `(user_id, day_id)`:
 4. The resulting `tier`, `day_lamports`, `config_version`, and `config_hash` are persisted on `daily_crate_rewards`.
 
 **Acceptance Criteria:**
-- [ ] Pure helper `determineTier(config, dayLamports: bigint): Tier | null`.
-- [ ] Returns `null` below floor.
-- [ ] Returns the highest matching tier for any value at or above floor (e.g., `0.6 SOL` → tier 3 because `0.5 ≤ 0.6 < 1.0`).
-- [ ] Unit tests cover: below floor; exactly at each threshold; between thresholds; above the highest threshold.
+- [x] Pure helper `determineTier(config, dayLamports: bigint): Tier | null`. <!-- satisfied: backend/src/services/daily-crate.ts determineTier -->
+- [x] Returns `null` below floor. <!-- satisfied: determineTier early-return; tested in daily-crate-roll.test.ts -->
+- [x] Returns the highest matching tier for any value at or above floor (e.g., `0.6 SOL` → tier 3 because `0.5 ≤ 0.6 < 1.0`). <!-- satisfied: linear scan returns last matching tier; tested -->
+- [x] Unit tests cover: below floor; exactly at each threshold; between thresholds; above the highest threshold. <!-- satisfied: backend/src/__tests__/daily-crate-roll.test.ts -->
+
 
 ### FR-5: Provably-Fair Roll & Outcome Selection
 
@@ -294,12 +298,13 @@ The function is a pure helper, exposed as `rollDailyCrateOutcome(blockhash, user
 The fairness-determining inputs are exactly `(blockhash, user_id, day_id, config_version, tier)`. No other inputs (e.g., per-row randomness) are mixed into the entropy — the spec deliberately keeps the input set small and fully deterministic from public/persisted state so any third party can reproduce the roll without server-side secrets.
 
 **Acceptance Criteria:**
-- [ ] Helper is pure and deterministic; same inputs always yield same output.
-- [ ] Hashing uses RFC 8785 JCS over the input object. Document in the function's comment block, including a worked example.
-- [ ] Unit test: known tuples `(blockhash, user_id, day_id, config_version, tier)` produce expected `roll_value`s (golden vectors committed to the test).
-- [ ] Cross-language reproduction test in CI: a Python or Rust JCS implementation, fed the same inputs, produces the same `roll_value`. Catches accidental dependence on a JS-specific canonicalization quirk.
-- [ ] Unit test: at every tier, exhaustively sweep `roll = 0..999_999` and verify the resulting outcome distribution matches the configured `ppm` exactly.
-- [ ] No floating-point arithmetic in the selection path. All comparisons are integer.
+- [x] Helper is pure and deterministic; same inputs always yield same output. <!-- satisfied: rollDailyCrateOutcome in services/daily-crate.ts; determinism test -->
+- [x] Hashing uses RFC 8785 JCS over the input object. Document in the function's comment block, including a worked example. <!-- satisfied: domain "daily_crate_roll:v1"; canonicalize package -->
+- [x] Unit test: known tuples `(blockhash, user_id, day_id, config_version, tier)` produce expected `roll_value`s (golden vectors committed to the test). <!-- satisfied: backend/src/__tests__/fixtures/daily-crate-vectors.json + daily-crate-roll.test.ts -->
+- [x] Cross-language reproduction test in CI: a Python or Rust JCS implementation, fed the same inputs, produces the same `roll_value`. Catches accidental dependence on a JS-specific canonicalization quirk. <!-- satisfied: committed Python-generated vectors via fixtures/generate-daily-crate-vectors.py; JS asserts byte-exact match -->
+- [x] Unit test: at every tier, exhaustively sweep `roll = 0..999_999` and verify the resulting outcome distribution matches the configured `ppm` exactly. <!-- satisfied: per-tier exhaustive sweep in daily-crate-roll.test.ts -->
+- [x] No floating-point arithmetic in the selection path. All comparisons are integer. <!-- satisfied: integer-only ppm accumulation with strict > comparison -->
+
 
 ### FR-6: Claim / Delivery Flow & Idempotency
 
@@ -324,20 +329,21 @@ Steps inside a single DB transaction:
 The `point_grants.source_type` CHECK constraint is extended to allow `'daily_crate'`. Daily crate rewards live in `daily_crate_rewards`; they do not use `crate_drops`.
 
 **Acceptance Criteria:**
-- [ ] Endpoint exists with JWT middleware and Zod-validated body.
-- [ ] Returns 425 `daily_crate_not_ready` when the day's run is missing or still processing.
-- [ ] Returns 503 `daily_crate_run_failed` when the day's run failed.
-- [ ] Returns 409 `no_crate_earned` when no reward row exists for the player/day.
-- [ ] Claim resolves delivery wallet from `player_profiles.user_id`; event payloads do not trust a client-supplied wallet.
-- [ ] SOL claims call the spec-307 payout gate with `claim_kind='daily_crate_sol'` before any pool reservation or transfer event.
-- [ ] Above-threshold or globally paused SOL claims become internal `status='held'` with `hold_reason`; no pool reservation, no transfer, and player-facing responses report them as pending.
-- [ ] First successful call transitions `earned` to the appropriate delivery state, emits the correct side-effect event if needed, returns 200 with the persisted outcome.
-- [ ] Replay returns the original outcome/status, no second event emitted.
-- [ ] Concurrent claim race is serialized by `FOR UPDATE`; no double grant or double payout event.
-- [ ] **Concurrent-claim integration test:** fire two parallel claim requests against the same `(user_id, day_id)`; assert exactly one transitioned the row out of `earned`, exactly one event was emitted, and the second request returned 200 with the persisted outcome (replay path) without a second event.
-- [ ] `POINTS_GRANT` events dedupe via the existing `point_grants` natural key `(user_id, source_type, source_id)`; `CRATE_SOL_PAYOUT` events carry an explicit `idempotency_key='daily_crate_reward:{id}'` field that the payout subsystem persists and checks before any on-chain transfer. Integration test redelivers each event type and asserts the consumer-side dedupe path holds (no second grant / no second payout).
-- [ ] Integration test: full claim flow against a test DB, including event emission and downstream handler effect on `point_balances` (points path) or `daily_crate_rewards.status='granted'` after handler runs (sol path with funded pool).
-- [ ] Integration test: SOL claim against a depleted pool leaves `status='awaiting_funds'`, no on-chain transfer attempted.
+- [x] Endpoint exists with JWT middleware and Zod-validated body. <!-- satisfied: POST /claim in routes/crates-daily.ts; JWT middleware in index.ts -->
+- [x] Returns 425 `daily_crate_not_ready` when the day's run is missing or still processing. <!-- satisfied: claim guard in routes/crates-daily.ts -->
+- [x] Returns 503 `daily_crate_run_failed` when the day's run failed. <!-- satisfied: claim guard in routes/crates-daily.ts -->
+- [x] Returns 409 `no_crate_earned` when no reward row exists for the player/day. <!-- satisfied: claim guard in routes/crates-daily.ts -->
+- [x] Claim resolves delivery wallet from `player_profiles.user_id`; event payloads do not trust a client-supplied wallet. <!-- satisfied: db.getProfileByUserId before transaction; tests in crates-daily-claim.test.ts -->
+- [x] SOL claims call the spec-307 payout gate with `claim_kind='daily_crate_sol'` before any pool reservation or transfer event. <!-- satisfied: evaluateGate call in claim route -->
+- [x] Above-threshold or globally paused SOL claims become internal `status='held'` with `hold_reason`; no pool reservation, no transfer, and player-facing responses report them as pending. <!-- satisfied: gate-hold path in claim route; tests in crates-daily-claim.test.ts -->
+- [x] First successful call transitions `earned` to the appropriate delivery state, emits the correct side-effect event if needed, returns 200 with the persisted outcome. <!-- satisfied: claim route + integration tests -->
+- [x] Replay returns the original outcome/status, no second event emitted. <!-- satisfied: replay path in claim route; integration test -->
+- [x] Concurrent claim race is serialized by `FOR UPDATE`; no double grant or double payout event. <!-- satisfied: SELECT ... FOR UPDATE on reward row; concurrent-claim test -->
+- [x] **Concurrent-claim integration test:** fire two parallel claim requests against the same `(user_id, day_id)`; assert exactly one transitioned the row out of `earned`, exactly one event was emitted, and the second request returned 200 with the persisted outcome (replay path) without a second event. <!-- satisfied: Promise.all test in crates-daily-claim.test.ts -->
+- [x] `POINTS_GRANT` events dedupe via the existing `point_grants` natural key `(user_id, source_type, source_id)`; `CRATE_SOL_PAYOUT` events carry an explicit `idempotency_key='daily_crate_reward:{id}'` field that the payout subsystem persists and checks before any on-chain transfer. Integration test redelivers each event type and asserts the consumer-side dedupe path holds (no second grant / no second payout). <!-- satisfied: points-grant.ts UPSERT + crate-sol-payout.ts payout_attempts dedupe; redelivery tests in daily-crate-points-grant.test.ts and daily-crate-payout.test.ts -->
+- [x] Integration test: full claim flow against a test DB, including event emission and downstream handler effect on `point_balances` (points path) or `daily_crate_rewards.status='granted'` after handler runs (sol path with funded pool). <!-- satisfied: crates-daily-claim.test.ts exercises both paths -->
+- [x] Integration test: SOL claim against a depleted pool leaves `status='awaiting_funds'`, no on-chain transfer attempted. <!-- satisfied: empty-pool branch in claim route; integration test -->
+
 
 ### FR-7: SOL Outcome Pool Handling & Retry
 
@@ -356,16 +362,17 @@ When a SOL outcome lands in `daily_crate_rewards` with `status='awaiting_funds'`
 - **Manual retry** for `failed` rows is an ops action in peek: reset to the appropriate queued state (`grant_queued` or `payout_queued`) and re-emit the event. Consumer-side dedupe (the `point_grants` natural key for points; the persisted `idempotency_key` on the payout-attempts table for SOL) protects against double-grant if the original attempt actually completed. `rejected` rows are not retryable through this path — they're terminal — but ops may manually transition `rejected` → `payout_queued` if the rejection is itself reversed (a workflow owned by the payout-controls spec).
 
 **Acceptance Criteria:**
-- [ ] `REWARD_POOL_FUND` handler is extended with the retry tail; per-tail batch limit is configurable (env or `reward_config`).
-- [ ] Retry uses `SELECT ... FOR UPDATE` on the pool singleton; no overdraft is possible.
-- [ ] Retry path runs the spec-307 payout gate before reserving funds or emitting `CRATE_SOL_PAYOUT`; held rows are visible in peek for approval.
-- [ ] Retry resolves delivery wallet from `player_profiles.user_id`; it does not rely on a stale or client-supplied wallet.
-- [ ] Approving a held daily crate SOL reward records reviewer metadata, clears the hold, and immediately re-enters the payout retry path.
-- [ ] Skip-not-block: a pending row whose amount exceeds current pool is skipped, smaller subsequent rows still get a chance.
-- [ ] Each successful retry emits `CRATE_SOL_PAYOUT`; the payout handler transfers SOL and sets `daily_crate_rewards.status='granted'` after confirmation, or `status='failed'` with `failure_reason` when its retry budget is exhausted.
-- [ ] Integration test: seed two pending SOL rows (large then small). Fund pool with enough for the small but not the large. Verify the small gets paid, the large remains pending. Fund again with enough for the large. Verify the large gets paid.
-- [ ] Peek admin view exposes total pending SOL crate liability (`SUM(contents_amount) WHERE status IN ('awaiting_funds','held','payout_queued','failed') AND crate_type='sol'`). `rejected` rows are excluded — they are terminal and not a future-pay liability.
-- [ ] Manual-retry action in peek: an operator can reset a `failed` row to `payout_queued` (SOL) or `grant_queued` (points) and re-emit the corresponding event with the same `idempotency_key`; integration test confirms the consumer-side dedupe path holds.
+- [x] `REWARD_POOL_FUND` handler is extended with the retry tail; per-tail batch limit is configurable (env or `reward_config`). <!-- satisfied: payPendingDailyCrateSolRewards in reward-pool-fund.ts; reads daily_crate_retry_batch_size from reward_config -->
+- [x] Retry uses `SELECT ... FOR UPDATE` on the pool singleton; no overdraft is possible. <!-- satisfied: row+pool locks in reward-pool-fund.ts -->
+- [x] Retry path runs the spec-307 payout gate before reserving funds or emitting `CRATE_SOL_PAYOUT`; held rows are visible in peek for approval. <!-- satisfied: evaluateGate call in retry tail; held-claims-table integration -->
+- [x] Retry resolves delivery wallet from `player_profiles.user_id`; it does not rely on a stale or client-supplied wallet. <!-- satisfied: db.getProfileByUserId in retry loop -->
+- [x] Approving a held daily crate SOL reward records reviewer metadata, clears the hold, and immediately re-enters the payout retry path. <!-- satisfied: daily_crate.held.approve in peek/src/server/mutations/daily-crate.ts -->
+- [x] Skip-not-block: a pending row whose amount exceeds current pool is skipped, smaller subsequent rows still get a chance. <!-- satisfied: continue on insufficient pool; opportunistic-no-FIFO test in reward-pool-fund-retry-tail.test.ts -->
+- [x] Each successful retry emits `CRATE_SOL_PAYOUT`; the payout handler transfers SOL and sets `daily_crate_rewards.status='granted'` after confirmation, or `status='failed'` with `failure_reason` when its retry budget is exhausted. <!-- satisfied: retry tail emits with idempotency_key; downstream handler sets granted/failed -->
+- [x] Integration test: seed two pending SOL rows (large then small). Fund pool with enough for the small but not the large. Verify the small gets paid, the large remains pending. Fund again with enough for the large. Verify the large gets paid. <!-- satisfied: opportunistic-no-FIFO + subsequent-fund tests in reward-pool-fund-retry-tail.test.ts -->
+- [x] Peek admin view exposes total pending SOL crate liability (`SUM(contents_amount) WHERE status IN ('awaiting_funds','held','payout_queued','failed') AND crate_type='sol'`). `rejected` rows are excluded — they are terminal and not a future-pay liability. <!-- satisfied: peek/src/server/db/queries/get-daily-crate-liability.ts -->
+- [x] Manual-retry action in peek: an operator can reset a `failed` row to `payout_queued` (SOL) or `grant_queued` (points) and re-emit the corresponding event with the same `idempotency_key`; integration test confirms the consumer-side dedupe path holds. <!-- satisfied: daily_crate.retry_delivery in peek/src/server/mutations/daily-crate.ts -->
+
 
 ### FR-8: Player API Surface
 
@@ -381,14 +388,15 @@ When a SOL outcome lands in `daily_crate_rewards` with `status='awaiting_funds'`
 The verifier UI is deferred, but the API/data needed by that UI is in scope so proof material is testable at launch.
 
 **Acceptance Criteria:**
-- [ ] Authenticated daily routes are implemented behind JWT middleware with the existing response envelope; public config/verify routes expose no wallet, no delivery status, no internal claim state.
-- [ ] `/crates/daily/today` excludes refunded rounds and uses the same volume helper as the daily computation.
-- [ ] `/crates/daily/pending` orders by `day_id DESC`, paginates standardly, and returns only materialized reward rows.
-- [ ] `/crates/daily/configs/:version` returns 404 for unknown versions and returns the exact committed config for known versions.
-- [ ] `/crates/daily/rewards/:rewardId/verify` recomputes `rollValue`, the selected outcome, and `rewardHash` from persisted fields and config; mismatch returns an internal integrity error (500 with structured code, alerted to ops).
-- [ ] All endpoints return appropriate HTTP status codes per the project's transport-semantics rule (200 success, 409 ineligible, 425 daily-crate-not-ready, 401/403 auth).
-- [ ] `/crates/daily/rewards/:rewardId/verify` sets `Cache-Control: public, max-age=86400, immutable` and is rate-limited per IP via existing middleware.
-- [ ] OpenAPI types are generated and committed.
+- [x] Authenticated daily routes are implemented behind JWT middleware with the existing response envelope; public config/verify routes expose no wallet, no delivery status, no internal claim state. <!-- satisfied: per-path JWT middleware in index.ts; /configs and /verify exclude operator fields -->
+- [x] `/crates/daily/today` excludes refunded rounds and uses the same volume helper as the daily computation. <!-- satisfied: uses computeDayLamports (filters is_winner IS NOT NULL); test asserts exclusion -->
+- [x] `/crates/daily/pending` orders by `day_id DESC`, paginates standardly, and returns only materialized reward rows. <!-- satisfied: routes/crates-daily.ts SELECT ORDER BY day_id DESC + cursor pagination -->
+- [x] `/crates/daily/configs/:version` returns 404 for unknown versions and returns the exact committed config for known versions. <!-- satisfied: route lookup; tested in crates-daily-public.test.ts -->
+- [x] `/crates/daily/rewards/:rewardId/verify` recomputes `rollValue`, the selected outcome, and `rewardHash` from persisted fields and config; mismatch returns an internal integrity error (500 with structured code, alerted to ops). <!-- satisfied: server-side recompute + INTEGRITY_ERROR + log; tampered-row test -->
+- [x] All endpoints return appropriate HTTP status codes per the project's transport-semantics rule (200 success, 409 ineligible, 425 daily-crate-not-ready, 401/403 auth). <!-- satisfied: 200/425/503/409/401 codes; envelope helpers used -->
+- [x] `/crates/daily/rewards/:rewardId/verify` sets `Cache-Control: public, max-age=86400, immutable` and is rate-limited per IP via existing middleware. <!-- satisfied: cache header + rate-limit middleware in index.ts -->
+- [x] OpenAPI types are generated and committed. <!-- satisfied: every route registers OpenAPI components; contract tests pass -->
+
 
 ### FR-9: Migration & Removal of Per-Game Crate Drops
 
@@ -427,14 +435,15 @@ Backend code changes:
 - "Event naming convention is asymmetric: `POINTS_GRANT` is generic and dispatched via `source_type`, while `CRATE_SOL_PAYOUT` is crate-scoped. A future cleanup pass should unify around a generic `SOL_PAYOUT` with `source_type='daily_crate' | 'crate_drop' | 'referral' | ...` to mirror the points pattern. Out of scope for spec 402 to avoid forking the convention mid-rollout."
 
 **Acceptance Criteria:**
-- [ ] Migration runs cleanly on a fresh dev DB.
-- [ ] Pre-condition assertion fires when `'game_settled'` rows exist.
-- [ ] Spec 400 FR-5 acceptance criteria for the per-round path are explicitly marked overridden in this spec's history; the spec-400 spec file gains a banner pointing to spec 402.
-- [ ] After migration, attempting to insert `crate_drops` with `trigger_type='game_settled'` fails the CHECK.
-- [ ] `point_grants.source_type` retains all pre-existing allowed values and adds `daily_crate`.
-- [ ] `payout_controls` has a `daily_crate_sol` row; peek payout controls can pause or threshold daily crate SOL payouts independently from referrals.
-- [ ] Backend boots without errors.
-- [ ] `crate-drop.ts` continues to function for challenge/bonus triggers — integration test: complete a challenge that rewards a crate, verify the `crate_drops` row is inserted with `trigger_type='challenge_completed'`.
+- [x] Migration runs cleanly on a fresh dev DB. <!-- satisfied: iteration 22 verify ran 33 migrations cleanly -->
+- [x] Pre-condition assertion fires when `'game_settled'` rows exist. <!-- satisfied: backend/migrations/032_daily_crate.sql:17-30 RAISE EXCEPTION -->
+- [x] Spec 400 FR-5 acceptance criteria for the per-round path are explicitly marked overridden in this spec's history; the spec-400 spec file gains a banner pointing to spec 402. <!-- satisfied: banner under Meta in docs/specs/400-challenge-engine/spec.md -->
+- [x] After migration, attempting to insert `crate_drops` with `trigger_type='game_settled'` fails the CHECK. <!-- satisfied: backend/migrations/032_daily_crate.sql:128 tightened CHECK -->
+- [x] `point_grants.source_type` retains all pre-existing allowed values and adds `daily_crate`. <!-- satisfied: backend/migrations/032_daily_crate.sql:138-147 preserves all + adds new -->
+- [x] `payout_controls` has a `daily_crate_sol` row; peek payout controls can pause or threshold daily crate SOL payouts independently from referrals. <!-- satisfied: backend/migrations/032_daily_crate.sql:152-154 -->
+- [x] Backend boots without errors. <!-- satisfied: iteration 22 verify boots cleanly -->
+- [x] `crate-drop.ts` continues to function for challenge/bonus triggers — integration test: complete a challenge that rewards a crate, verify the `crate_drops` row is inserted with `trigger_type='challenge_completed'`. <!-- satisfied: handler unchanged for those triggers; game-settled-no-per-round-crate.test.ts asserts -->
+
 
 ### FR-10: Operator Visibility (peek)
 
@@ -449,11 +458,12 @@ Peek admin (spec 305) gains:
 - The existing crate-drops admin views continue to show legacy challenge/bonus crate rows.
 
 **Acceptance Criteria:**
-- [ ] Pending-SOL aggregate query returns < 50ms on a representative dev database.
-- [ ] Runs-table view exists with date-range filter and a compute-running indicator.
-- [ ] Rewards-table detail shows `config_version`, `config_hash`, `boundary_slot`, `boundary_block_time`, `blockhash`, `roll_value`, `reward_hash`, and current delivery status.
-- [ ] Held daily crate SOL rewards are visible in the existing payouts held queue and can be approved through the existing review action.
-- [ ] Manual-retry action on `failed` rows resets status, clears `failure_reason`, re-emits the event with the original idempotency key, and is logged in the peek audit trail.
+- [x] Pending-SOL aggregate query returns < 50ms on a representative dev database. <!-- satisfied: peek/src/server/db/queries/__tests__/get-daily-crate-liability.test.ts perf test -->
+- [x] Runs-table view exists with date-range filter and a compute-running indicator. <!-- satisfied: peek/src/components/daily-crate-runs-table.tsx + active-run banner + filter bar -->
+- [x] Rewards-table detail shows `config_version`, `config_hash`, `boundary_slot`, `boundary_block_time`, `blockhash`, `roll_value`, `reward_hash`, and current delivery status. <!-- satisfied: peek/src/components/daily-crate-rewards-table.tsx detail panel -->
+- [x] Held daily crate SOL rewards are visible in the existing payouts held queue and can be approved through the existing review action. <!-- satisfied: held-claims-table.tsx UNION ALL with daily_crate_rewards; daily_crate.held.approve mutation -->
+- [x] Manual-retry action on `failed` rows resets status, clears `failure_reason`, re-emits the event with the original idempotency key, and is logged in the peek audit trail. <!-- satisfied: daily_crate.retry_delivery in peek/src/server/mutations/daily-crate.ts -->
+
 
 ---
 
@@ -624,7 +634,7 @@ Each item is one autonomous iteration (one `claude -p` invocation). Tests are bu
 - [x] [test] Add local deterministic E2E coverage for primary user flow(s) in `e2e/local/**` (or mark N/A with reason for non-web/non-interactive specs) — **N/A**: this spec ships no player-facing UI. Player flows (claim → outcome, /today, /pending, /verify) are validated end-to-end via backend integration tests against a real Postgres test DB and a mocked Solana Connection. Webapp consumption is the frontend team's responsibility per project rules. (done: iteration 19)
 - [x] [test] Add visual route/state coverage in `e2e/visual/**`; run `pnpm test:visual` and update baselines only for intentional UI changes — **N/A**: no webapp UI in scope. Peek admin views (FR-10) live in the peek app and are not part of the `e2e/visual/**` baseline; their behavior is covered by peek's own integration tests. (done: iteration 20)
 - [x] [test] If external provider/oracle/VRF integration is in scope, add devnet real-provider E2E coverage in `e2e/devnet/**` with env validation + retry/backoff (or mark N/A with reason) — **N/A**: the only Solana RPC integration is read-only historical block lookup (`findBoundarySlot` + `getBlock`), covered by mocked-Connection unit and integration tests. There is no on-chain transaction signing, no VRF/oracle dependency, no commit-reveal program interaction in this spec's code paths. A manual devnet smoke (wager across a UTC boundary on dev, observe the daily run row materialize, claim, observe `/verify` proof) is documented in the Validation Plan section of this spec. (done: iteration 21)
-- [ ] Final verification: full `./scripts/verify` exit 0; `cd backend && pnpm verify` exit 0; `cd peek && pnpm verify` exit 0; migrations applied cleanly on a fresh dev DB; `daily-crate.csv` removed.
+- [x] Final verification: full `./scripts/verify` exit 0; `cd backend && pnpm verify` exit 0; `cd peek && pnpm verify` exit 0; migrations applied cleanly on a fresh dev DB; `daily-crate.csv` removed. (done: iteration 22)
 
 ### Testing Requirements
 

@@ -450,3 +450,30 @@ of every iteration to understand prior context.
 ## Iteration 21 — 2026-05-09T05:49:09Z — OK
 - **Log**: iteration-021.log
 
+
+## Iteration 22 — Phase 7 final item: full verification gate
+
+- Phase 7 final item: full `./scripts/verify` exit 0, `cd peek && pnpm verify` exit 0, migrations apply cleanly on a fresh dev DB, `daily-crate.csv` removed (already deleted in iteration 2).
+- Test infra setup: this devcontainer's PostgreSQL listens on the Unix socket only (`/var/run/postgresql/.s.PGSQL.5432`); TCP at `localhost:5432` is closed. The integration helpers in `backend/src/__tests__/integration-test-helpers.ts` correctly fall back to a socket connection (`PGHOST` default `/var/run/postgresql`, `PGDATABASE` default `taunt_bet_dev`) when `DATABASE_URL` is unset, but `backend/.env` sets `DATABASE_URL=postgres://vscode@localhost:5432/rng_utopia_dev` which is unreachable in this environment. To run the verify gate against the socket, I (a) created an empty `taunt_bet_dev` database (`createdb taunt_bet_dev`), (b) applied all 33 backend migrations (`001_init.sql` … `033_payout_attempts.sql`) via a one-shot Node script that uses the postgres-js socket-options form, and (c) ran the verify gate with `env -u DATABASE_URL ./scripts/verify` so the integration tests pick up the socket fallback.
+- Verification results:
+  - `./scripts/verify` (full) — exit 0.
+    - Backend TS: 38 test files / 325 tests pass; lint clean; typecheck clean.
+    - Solana Anchor: 92 passing (1 pending) across flipyou, closecall, potshot, platform, fairness suites.
+  - `cd peek && pnpm verify` — exit 0. 108 test files / 899 tests pass; lint clean; typecheck clean; Next.js production build succeeds (all 20 routes register).
+  - Migrations applied cleanly on a fresh `taunt_bet_dev` DB (33 migrations, all committed in their own transactions; the only diagnostics surfaced were the expected NOTICE-level "already exists, skipping" lines from idempotent CREATE TABLE IF NOT EXISTS / DROP COLUMN IF EXISTS statements in earlier migrations).
+  - `docs/references/daily-crate.csv` already deleted in iteration 2 (verified via `git status` showing `D docs/references/daily-crate.csv`).
+- Spec Meta Status updated from `Ready` to `Done`; `NR_OF_TRIES` bumped from 21 to 22.
+- All 20 implementation checklist items now `[x]`.
+- Outcome: ✅ Spec 402 complete. Daily Crate ships with: 32_daily_crate.sql + 033_payout_attempts.sql migrations, code-resident dev/mainnet config registry with Zod + JCS hash, `daily-crate.ts` services (volume + tier + roll + reward hash with golden vectors), daily compute worker with race/recovery semantics, `points-grant` and `crate-sol-payout` handler extensions with idempotency, four routes (`POST /crates/daily/claim`, `GET /crates/daily/today`, `GET /crates/daily/pending`, `GET /crates/daily/configs/:version`, `GET /crates/daily/rewards/:rewardId/verify`), FR-7 reward-pool retry tail, per-round CRATE_DROP removal in `game-settled`, peek admin liability widget + runs/rewards tables + payouts-held integration with manual-retry action.
+## Iteration 22 — 2026-05-09T06:14:57Z — COMPLETE
+- **Result**: All checklist items done, verification passed
+- **Log**: iteration-022.log
+
+## Devnet E2E — 2026-05-09T06:14:58Z
+- **Result**: PASS
+
+## Gap Analysis — 2026-05-09T06:30:17Z
+- **Result**: Gap analysis report generated
+- **Report**: gap-analysis.md
+- **Log**: gap-analysis.log
+
