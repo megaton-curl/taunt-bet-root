@@ -9,6 +9,14 @@
 | Track | Core |
 | NR_OF_TRIES | 18 |
 
+> **Spec 402 supersedes the per-round crate-drop path (FR-5).** The daily crate
+> aggregation introduced in [`docs/specs/402-daily-crate/spec.md`](../402-daily-crate/spec.md)
+> replaces the per-round random crate drop emitted from `game.settled`. The
+> `crate_drops.trigger_type` CHECK no longer permits `'game_settled'`; the
+> `game.settled` handler no longer emits `crate.drop`; and the per-round-drop
+> acceptance criteria in this spec's FR-5 are overridden. Challenge-completed
+> and bonus-completed crate paths described elsewhere in FR-5 are unchanged.
+
 ---
 
 ## Overview

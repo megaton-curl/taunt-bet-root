@@ -86,6 +86,14 @@ Track temporary hacks, relaxed rules, and shortcuts here.
 - **Proper solution**: Periodically delete rows where `ends_at IS NOT NULL AND ends_at < now() - INTERVAL '90 days'` (or archive to a history table for audit). Alternatively, add a recurring `VACUUM`-friendly retention worker.
 - **Why not now**: At launch volume the index alone is sufficient.
 
+### [Backend] Migration 032 index on `game_entries` is non-CONCURRENT
+- **Date**: 2026-05-09
+- **Location**: `backend/migrations/032_daily_crate.sql` — `CREATE INDEX … idx_game_entries_daily_crate_settled_user`.
+- **What**: The migration creates a partial b-tree on `game_entries (settled_at, user_id)`. The runner wraps every migration in a transaction, so `CREATE INDEX CONCURRENTLY` cannot be used inline. On a populated prod `game_entries` table this would take a `SHARE` lock that blocks concurrent inserts/updates on settlement writes for the duration of the build.
+- **Current mitigation**: The migration uses `CREATE INDEX IF NOT EXISTS`, so ops can pre-create the index out-of-band before applying 032: `CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_game_entries_daily_crate_settled_user ON game_entries (settled_at, user_id) WHERE settled_at IS NOT NULL AND is_winner IS NOT NULL;` — the migration then short-circuits that statement.
+- **Proper solution**: Either teach the migrate runner to honor a `-- migrate:concurrent` directive that runs the file outside a transaction, or move every CONCURRENTLY-eligible index into a dedicated post-step file. Decide before the next migration that adds an index on a hot table.
+- **Why not now**: We are still in dev with an empty `game_entries` table; current setups complete instantly. The IF NOT EXISTS escape hatch is enough for first prod rollout.
+
 ### [Backend] Spec 306 invariant-violation test mutates schema
 - **Date**: 2026-05-02
 - **Location**: `backend/src/__tests__/admin-fee-audit.test.ts` — `flags invariant violations when components do not sum to fee`
@@ -130,3 +138,18 @@ Items that work today but deserve a proper implementation once the platform matu
 - **Current mitigation**: Audit log captures actor email + before/after diff for every action. `/operations/payouts` recent-decisions list surfaces the trail to peers.
 - **Proper solution**: Add a `treasury_operator` sub-role. Leave pause/threshold edit on `admin`, move approve/reject to `treasury_operator|admin`. Update `PEEK_ACTION_RULES` and `PEEK_ROLE_POLICY`.
 - **Why not now**: There is no concrete role-separation requirement today (no second peer with limited scope, no compliance-driven split). Adding the role split before the need exists would block routine ops on a privilege we do not yet need to enforce.
+
+### [Spec 402] Per-round `CRATE_DROP` removed from `game.settled`
+- **Date**: 2026-05-08
+- **Location**: `backend/src/queue/handlers/game-settled.ts` (per-round emit removed); `backend/migrations/032_daily_crate.sql` (CHECK tightened to `('challenge_completed','bonus_completed')`); spec 402 supersedes spec 400 FR-5 for the per-round path.
+- **What**: Spec 402 replaces the per-round random crate drop with a single daily crate per eligible user (computed at 00:15 UTC on the previous-day's wager volume). The `game.settled` handler no longer emits `crate.drop` with `trigger_type='game_settled'`; the migration rejects any leftover row of that shape; spec 400 FR-5 acceptance criteria for the per-round path are explicitly overridden by spec 402.
+- **Current mitigation**: Daily crate compute worker is the new source of player-facing crate drops. Challenge-completed and bonus-completed crate paths are unchanged and still emit `crate.drop` for their respective `trigger_type` values. Operators verify the daily run via peek's runs/rewards tables and pending-SOL liability widget.
+- **Proper solution**: This is the proper solution; the entry exists to record that legacy `'game_settled'` is intentionally absent from the `crate_drops.trigger_type` CHECK and that any code path attempting to re-introduce it is a regression. Re-enabling per-round drops requires re-adding the trigger value, the emit block, and reconciling against the daily aggregate. Don't.
+
+### [Spec 402] Reward event-naming convention is uneven
+- **Date**: 2026-05-08
+- **Location**: `backend/src/queue/event-types.ts`, `backend/src/queue/handlers/`. Examples: `EventTypes.CRATE_DROP` ("crate.drop") vs. `EventTypes.CRATE_SOL_PAYOUT` ("crate.sol_payout") vs. `EventTypes.POINTS_GRANT` ("points.grant") vs. `EventTypes.REWARD_POOL_FUND` ("reward.pool_fund") vs. `EventTypes.REFERRAL_GAME_SETTLED` ("referral.game_settled").
+- **What**: Reward-economy event names mix several conventions: domain-noun-verb (`reward.pool_fund`, `crate.sol_payout`), domain-verb (`crate.drop`, `points.grant`), and domain-source (`referral.game_settled`). New events tend to follow the closest neighbor rather than a documented rule, which keeps the inconsistency growing. Spec 402 introduces `'daily_crate'` as a new `point_grants.source_type` value and `'daily_crate_reward:{id}'` as the SOL payout idempotency-key namespace; both are stable on the wire and cannot be renamed without coordinated consumer updates.
+- **Current mitigation**: All current names are stable and documented in `event-types.ts`. Persisted idempotency keys (`payout_attempts.idempotency_key`) and persisted source-type values (`point_grants.source_type`) anchor wire compatibility for queue consumers and downstream dedupe.
+- **Proper solution**: Adopt a single convention (e.g. `<domain>.<action>` with snake_case actions: `crate.drop`, `crate.sol_payout`, `points.grant`, `reward.pool_fund`, `referral.game_settled` — already mostly conformant) and codify it in `docs/FOUNDATIONS.md`. Rename outliers behind dual-emit shims if/when a real refactor is scheduled; renaming a shipped name is a breaking change for the queue and persisted dedupe state.
+- **Why not now**: Pure cosmetic cleanup with non-trivial migration cost (queue consumers, persisted source_type/idempotency_key values). Not a launch blocker.
