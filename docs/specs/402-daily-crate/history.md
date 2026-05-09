@@ -407,3 +407,19 @@ of every iteration to understand prior context.
 ## Iteration 18 — 2026-05-09T05:43:25Z — OK
 - **Log**: iteration-018.log
 
+## Iteration 19 — Phase 7 first item: local E2E coverage (N/A signoff)
+
+- This spec ships no player-facing UI. The `webapp/` is the frontend team's surface and is read-only from this workspace per project rules (`docs/CLAUDE.md` "Scope Boundary" section). All player-flow correctness for spec 402 is owned by backend integration tests against a real Postgres test DB and a mocked Solana Connection — authored across iterations 1–13 in `backend/src/__tests__/`:
+  - `daily-crate-{config-schema,helpers,roll,reward-hash}.test.ts` — pure-helpers and config schema.
+  - `daily-crate-compute*.test.ts` — boundary-slot lookup, run-claim race + recovery + mid-day-config-bump (FR-3).
+  - `points-grant-daily-crate.test.ts` and `crate-sol-payout-daily-crate.test.ts` — handler dispatch + dedupe (FR-6/FR-7).
+  - `crates-daily-{claim,today,pending,verify}.test.ts` — full claim path including downstream handler effects, public verify byte-exact round-trip, FOR UPDATE concurrent-claim race.
+  - `reward-pool-fund-retry-tail.test.ts` — FR-7 opportunistic-no-FIFO retry tail.
+  - `game-settled-no-per-round-crate.test.ts` — FR-9 invariant (per-round CRATE_DROP removal).
+- The `e2e/local/**` Playwright surface is for browser-driven user flows; it does not host backend-only specs. Adding placeholder browser tests here would be ceremony, not coverage. Spec text already documents this rationale in the Phase 7 line; this iteration just signs the checkbox.
+- Verification: no targeted check required — this iteration does not touch source code or tests. The spec/history docs-only edit needs no `pnpm` invocation.
+- Outcome: ✅ Item 17 complete (Phase 7 first item — local E2E coverage, N/A signoff).
+
+## Iteration 19 — 2026-05-09T05:46:20Z — OK
+- **Log**: iteration-019.log
+
