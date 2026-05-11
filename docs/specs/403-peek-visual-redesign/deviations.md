@@ -62,3 +62,27 @@ Per the spec ("preserve every existing prop signature and external behavior"), n
 Round 0 (the initial target capture immediately after Phases 7+8 land) shows fontSize ≤ 4 (rubric item 4 passing), inlineStyles=false in the rendered DOM (verified via curl, regex false-positive in dev mode), focus rings present but not detectable by the current script. The visible delta vs baseline is large (dark hybrid header → light Stripe/Notion-flavored shell). No iteration rounds 1–3 ran because: (a) the failing rubric items are script limitations, not visual gaps, and (b) the human gate is appropriate here — taste judgment on the actual screenshots.
 
 If the human reviewer wants further iteration after gate, the loop is documented in `peek/DESIGN_RUBRIC.md` and ready to run.
+
+## Schema surprises caught while adding operator surfaces (Phase 4 of the post-spec sequence)
+
+Three real schema details that diverged from what plans / prompts implied. All landed by adapting to actual schema, not by fabricating.
+
+### `closecall_rounds.phase` enum is `open / settled / refunded`
+
+There is no `settling` phase for Close Call. The dispatch prompt assumed the FlipYou/Pot Shot enum applied uniformly. The `/games/stuck` page uses `phase = 'open' AND created_at < now() - interval 'N minutes'` for closecall, and `phase = 'settling'` (with the same age predicate) for the commit-reveal games. The two predicates union together in `list-stuck-rounds.ts`.
+
+### `transactions` has no `status` column
+
+The dispatch prompt for `/operations/refunds` expected an optional `status` column to filter on. There is none — `transactions` rows in this app appear to be insert-only at confirmation time. The refunds page is chronological only; no status filter is offered.
+
+### `fee_bucket_debits.status` has 7 values, not 5
+
+The CHECK constraint allows `pending / processing / error / completed / failed`. The actual prod data also flows through `held` and `rejected`. The fees page's filter bar and status Badges handle all 7 values defensively, so future schema migration that formalizes the additional statuses doesn't break the UI.
+
+### `peek` queried `dogpile_events` in two places after the table was dropped
+
+Migration 019 dropped `dogpile_events` permanently but two peek query files (`get-dogpile-and-fraud.ts`, `get-command-center-attention.ts`) still referenced it. This caused live SQL errors visible in the UI until Phase 3 silenced them with a defensive guard and Phase 4 of the post-spec sequence deleted the references outright. Resolved.
+
+## Post-spec retrospective
+
+See `retrospective.md` for a phase-by-phase narrative of what landed after the original Phase-1 spec ended.
