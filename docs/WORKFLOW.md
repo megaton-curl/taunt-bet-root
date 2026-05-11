@@ -36,6 +36,7 @@ Execution defaults for humans and AI agents. Use this file for day-to-day implem
 - For behavior changes, add or update tests in the nearest package/app when feasible.
 - For bug fixes, first reproduce with a failing test where practical, then fix.
 - If tests are not feasible in the same task, record the gap in `docs/TECH_DEBT.md` with concrete follow-up criteria.
+- **Assert against role/structure, not literal user-facing copy.** Use `getByRole` / `getByLabelText` / columnheader names + semantic markers (e.g., `<code>` containing the source table name). Reserve literal-text assertions for the rare case where the copy is the documented contract. Text changes shouldn't ripple through tests. See LESSONS L-022.
 - Integration tests either provision their runtime dependencies in CI (database, validator, external service, etc.) or they do not run in the default CI lane.
 - Tests must validate the intended behavior path. Do not keep alternate "success" paths in the same test when the primary assertion flow fails.
 - If a test flow fails, investigate root cause first. You may temporarily split checks into smaller diagnostic tests, but final committed tests must assert the canonical behavior path.

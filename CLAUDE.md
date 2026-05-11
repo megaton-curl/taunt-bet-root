@@ -100,6 +100,8 @@ For cross-repo changes (e.g., deploying new program → updating IDLs):
 - **Context decay awareness**: After 10+ messages in a conversation, re-read any file before editing it. Do not trust memory of file contents — auto-compaction may have silently destroyed that context.
 - **Edit integrity**: After editing a file, read it again to confirm the change applied correctly. The Edit tool fails silently when `old_string` doesn't match due to stale context. Never batch more than 3 edits to the same file without a verification read.
 - **Failure recovery**: If a fix doesn't work after two attempts, stop. Read the entire relevant section top-down. Figure out where your mental model was wrong and say so. Don't retry the same approach a third time.
+- **Time-box subagent dispatches**: Estimate scope before dispatching. If >30 min of work is likely (>10 file edits, or schema-coupled query work across many tables), split into multiple smaller dispatches rather than one large one — large dispatches stall silently. Every dispatch prompt MUST include explicit time-box guidance: "if stuck on any single sub-task for more than 15 minutes, commit progress and report DONE_WITH_CONCERNS rather than hanging." Has happened twice during peek 403 redesign.
+- **Subagent takeover discipline**: When picking up a stalled subagent's partial-but-coherent work and committing it manually, do NOT rely on `pnpm verify` exit-0 alone. Run targeted `pnpm test <path>` per touched component file before staging the commit. Vitest's parallel runner has produced false-pass results on takeover state twice; CI caught both. See `docs/LESSONS.md` L-024.
 
 ## Workflow - "Contract First"
 1. **Find Contract**: Identify the relevant mock or spec file first.
