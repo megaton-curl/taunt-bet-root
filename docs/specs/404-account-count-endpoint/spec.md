@@ -108,13 +108,14 @@ The response uses the shared envelope helpers; the route is registered in OpenAP
 - [ ] 2xx response declared as `envelope(SuccessSchema)`; 4xx declared as `ErrorEnvelopeSchema`.
 - [ ] `openapi-contract.test.ts` and `waitlist-contract.test.ts` still pass.
 
-### FR-7: Rate limiting reuses the existing per-IP middleware
+### FR-7: Match existing public-GET mount pattern — no new middleware
 
-The new mount is wrapped by the existing `createRateLimitMiddleware` so the endpoint cannot be hammered by an anonymous client.
+The endpoint follows the convention used by other unauthenticated public GETs (`/public-referral`, `/public-profile`): mounted directly with no app-level rate-limit or auth middleware. The existing `createRateLimitMiddleware` is wallet-keyed and exists for authenticated POST routes, not anonymous reads; ingress (CloudFlare / DigitalOcean) is the abuse boundary for this surface.
 
 **Acceptance Criteria:**
-- [ ] The mount applies the existing rate-limit middleware (the same one already used on `/auth/*`, with parameters appropriate for a polling read endpoint — e.g. `perWallet: 60, global: config.rateLimitGlobal, windowMs: 60_000`, or the closest existing knob).
-- [ ] No new middleware file or new rate-limit infra is added.
+- [ ] Mount is a plain `app.route("/accounts", createAccountCountRoutes(...))` with no surrounding `app.use(...)` middleware in either entrypoint.
+- [ ] No new middleware file or new rate-limit infrastructure is added.
+- [ ] The JWT decode happens inline inside the handler (not via the global JWT middleware), so the endpoint stays optionally-authenticated.
 
 ### FR-8: Delivery on `main` first, cherry-picked to `dev`
 
@@ -171,10 +172,9 @@ The change is implemented as a single commit on a branch off `origin/main`, merg
 ## Completion Signal
 
 ### Implementation Checklist
-- [ ] New route file `backend/src/routes/account-count.ts` exporting `createAccountCountRoutes({ db, jwtSecret })`.
-- [ ] New OpenAPI path module for the route (matches existing pattern under `backend/src/openapi/`).
-- [ ] Mount in `backend/src/index.ts` with the existing rate-limit middleware.
-- [ ] Mount in `backend/src/index-waitlist.ts` with the existing rate-limit middleware; update the file's surface-comment header to list `GET /accounts/count`.
+- [ ] New route file `backend/src/routes/account-count.ts` exporting `createAccountCountRoutes({ db, jwtSecret })`. The route file IS the OpenAPI path module — uses `createOpenApiApp()` + `app.openapi(route, handler)` inline, matching the existing `public-referral.ts` pattern.
+- [ ] Plain mount in `backend/src/index.ts` (no surrounding middleware).
+- [ ] Plain mount in `backend/src/index-waitlist.ts`; update the file's surface-comment header to list `GET /accounts/count`.
 - [ ] DB layer: either a new method on `Db` / `ProfilesDb` (e.g. `getAccountCountAndRank(userId)`) or inline SQL in the route — preference for a DB method so the SQL is testable in isolation.
 - [ ] New tests in `backend/src/__tests__/account-count.test.ts` covering FR-2/3/4/5.
 - [ ] Extend `backend/src/__tests__/waitlist-contract.test.ts` to pin the new endpoint shape.
