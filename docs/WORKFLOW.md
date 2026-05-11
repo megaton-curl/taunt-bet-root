@@ -57,23 +57,13 @@ Execution defaults for humans and AI agents. Use this file for day-to-day implem
 
 ## 5) Production Safety (Default)
 
-- Production data safety is paramount. Prefer additive and reversible changes over destructive rewrites.
 - Migrations must preserve live data unless there is an explicit, documented deletion or transformation plan.
 - Never discard, truncate, reset, or backfill-overwrite production data without approval, rollback steps, and operator-facing verification notes.
 - If a contract change lands in an authoritative repo before consumers adopt it, document the rollout gap in root docs rather than silently patching consult-only repos.
 
 ---
 
-## 6) Dead Code Cleanup (Default)
-
-- After any refactor, removal, or dependency change: grep for orphaned imports, unused exports, and stale env vars. Don't leave dead references behind.
-- Remove files that are no longer imported or referenced — don't comment them out or leave "removed" placeholders.
-- Check `package.json` for dependencies that no longer have any import in the package's source files.
-- If cleanup scope is too large for the current task, log it in `docs/TECH_DEBT.md` with the specific files/symbols to clean up.
-
----
-
-## 7) Amount Units (Default)
+## 6) Amount Units (Default)
 
 - Functional money values must use lamports end-to-end. Convert user-entered SOL amounts to lamports at the first real boundary and keep lamports in state, API payloads, signatures, persistence, tests, and on-chain args.
 - SOL decimal strings/numbers are for display and input ergonomics only. Do not use floating SOL values for matching, equality checks, payout math, signatures, or database writes.
@@ -81,7 +71,7 @@ Execution defaults for humans and AI agents. Use this file for day-to-day implem
 
 ---
 
-## 8) Documentation Update Rules (Default)
+## 7) Documentation Update Rules (Default)
 
 - Update `docs/DECISIONS.md` only for durable decisions (not temporary implementation details).
 - Update `docs/TECH_DEBT.md` for temporary compromises.
@@ -91,7 +81,7 @@ Execution defaults for humans and AI agents. Use this file for day-to-day implem
 
 ---
 
-## 9) Public API Contract Rules (Default)
+## 8) Public API Contract Rules (Default)
 
 - Public JSON routes use the shared envelope body:
   - success: `{ ok: true, data }`
@@ -112,22 +102,15 @@ Execution defaults for humans and AI agents. Use this file for day-to-day implem
 
 ---
 
-## 10) Third-Party Dependency Integration (Default)
+## 9) Third-Party Dependency Integration (Default)
 
-When writing code that integrates with any external dependency — SDK, API, on-chain program, library, oracle — follow this checklist:
-
-1. **Start with the latest stable version**: Before adding a dependency, research the current recommended version. Check the project's GitHub releases, migration guides, and changelogs. Don't default to whatever version an old tutorial or example uses — you'll inherit deprecated patterns and eventually pay the upgrade cost anyway.
-2. **Pin the version**: Know exactly which version you depend on (`Cargo.toml`, `package.json`, deployed program).
-3. **Read the docs for THAT version**: Not blog posts, not old code, not "similar" examples. Check official docs, `docs.rs`, GitHub source, or the IDL for the exact version.
-4. **Verify data shapes at the boundary**: For binary layouts, serialization formats, API response shapes, or account structures — write an explicit check (length, discriminant, version byte) before reading data. Silent misreads produce plausible-but-wrong results.
-5. **Test with real data early**: Don't defer integration testing. A mock that returns hardcoded values won't catch layout mismatches — hit the real service (devnet, staging, sandbox) as early as feasible.
-6. **When upgrading**: Re-verify every raw byte offset, field name, and response shape. Grep the codebase for all usages of the old layout — they ALL need updating, not just the first one you find.
+When integrating with any external dependency — SDK, API, on-chain program, library, oracle — **verify data shapes at the boundary**. For binary layouts, serialization formats, API response shapes, or account structures, write an explicit check (length, discriminant, version byte) before reading data. Silent misreads produce plausible-but-wrong results.
 
 > **Why this matters**: A single wrong byte offset in an Orao VRF account read cost multiple sessions of debugging. The data looked valid (it was a real pubkey byte), produced a valid flip you result (heads/tails), but was the *wrong* result. Every downstream symptom (UI mismatch, profile stats wrong, "both players lost") pointed away from the root cause.
 
 ---
 
-## 11) Devnet E2E Verification (Default)
+## 10) Devnet E2E Verification (Default)
 
 - Run `./scripts/verify --devnet` before PRs that touch chain-facing code (`solana/`, `backend/packages/anchor-client/`, `backend/packages/game-engine/` winner/payout logic).
 - NOT required every iteration — IS automated in `spec-loop.sh` for specs that reference flipyou, Pot Shot, or Close Call.
