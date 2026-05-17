@@ -61,10 +61,6 @@ Items graduate here from `TECH_DEBT.md`, gap-analysis recommendations, or ad-hoc
 - [ ] [infra] **Program upgrade authority transfer**: After initial devnet deploy, transfer program upgrade authority to a multisig (e.g., Squads) instead of the deployer wallet. Reduces blast radius of a leaked deployer key.
 - [ ] [infra] **Pre-mainnet key rotation**: Before mainnet launch, generate fresh production keys (never reuse devnet keys). Document the ceremony and store mainnet keys in a secrets manager (Vault, AWS Secrets Manager, etc.) — not in env files.
 
-### Security Hardening
-
-- [ ] [backend] **Verify Telegram user existence on `/telegram/redeem-link`** via `getChat(telegramUserId)` Bot API call before writing the `linked_accounts` row. Today the redeem handler trusts the `telegramUserId` field from the request body (`backend/src/routes/telegram-link.ts:149-155`) — service-auth only checks the shared secret, never that the claimed ID corresponds to a real Telegram user. If the service secret ever leaks, an attacker can mint `linked_accounts` rows for arbitrary (or non-existent) Telegram IDs against any unredeemed link token. Adding a `getChat` call costs one Telegram API request per redeem (~50ms) and converts that failure mode from "silent fake-ID injection" to "redeem fails because the claimed user never messaged the bot." Discovered while auditing the spec-405 signup-bursts "TG linked" signal on 2026-05-17.
-
 ### On-Chain Contract Hardening (Resolved)
 
 - [x] ~~**Make FlipYou nonce consumption atomic inside `create_match`**~~: **Resolved** — Replaced nonce-based PDA derivation with backend-generated random 8-byte match IDs (`[u8; 8]`). `PlayerProfile` removed entirely; stats moved off-chain. Match PDA seeds are now `["match", creator, match_id]` where `match_id` is generated server-side via `crypto.randomBytes(8)`. No nonce, no profile CPI, no duplicate-PDA footgun.
