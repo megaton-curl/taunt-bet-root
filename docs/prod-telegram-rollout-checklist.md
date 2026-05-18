@@ -13,7 +13,8 @@ Branch state at update time:
 - [x] **Prod stays on the waitlist for this rollout.** `run_command: pnpm start:waitlist` remains in `.do/app-prod.yaml`. Migrations 017–034 and the new worker still need to land for forward-compat, but the public `prod-api` HTTP surface keeps serving the pre-launch landing page only. Full backend cutover deferred (track in `docs/TECH_DEBT.md` when scheduled).
 - [x] **Cluster is now part of `BackendAppConfig`** (committed in this prep pass). `solana.cluster` lives in `src/config/app/dev.ts` (`"devnet"`) and `src/config/app/mainnet.ts` (`"mainnet-beta"`). `loadConfig` reads `Config.cluster` from the loaded file, not from the env literal. `SOLANA_CLUSTER` env var stays only as the selector for which file to load.
 - [x] **`SOLANA_CLUSTER` hardcoded in the yaml.** `.do/app-prod.yaml` now declares `SOLANA_CLUSTER: mainnet-beta` for both `prod-api` and `worker`; `.do/app-dev.yaml` declares `SOLANA_CLUSTER: devnet` for symmetry. No GH-Environment `var` plumbing needed — the value is checked-in alongside the spec.
-- [x] **`ADMIN_TOKEN` dropped from prod.** Removed from `.do/app-prod.yaml` and `.github/workflows/deploy-prod.yml` (env mapping and `required_vars` list). The `/docs` OpenAPI route stays off in prod. `ADMIN_TOKEN` is retained in `.do/app-dev.yaml` and `deploy-dev.yml` for dev OpenAPI access.
+- [x] **`chat.baseUrl` and `telegram.communityInviteUrl` moved into `BackendAppConfig`.** Both are per-env-stable non-secrets, same pattern as cluster. Dev points at `https://scream.dev.taunt.bet` + the private invite link; mainnet points at `https://scream.taunt.bet` + `https://t.me/tauntbet`. Removed from `.do/app-{prod,dev}.yaml` and from `deploy-{prod,dev}.yml` env mappings; GH env vars `CHAT_BASE_URL` and `COMMUNITY_INVITE_URL` deleted from backend dev and prod environments.
+- [x] **`ADMIN_TOKEN` dropped from prod.** Removed from `.do/app-prod.yaml`, `deploy-prod.yml` (env mapping + `required_vars`), and the GH `prod` env secret was deleted via `gh api`. The `/docs` OpenAPI route stays off in prod. `ADMIN_TOKEN` is retained on dev (`.do/app-dev.yaml` + `deploy-dev.yml`) for OpenAPI access.
 
 ## Open gaps
 
@@ -21,14 +22,13 @@ Branch state at update time:
 
 ## Pre-flight
 
-- [x] **pg_dump backup of `prod-main-db` taken.** Belt-and-braces snapshot held outside DO so rollback is not tied to PITR window or DO console availability.
+- [x] **pg_dump backup of `prod-main-db` taken.** Primary rollback path. DO does **not** offer on-demand snapshots or point-in-time recovery for this cluster — only scheduled daily backups (typically retained for ~7 days). The pg_dump is therefore the only snapshot guaranteed to be tight to the pre-rollout moment.
   - Dump file path / storage location: `_____`
   - Taken at (UTC): `_____`
   - Size: `_____`
   - Restore drill performed against a throwaway DB (optional but recommended): `[ ]`
-- [ ] **Confirm DO PITR is also available as a secondary fallback.** DO managed Postgres has no on-demand snapshot UI, but `prod-main-db` should have continuous PITR enabled (default 7-day retention). Verify in the DO console that "Point-in-time recovery" is on and the cluster is within the retention window. Note the pre-rollout UTC timestamp for the rollback plan:
-  - Pre-rollout UTC: `_____`
-  - PITR retention confirmed: `[ ]`
+- [ ] **Note today's DO daily backup window.** Secondary fallback only. Daily backups are coarser (RPO up to ~24h) and would replay state to the last scheduled snapshot, not to immediately pre-rollout. Confirm in DO console that the most recent daily backup for `prod-main-db` is recent enough that it's still meaningful as a fallback:
+  - Most recent DO daily backup taken at: `_____`
 - [x] **Data-safety counts.** Confirmed against prod 2026-05-18, all queries returned 0 rows / no rows:
   - `SELECT COUNT(*) FROM player_points;` → 0 ✓ (migration 018 drops this table)
   - `SELECT COUNT(*) FROM dogpile_events;` → 0 ✓ (migration 018 drops this table)
@@ -94,29 +94,29 @@ Worker does **not** need PUBLIC_APP_URL / PUBLIC_APP_DOMAIN / TELEGRAM_* / COMMU
 
 ### GH Environment `prod` — required `vars` and `secrets`
 
-Confirm each entry exists at the `prod` environment scope (not just `dev`). The `deploy-prod.yml` workflow's "Validate deploy inputs" step will fail early if a `required_vars=` member is empty, so missing values are caught pre-apply.
+Audited via `gh api` on 2026-05-18. The `deploy-prod.yml` workflow's "Validate deploy inputs" step will fail early if a `required_vars=` member is empty, so missing values are caught pre-apply.
 
 `vars` (non-secret):
 
-- [ ] PRIMARY_DOMAIN
-- [ ] RPC_URL
-- [ ] WS_RPC_URL
-- [ ] TELEGRAM_BOT_USERNAME
-- [ ] COMMUNITY_INVITE_URL
-- [ ] CHAT_BASE_URL
-- [ ] CLOUDFLARE_ACCOUNT_ID
-- [ ] CLOUDFLARE_ACCOUNT_HASH
+- [x] PRIMARY_DOMAIN — `api.taunt.bet`
+- [x] RPC_URL — dRPC mainnet (`lb.drpc.live/solana/...`, confirmed not devnet)
+- [x] WS_RPC_URL — dRPC mainnet WebSocket
+- [x] TELEGRAM_BOT_USERNAME — `taunt_bet_bot`
+- [x] CLOUDFLARE_ACCOUNT_ID
+- [x] CLOUDFLARE_ACCOUNT_HASH
 
 `secrets`:
 
-- [ ] SERVER_KEYPAIR
-- [ ] JWT_SECRET
-- [ ] CHAT_FEED_TOKEN
-- [ ] TELEGRAM_WEBHOOK_SECRET
-- [ ] CLOUDFLARE_IMAGES_TOKEN
-- [ ] DIGITALOCEAN_ACCESS_TOKEN
+- [x] SERVER_KEYPAIR
+- [x] JWT_SECRET
+- [x] CHAT_FEED_TOKEN
+- [x] TELEGRAM_WEBHOOK_SECRET
+- [x] DIGITALOCEAN_ACCESS_TOKEN (at repo level, not env-scoped — fine)
+- [ ] **CLOUDFLARE_IMAGES_TOKEN — MISSING. Add before deploy.** Required by code (`requireEnv` throws on boot) and by workflow `required_vars=` gate. Recommended: copy the value from dev unless you want a separate prod token for blast-radius isolation.
 
-`SOLANA_CLUSTER` and (now-removed) `ADMIN_TOKEN` are not in this list — `SOLANA_CLUSTER` is hardcoded in the yaml; `ADMIN_TOKEN` was dropped.
+Not in this list — already handled:
+- `SOLANA_CLUSTER`, `CHAT_BASE_URL`, `COMMUNITY_INVITE_URL` — values now checked into `src/config/app/{dev,mainnet}.ts`.
+- `ADMIN_TOKEN` — dropped (workflow + GH secret).
 
 ### Telegram service `prod-telegram` (`pnpm start`)
 
@@ -137,10 +137,10 @@ Telegram's env contract is unchanged by recent commits. Current `.do/app-prod.ya
 | not set (falls to default) | TELEGRAM_RATE_LIMIT_WINDOW_MS / MAX | — | 60s / 10 |
 | not set (falls to default) | TELEGRAM_BACKEND_TIMEOUT_MS | — | 5s |
 
-GH Environment `prod` for telegram:
+GH Environment `prod` for telegram — audited via `gh api`, **all required vars/secrets present**:
 
-`vars`: PRIMARY_DOMAIN, BACKEND_URL, PUBLIC_APP_URL, REFERRAL_PATH_PREFIX, COMMUNITY_INVITE_URL
-`secrets`: TELEGRAM_BOT_TOKEN, TELEGRAM_WEBHOOK_SECRET, DIGITALOCEAN_ACCESS_TOKEN
+- vars ✓: PRIMARY_DOMAIN (`shout.taunt.bet`), BACKEND_URL (`https://api.taunt.bet`), PUBLIC_APP_URL (`https://taunt.bet`), REFERRAL_PATH_PREFIX (`/ref`), COMMUNITY_INVITE_URL (`https://t.me/tauntbet`)
+- secrets ✓: TELEGRAM_BOT_TOKEN, TELEGRAM_WEBHOOK_SECRET, DIGITALOCEAN_ACCESS_TOKEN (repo-level)
 
 ## Backend deploy
 
@@ -204,8 +204,8 @@ Each migration runs inside its own transaction (`sql.begin` in `src/migrate.ts`)
 2. Identify failing migration from worker logs.
 3. If migration is reversible (column drop with empty data): no action, fix migration on dev, ship hotfix.
 4. If migration corrupted state, restore from one of (preference order):
-   - **pg_dump** taken in pre-flight (fastest, deterministic): `pg_restore --clean --if-exists -d <prod-main-db-url> <dump-file>`. Stop the `prod-api` and `worker` components before restoring; resume after.
-   - **DO PITR** at the pre-rollout UTC timestamp: create a new database from PITR via the DO console, then swap `${prod-main-db.DATABASE_URL}` to the recovered cluster in `.do/app-prod.yaml` and redeploy.
+   - **pg_dump** taken in pre-flight (primary, tight RPO): stop the `prod-api` and `worker` components first; `pg_restore --clean --if-exists -d <prod-main-db-url> <dump-file>`; resume components.
+   - **DO daily backup** (last resort — RPO up to ~24h): restore from the most recent daily backup in the DO console (creates a new database cluster), then swap `${prod-main-db.DATABASE_URL}` to the recovered cluster in `.do/app-prod.yaml` and redeploy. Expect to lose changes between the daily backup and the rollout.
 
 **Do not** manually `INSERT INTO _migrations` to skip a failed migration without first restoring the schema it expected.
 
