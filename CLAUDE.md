@@ -56,6 +56,22 @@
 
 **pnpm** is mandatory for non-frontend TypeScript/JavaScript service repos: `backend/`, `chat/`, `telegram/`, `peek/`. Use the pinned `packageManager` in each repo’s `package.json` and `pnpm install --frozen-lockfile` in CI. Vite frontends (`webapp/`, `waitlist/`) stay on **npm** unless they are explicitly migrated.
 
+## Supply-chain guard — Socket Firewall (`sfw`)
+
+**All dependency installs and fetches must be wrapped with `sfw`** — locally and in CI. `sfw` is Socket Firewall Free (`npm i -g sfw`, pre-installed in the devcontainer). It spins up an ephemeral proxy that blocks malicious packages before they reach the machine.
+
+| Surface | Required form |
+|---|---|
+| Node/TS install (any submodule) | `sfw pnpm install` / `sfw pnpm install --frozen-lockfile` |
+| Vite frontends (`webapp/`, `waitlist/`) | `sfw npm install` |
+| Anchor / Rust build | `sfw anchor build` / `sfw cargo fetch` |
+| Python (if used) | `sfw uv pip install ...` |
+| CI | `socketdev/action@<sha>` with `mode: firewall-free`, then `sfw <pm> install` |
+
+- Root scripts (`scripts/verify`, `scripts/deploy-devnet.sh`) already prefix installs with `sfw` — do not strip it.
+- Cache caveat: `sfw` only inspects packages fetched from the registry; cached artifacts bypass it. CI cache keys are lockfile-hashed, so lockfile changes (the actual attack surface) always trigger a fresh inspection. Locally, clear caches when adopting `sfw` for the first time.
+- Do not regress: if a new script or CI workflow runs an install/fetch, it MUST use `sfw`.
+
 ## Cross-Repo Commands
 - **Verify**: `./scripts/verify`
 - **Chat verify**: `cd chat && pnpm verify`

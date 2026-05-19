@@ -59,7 +59,7 @@ run_ts() {
     # Install dependencies if missing
     if [ ! -d "node_modules" ]; then
         echo -e "${GREEN}[INFO] Installing dependencies...${NC}"
-        pnpm install
+        sfw pnpm install
     fi
 
     echo -e "${GREEN}[STEP] Linting...${NC}"
@@ -86,11 +86,11 @@ run_anchor() {
     cd "$ROOT/solana"
 
     if [ ! -d "node_modules" ]; then
-        pnpm install --ignore-workspace
+        sfw pnpm install --ignore-workspace
     fi
 
     echo -e "${GREEN}[STEP] Building Anchor programs...${NC}"
-    anchor build
+    sfw anchor build
 
     echo -e "${GREEN}[STEP] Testing (Anchor programs)...${NC}"
     pnpm exec mocha --require tsx/cjs -t 1000000 --exit tests/closecall.ts tests/flipyou.ts tests/potshot.ts tests/platform.ts
@@ -109,7 +109,7 @@ run_devnet_e2e() {
 
     if [ ! -d "$ROOT/e2e/node_modules" ]; then
         echo -e "${GREEN}[INFO] Installing E2E dependencies...${NC}"
-        cd "$ROOT/e2e" && pnpm install && cd "$ROOT"
+        cd "$ROOT/e2e" && sfw pnpm install && cd "$ROOT"
     fi
 
     echo -e "${GREEN}[STEP] Running devnet E2E tests...${NC}"

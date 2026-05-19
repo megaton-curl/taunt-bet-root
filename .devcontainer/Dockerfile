@@ -64,7 +64,10 @@ RUN bash -ic "nvm install ${NODE_VERSION} && nvm alias default ${NODE_VERSION} &
 ENV PATH="/home/vscode/.avm/bin:/home/vscode/.cargo/bin:/home/vscode/.local/share/solana/install/active_release/bin:${PATH}"
 
 # Additional global npm packages not included in the one-command installer.
-RUN bash -ic "nvm use ${NODE_VERSION} && npm install -g pnpm@10.33.0 @openai/codex @anthropic-ai/claude-code @anthropic-ai/sandbox-runtime"
+# `sfw` is Socket Firewall Free — wraps package-manager installs (npm/pnpm/yarn,
+# cargo, pip/uv) to block malicious dependencies before they reach the machine.
+# All install commands in scripts and CI use `sfw <pm> install`; see CLAUDE.md.
+RUN bash -ic "nvm use ${NODE_VERSION} && npm install -g pnpm@10.33.0 sfw @openai/codex @anthropic-ai/claude-code @anthropic-ai/sandbox-runtime"
 
 # Persist PATH for interactive shells (ENV only applies to Docker build + postStartCommand).
 # nvm is already sourced in .bashrc by the installer; default to the repo baseline Node.

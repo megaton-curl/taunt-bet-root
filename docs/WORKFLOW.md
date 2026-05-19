@@ -26,8 +26,9 @@ Execution defaults for humans and AI agents. Use this file for day-to-day implem
 - Backend: `cd backend && pnpm lint && pnpm typecheck && pnpm test`
 - Chat: `cd chat && pnpm verify`
 - Telegram: `cd telegram && pnpm verify`
-- Solana: `cd solana && anchor build && mocha tests`
+- Solana: `cd solana && sfw anchor build && mocha tests`
 - Root `./scripts/verify` currently excludes `chat/` and `telegram/` by design while their contracts stabilize. Run their verification commands separately when touching those submodules.
+- **All dependency installs and fetches must be wrapped with `sfw`** (Socket Firewall) — e.g. `sfw pnpm install`, `sfw anchor build`, `sfw cargo fetch`. Applies to local dev and CI alike. See root `CLAUDE.md` → "Supply-chain guard" for the full table and rationale.
 
 ---
 

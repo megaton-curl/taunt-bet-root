@@ -92,7 +92,7 @@ deploy_program() {
 
   # Build
   printf '  Building...\n'
-  anchor build -p "$name" 2>&1 | tail -1
+  sfw anchor build -p "$name" 2>&1 | tail -1
 
   # Deploy — use upgrade if program exists, deploy if new
   printf '  Deploying...\n'
@@ -126,7 +126,7 @@ ensure_platform_config() {
 
   if [ ! -f "$idl_path" ]; then
     printf '  Building platform IDL for shared config check...\n'
-    anchor build -p platform >/dev/null
+    sfw anchor build -p platform >/dev/null
   fi
 
   node --input-type=module -e "
