@@ -8,96 +8,102 @@
 | Priority | P1 |
 | Track | Economy |
 | NR_OF_TRIES | 0 |
-| Supersedes | Auto-delivery semantics in spec 400 FR-5 (`crate_drops` for challenge/bonus crates) |
+| Supersedes | Auto-delivery semantics in spec 400 FR-5; per-source player crate endpoints in spec 402 |
 | Authors | (assigned at refine time) |
 
 ---
 
 ## Overview
 
-Bring **all** crates — daily (spec 402) and challenge/bonus (spec 400) — under the same player-initiated **claim/open** model and the same **contents-masked-until-opened** API contract.
+Collapse all crate sources (daily, challenge, completion-bonus) into **one player-facing API**: a single inventory, a single history, a single open endpoint. The data still lives in two tables (`daily_crate_rewards` and `crate_drops`), but the player and the FE see one uniform crate object.
 
-Today the two crate sources behave differently:
+The previous shape — separate `POST /crates/daily/claim`, `POST /crates/drops/:dropId/claim`, `GET /crates/daily/pending`, `GET /crates/mine` — is replaced by:
 
-- **Daily crates** (`daily_crate_rewards`) require a manual `POST /crates/daily/claim` to deliver. The endpoint exists; the chest animation in the webapp wraps that HTTP call. ✅
-- **Challenge / completion-bonus crates** (`crate_drops`) **auto-deliver**: the `crate-drop` handler rolls and immediately emits `POINTS_GRANT` / `CRATE_SOL_PAYOUT` in the same transaction that inserts the row. There is no manual player action. ❌
-- **List responses** (`GET /crates/daily/pending`, `GET /crates/mine`) **leak the contents** (`crate_type`, `contents_amount`) before the player opens the crate. ❌
+```
+GET  /crates/inventory                — unopened crates, contents masked
+GET  /crates/history                  — opened crates (in-flight + terminal), contents shown
+GET  /crates/:crateId                 — single crate detail (deep-link / share / revisit)
+POST /crates/:crateId/open            — open a crate (any source)
+```
 
-This spec makes the challenge/bonus path mirror the daily path:
+A `crateId` is a self-contained routing key:
 
-1. `crate-drop` handler **rolls and freezes** the outcome into `crate_drops` with a new `'awaiting_open'` status. It does **not** emit any delivery event and does **not** decrement `reward_pool` at this stage.
-2. A new player endpoint `POST /crates/drops/:dropId/claim` performs the same gate / reservation / event-emit sequence that `POST /crates/daily/claim` already does.
-3. All pre-open list responses are reshaped to **mask contents** (`crateType` / `contentsAmount` / `rewardHash` removed from list rows; revealed only in the response body of the claim/open call itself).
-4. A unified `GET /crates/inventory` returns the player's unopened crates from both sources in one paginated list, so the webapp has a single inventory model to render.
+- `daily:<dayId>` for `daily_crate_rewards` rows — e.g. `daily:2024-03-04`
+- `drop:<dropId>` for `crate_drops` rows — e.g. `drop:99`
+
+The prefix identifies the source table and dispatches the open call; the suffix is the natural key for that source. The player can have multiple unopened daily crates (one per backlog day) and multiple unopened drops at the same time.
+
+Also changed from the spec-400 baseline: challenge/bonus crates no longer auto-deliver. The `crate-drop` queue handler **freezes** the rolled outcome into `crate_drops.status='awaiting_open'` and emits no delivery event. Delivery is gated by `POST /crates/:crateId/open`.
 
 ### Non-goals
 
-- **No table consolidation.** `daily_crate_rewards` and `crate_drops` remain separate. This avoids a risky prod migration and respects "production data safety is non-negotiable" (CLAUDE.md). Endpoint logic dispatches on source.
-- **No change to daily-crate fairness or materialization** (spec 402 is unchanged).
-- **No change to the on-chain SOL payout path** — `crate-sol-payout.ts` legacy `crate_drops` branch keeps its `'pending' → 'granted' / 'failed'` transitions unchanged. The new `'awaiting_open'` state sits *before* what the payout handler sees.
-- **No publicly-verifiable fairness commitment for challenge crates** in this spec. Challenge crates continue to use `Math.random()` for the roll, frozen at handler time. A follow-on spec can introduce a committed-blockhash seed if needed (see "Future Work").
-- **Frontend is out of scope.** This spec defines API contracts only; the webapp team consumes them.
+- **No table consolidation.** Two backing tables remain — dispatch happens in the unified route module.
+- **No change to daily-crate materialization or fairness** (spec 402 nightly compute is unchanged).
+- **No change to the on-chain SOL payout handler** — `crate-sol-payout.ts` legacy crate_drops branch keeps its `pending → granted/failed` transitions.
+- **No publicly-verifiable fairness for challenge crates** in this spec. They use `Math.random()` frozen at handler time; a follow-on can add committed-blockhash seeding.
+- **Frontend is out of scope.** API contracts only; webapp migration is a separate FE MR.
 
-### Design Principles
+### Design principles
 
-1. **One claim model, two backing tables.** Both `POST /crates/daily/claim` (existing) and `POST /crates/drops/:dropId/claim` (new) take a player action and emit the same downstream delivery events (`POINTS_GRANT` or `CRATE_SOL_PAYOUT`).
-2. **Contents hidden until claim response.** List/inventory endpoints expose only `{ id, source, status, createdAt, rarityHint? }`. Contents land in the claim/open response.
-3. **Pool reservation moves to open time.** For challenge SOL crates, the reward pool is reserved when the player opens, not when the roll fires. This matches the daily-crate gate semantics and prevents pool depletion by un-opened rolls.
-4. **Additive migration only.** Schema changes are additive (new status enum value, new nullable columns). Existing `'pending'` rows are not retroactively reshaped.
+1. **One crate object, many sources.** The FE treats every crate as `{ crateId, source, state, status, ... }`. Routing happens on `crateId`, not source.
+2. **Contents hidden until opened.** Inventory and the single-crate endpoint (for unopened rows) omit `crateType`, `contentsAmount`, and any reward-hash-equivalent. They land in the open response and in history.
+3. **Pool reservation moves to open time.** Challenge SOL crates no longer reserve at roll time. Matches daily semantics.
+4. **Additive migration only.** Schema changes expand the `crate_drops` status enum and add nullable columns; existing rows are not reshaped.
+5. **Breaking the public API is acceptable here.** The current per-source endpoints have no internal consumers beyond the webapp; we set the direction and the FE migrates.
 
 ---
 
 ## User Stories
 
-- As a player, I want to manually click "open" on every crate I earn — daily or challenge — so opening always feels like a deliberate action.
-- As a player, I want the crate's contents to remain hidden until I open it, so the reveal animation actually reveals something.
-- As a player, I want a single inventory of all my unopened crates so I don't have to check multiple pages.
-- As an operator, I want challenge-earned SOL crates to follow the same pool-gate / payout-queue pipeline as daily SOL crates, so all SOL payouts share one observability surface.
+- As a player, I want one inventory page showing every unopened crate I have, regardless of where it came from.
+- As a player, I want to click "open" on each crate individually and see its contents revealed in the response.
+- As a player, I want to revisit a crate I opened earlier (deep-link or share), and the page should show the current delivery state.
+- As a player who's been offline, I want all my backlog daily crates plus any challenge crates available together, each openable independently.
+- As an operator, I want challenge-earned SOL crates to follow the same pool-gate / payout-queue pipeline as daily SOL crates.
 
 ---
 
 ## Capability Alignment
 
-- **`docs/SCOPE.md` references**: Section "Loot crates" — extends the daily-crate manual-claim model to all crate sources.
-- **Supersedes**: spec 400 FR-5 auto-delivery semantics for `trigger_type IN ('challenge_completed', 'bonus_completed')`. The `crate_drops` table itself, `CRATE_SOL_PAYOUT` event, and `crate-sol-payout` handler are reused.
-- **Reuses**: spec 307 payout gate (`evaluateGate` / `payout_attempts` idempotency), spec 402 daily-crate-payout service (`gateAndQueueDailyCrateSolPayout`'s shape — a sibling function will be added for the `crate_drops` source).
-- **Current baseline**: Auto-delivery is shipped in dev; daily-claim is shipped in dev. This spec is behavior-changing for the challenge/bonus path.
+- **`docs/SCOPE.md` references**: "Loot crates" — unified player-facing model across all sources.
+- **Replaces**: spec 400 FR-5 auto-delivery for challenge/bonus; spec 402 FR-6/FR-8 player-facing daily endpoints (`/crates/daily/claim`, `/crates/daily/pending`); and `GET /crates/mine`. The underlying `daily_crate_rewards`, `crate_drops`, `CRATE_SOL_PAYOUT` event, `crate-sol-payout` handler, peek admin views, and public fairness proof endpoints (`/crates/daily/configs/:version`, `/crates/daily/rewards/:rewardId/verify`, `/crates/daily/today`) are unchanged.
+- **Reuses**: spec 307 payout gate (`evaluateGate`, `payout_attempts`), the daily-crate-payout service (and a sibling for crate_drops).
 
 ---
 
 ## Required Context Files
 
-Read before implementation:
-
 - `backend/migrations/011_challenge_engine.sql` lines 128–142 — current `crate_drops` schema
-- `backend/migrations/032_daily_crate.sql` — daily-crate schema (reference for status enum and column patterns)
-- `backend/src/queue/handlers/crate-drop.ts` — handler to refactor
-- `backend/src/queue/handlers/crate-sol-payout.ts` lines 42–76 — legacy crate_drops branch that must stay compatible
-- `backend/src/routes/crates-daily.ts` lines 683–899 — existing daily claim endpoint (the reference design)
-- `backend/src/services/daily-crate-payout.ts` — `gateAndQueueDailyCrateSolPayout` (the gate ritual to mirror)
-- `backend/src/routes/points.ts` lines 310–367 — existing `GET /crates/mine` (legacy history; not deleted)
-- `backend/src/queue/handlers/challenge-progress.ts` lines 124–152 — `emitChallengeReward` (emits `CRATE_DROP` events; unchanged)
-- `docs/specs/402-daily-crate/spec.md` — daily-crate FR-6/FR-7 semantics this spec mirrors
+- `backend/migrations/032_daily_crate.sql` — daily-crate schema and status enum
+- `backend/src/queue/handlers/crate-drop.ts` — handler refactored to freeze, not deliver
+- `backend/src/queue/handlers/crate-sol-payout.ts` lines 42–76 — legacy branch we keep compatible
+- `backend/src/services/daily-crate-payout.ts` — gate ritual to mirror
+- `docs/specs/402-daily-crate/spec.md` — daily semantics this spec absorbs into a unified surface
 
 ---
 
 ## Contract Files
 
-- `backend/src/contracts/crates.ts` — **new** shared contract module: `CrateSource`, `CrateInventoryItem`, `CrateOpenResponse`, status enums.
-- `backend/src/contracts/api-errors.ts` — extend with `CRATE_NOT_OPENABLE` (current status disallows open), `CRATE_NOT_FOUND`.
-- `backend/src/routes/crates-drops.ts` — **new** route module: `POST /crates/drops/:dropId/claim`.
-- `backend/src/routes/crates-inventory.ts` — **new** route module: `GET /crates/inventory`.
+- `backend/src/contracts/crates.ts` — shared types: `CrateSource`, `CrateInventoryItem`, `CrateHistoryItem`, `CrateDetail`, `CrateOpenResponse`, `CratePublicStatus`, plus `formatCrateId` / `parseCrateId` helpers.
+- `backend/src/contracts/api-errors.ts` — adds `CRATE_NOT_FOUND`, `CRATE_NOT_OPENABLE`, `INVALID_CRATE_ID`.
+- `backend/src/routes/crates.ts` — **new** unified module implementing all four endpoints.
+
+The following are deleted:
+- `backend/src/routes/crates-drops.ts`
+- `backend/src/routes/crates-inventory.ts`
+- `createCrateRoutes` export from `backend/src/routes/points.ts` (and the `GET /crates/mine` handler).
+- The `/pending` and `/claim` routes from `backend/src/routes/crates-daily.ts` (keeping `today`, `configs/:version`, `rewards/:rewardId/verify`).
 
 ---
 
 ## System Invariants
 
-1. **One open per crate.** A `crate_drops` row in `'awaiting_open'` transitions atomically (with `FOR UPDATE`) on the first successful claim call. Repeat claims return the persisted post-open state without re-emitting events.
-2. **No pool decrement before open.** `crate-drop` handler never touches `reward_pool`. The pool is reserved exclusively at open time, inside the claim transaction, using `lockAndReadRewardPool` (existing helper).
-3. **Contents masked pre-open.** Any list/inventory response MUST omit `crateType`, `contentsAmount`, and any reward-hash-equivalent for rows in `'awaiting_open'` status. The masking applies to both `crate_drops` and `daily_crate_rewards` rows in their respective list endpoints.
-4. **Backward compatibility of `'pending'`.** Rows already in `crate_drops.status='pending'` at deploy time keep their existing semantics — they will be drained by the existing `crate-sol-payout` handler (SOL crates) or were already grant-effective (points crates). No retroactive update.
-5. **Source-of-truth for inventory.** `GET /crates/inventory` is the only endpoint that joins both tables. Per-source endpoints (`/crates/daily/pending`, `/crates/mine`) keep their current shapes minus the masked fields.
-6. **Idempotent claim.** The new `POST /crates/drops/:dropId/claim` is idempotent in the same way as `POST /crates/daily/claim`: replay on a non-`awaiting_open` row returns the persisted outcome and emits no event.
+1. **One open per crate.** The open handler locks the source row with `FOR UPDATE`; non-`unopened` repeats return the persisted post-open state without re-emitting events.
+2. **No pool decrement before open.** `crate-drop` handler never touches `reward_pool`; reservation is exclusive to the open transaction.
+3. **Contents masked pre-open.** Inventory items and `/crates/:crateId` GETs for unopened rows omit `crateType`, `contentsAmount`, and any reward-hash-equivalent.
+4. **`crateId` round-trip.** `parseCrateId(formatCrateId(source, suffix)) === { source, suffix }` for every valid pair; invalid prefixes or suffixes return a 400 `INVALID_CRATE_ID`.
+5. **Backward-compat at the DB level.** Existing `crate_drops.status='pending'` rows from before deploy keep draining via the unchanged `crate-sol-payout` legacy branch.
+6. **Wallet-mismatch is masked as 404.** A drop owned by user B, looked up by user A, returns `CRATE_NOT_FOUND`, not 403. No existence leak.
 
 ---
 
@@ -105,239 +111,271 @@ Read before implementation:
 
 ### FR-1: Schema additions (additive migration)
 
-A new migration adds the `'awaiting_open'`, `'awaiting_funds'`, and `'held'` statuses to `crate_drops.status_check`, plus nullable `opened_at` and `hold_reason` columns. No existing data is rewritten.
-
-```sql
--- backend/migrations/0NN_crate_open.sql
-
-ALTER TABLE crate_drops DROP CONSTRAINT crate_drops_status_check;
-ALTER TABLE crate_drops ADD CONSTRAINT crate_drops_status_check
-  CHECK (status IN ('awaiting_open', 'pending', 'awaiting_funds', 'held', 'granted', 'failed'));
-
-ALTER TABLE crate_drops
-  ADD COLUMN opened_at TIMESTAMPTZ,
-  ADD COLUMN hold_reason TEXT
-    CHECK (hold_reason IS NULL OR hold_reason IN ('global_pause','above_threshold','fraud_flag','manual_hold'));
-
--- Partial index to drive the inventory query
-CREATE INDEX idx_crate_drops_user_awaiting_open
-  ON crate_drops (user_id, created_at DESC)
-  WHERE status = 'awaiting_open';
-```
+Migration `036_crate_open.sql` (already shipped) added the `'awaiting_open'`, `'awaiting_funds'`, and `'held'` statuses to `crate_drops.status_check`, plus nullable `opened_at` and `hold_reason` columns and a partial index on `(user_id, created_at DESC) WHERE status='awaiting_open'`. Plus a `payout_controls` seed row for `claim_kind='crate_drop_sol'`.
 
 **Acceptance Criteria:**
-- [ ] Migration file exists under `backend/migrations/` with the next sequential prefix.
-- [ ] After running migrations, `crate_drops` accepts INSERTs with `status='awaiting_open'`.
-- [ ] Existing `'pending'` rows remain valid (CHECK constraint passes).
-- [ ] `idx_crate_drops_user_awaiting_open` is created and used by the inventory query (verified via EXPLAIN in a test).
+- [ ] Migration applied; CHECK accepts new statuses.
+- [ ] Existing rows unchanged.
+- [ ] `payout_controls` row exists for `crate_drop_sol`.
 
-### FR-2: Crate-drop handler — roll and freeze, no auto-deliver
+### FR-2: Crate-drop handler — roll and freeze
 
-The `crate-drop` queue handler is refactored to:
+`crate-drop.ts` rolls outcomes using the existing distribution but:
 
-1. Roll the same `Math.random()`-driven outcome as today (preserves current odds and distributions).
-2. Insert the `crate_drops` row with `status='awaiting_open'` (instead of relying on the column default).
-3. **Not** decrement `reward_pool`.
-4. **Not** emit `POINTS_GRANT` or `CRATE_SOL_PAYOUT`.
-5. Log the roll outcome (preserve current observability).
-
-The SOL-crate suppression rule ("suppress if `payoutLamports < solMinValue`") moves to open time — at roll time we still compute the candidate `payoutLamports` (so the row carries a frozen contents amount), but a payout that would have been suppressed under current rules now lands as a row with `crate_type='sol'` and a frozen amount, and the player will hit `awaiting_funds` / pool gate at open. **This is a semantic change** and is intentional: the current "wasted roll" path is replaced by deferred reservation. If we want to preserve "no row when amount < min", we instead skip insertion entirely; the spec chooses **skip insertion** (no row, no inventory item) to keep parity with current player visibility.
+- Inserts `crate_drops` with `status='awaiting_open'`.
+- Does **not** decrement `reward_pool` at roll time.
+- Does **not** emit `POINTS_GRANT` or `CRATE_SOL_PAYOUT`.
+- Suppresses the row entirely (no insert) when the candidate SOL `payoutLamports < sol_crate_min_value` — preserves "no row visible to player" parity.
 
 **Acceptance Criteria:**
-- [ ] `crate-drop` handler inserts rows with `status='awaiting_open'`.
-- [ ] `crate-drop` handler does not call `decrementRewardPool` (deleted from this code path).
-- [ ] `crate-drop` handler does not call `emitEvent(POINTS_GRANT|CRATE_SOL_PAYOUT)`.
-- [ ] If `payoutLamports < solMinValue`, no row is inserted (parity with current "suppressed" behavior).
-- [ ] Existing handler tests are updated: where they previously asserted "event emitted" they now assert "row inserted in awaiting_open + no event emitted".
-- [ ] Idempotency guard (`UNIQUE(user_id, trigger_type, trigger_id)`) still works; duplicate events do not insert a second row.
+- [ ] Rows insert with `status='awaiting_open'`.
+- [ ] No `event_queue` rows produced.
+- [ ] Pool balance unchanged at roll time.
+- [ ] Idempotency on duplicate `(user_id, trigger_type, trigger_id)`.
 
-### FR-3: `POST /crates/drops/:dropId/claim` — manual open endpoint
+### FR-3: `crateId` encoding
 
-A new authenticated player endpoint mirrors `POST /crates/daily/claim`:
+Single canonical format: `<source>:<suffix>`.
 
-- **Path:** `POST /crates/drops/:dropId/claim`
-- **Auth:** required (JWT)
-- **Request body:** none (the `:dropId` path param identifies the row)
-- **Response (200):** `{ ok: true, data: CrateOpenResponse }`
-- **Errors:** `401 AUTH_REQUIRED`, `403` (wallet mismatch — drop's `user_id` ≠ caller), `404 CRATE_NOT_FOUND`, `409 CRATE_NOT_OPENABLE` (status not `awaiting_open` on first call only; replay returns 200 with persisted state), `5xx` for handled failures.
+- `source` ∈ `{ daily, drop }`.
+- For `daily`, suffix is a `YYYY-MM-DD` string (the `dayId`).
+- For `drop`, suffix is a positive integer string (the `crate_drops.id`).
 
-Transactional sequence inside the handler (locked via `SELECT ... FOR UPDATE`):
-
-1. Load `crate_drops` row; 404 if missing.
-2. Verify `user_id === caller.userId`; 403 otherwise.
-3. If `status !== 'awaiting_open'`, this is a replay — return the persisted contents and current `status` with no event emit (idempotency).
-4. Resolve canonical `wallet` from `getProfileByUserId(userId)`.
-5. **If `crate_type='points'`:** set `status='granted'`, `opened_at=now()`, `granted_at=now()`; emit `POINTS_GRANT` with `sourceType='crate_points'`, `sourceId='crate-{dropId}'`, `amount=contents_amount`.
-6. **If `crate_type='sol'`:** run the gate (mirrored from `gateAndQueueDailyCrateSolPayout`):
-   - Evaluate spec-307 gate via `evaluateGate`. If held → `status='held'`, `hold_reason=...`, `opened_at=now()`.
-   - Otherwise `lockAndReadRewardPool` + `decrementRewardPool`. If `balance < contents_amount` → `status='awaiting_funds'`, `opened_at=now()` (no pool change); else `status='pending'`, `opened_at=now()`, emit `CRATE_SOL_PAYOUT` with the existing payload shape so `crate-sol-payout.ts` legacy branch handles it unchanged.
-7. Return `CrateOpenResponse`.
-
-Response shape:
+Helpers in `backend/src/contracts/crates.ts`:
 
 ```ts
-type CrateOpenResponse = {
-  dropId: string;
-  source: 'challenge' | 'bonus';        // mapped from trigger_type
-  crateType: 'points' | 'sol';
-  contentsAmount: string;               // lamports as string
-  status: 'granted' | 'pending' | 'awaiting_funds' | 'held';
-  openedAt: string;                     // ISO timestamp
-};
+export type CrateSource = "daily" | "challenge" | "bonus";
+export type CrateIdSource = "daily" | "drop";
+
+export function formatCrateId(source: CrateIdSource, suffix: string): string;
+export function parseCrateId(crateId: string):
+  | { source: "daily"; dayId: string }
+  | { source: "drop";  dropId: string }
+  | null;
 ```
 
-For replays (`status` was already non-`awaiting_open`), the response includes the persisted `openedAt` and the persisted terminal/in-flight status.
+The public `CrateSource` (returned in API bodies) distinguishes `challenge` vs `bonus` for drops based on `trigger_type`; the `crateId` prefix only encodes table source (`daily` vs `drop`) because the open dispatch doesn't need finer granularity.
 
 **Acceptance Criteria:**
-- [ ] Endpoint registered with OpenAPI route definition.
-- [ ] Wallet mismatch returns 403, not 404.
-- [ ] Missing crate returns 404.
-- [ ] First claim on `awaiting_open` row: row updates and event is emitted (one row in `event_queue`).
-- [ ] Replay (second call): row state unchanged; no new event in `event_queue`; response shape identical.
-- [ ] SOL gate held: row has `status='held'`, `hold_reason` set, no pool decrement, no event emitted.
-- [ ] SOL pool insufficient: row has `status='awaiting_funds'`, no pool decrement, no event emitted.
-- [ ] SOL queued: pool decremented atomically, row has `status='pending'`, exactly one `CRATE_SOL_PAYOUT` event in `event_queue`.
-- [ ] Points crate: row goes directly to `'granted'`, one `POINTS_GRANT` event emitted.
-- [ ] Existing `crate-sol-payout.ts` handler picks up the new `'pending'` rows without code changes (regression test).
+- [ ] `formatCrateId('daily', '2024-03-04')` → `'daily:2024-03-04'`.
+- [ ] `formatCrateId('drop', '42')` → `'drop:42'`.
+- [ ] `parseCrateId('daily:2024-03-04')` → `{ source: 'daily', dayId: '2024-03-04' }`.
+- [ ] `parseCrateId('drop:42')` → `{ source: 'drop', dropId: '42' }`.
+- [ ] `parseCrateId('foo:bar')`, `'daily:not-a-date'`, `'drop:abc'`, `''` → `null`.
 
-### FR-4: Pool retry tail — challenge SOL `awaiting_funds`
+### FR-4: Unified public status enum
 
-When `reward_pool` is later funded (via `REWARD_POOL_FUND` event), the existing daily-crate retry tail re-checks `daily_crate_rewards.status='awaiting_funds'`. The same retry must now also drain `crate_drops.status='awaiting_funds'`. This is the single explicit cross-source piece of work.
+API responses use a small, source-agnostic status vocabulary:
 
-Implementation: extend `reward-pool-fund` handler (or its equivalent retry tail) to scan `crate_drops` rows with `status='awaiting_funds'`, evaluate the gate per-row, and queue payouts identical to the daily-crate path.
+| Public status | Internal (daily) | Internal (drops) | Meaning |
+|---|---|---|---|
+| `awaiting_open` | `earned` | `awaiting_open` | Unopened; player hasn't clicked yet |
+| `pending` | `grant_queued`, `payout_queued`, `held` | `pending`, `held` | Post-open, delivery in flight |
+| `awaiting_funds` | `awaiting_funds` | `awaiting_funds` | Post-open, waiting for pool refill |
+| `granted` | `granted` | `granted` | Terminal success |
+| `failed` | `failed`, `rejected` | `failed` | Terminal failure |
+
+`held` is masked to `pending` for the player (matches spec 402 daily behaviour). The terminal `rejected` (daily-only) is masked to `failed`.
 
 **Acceptance Criteria:**
-- [ ] Funding the pool drains both daily-crate and crate-drops `awaiting_funds` rows in priority order (FIFO by `opened_at`).
-- [ ] A test inserts one of each type, funds the pool, and asserts both transition to `'pending'`.
+- [ ] Every internal status maps to exactly one public status.
+- [ ] `held` → `pending`.
+- [ ] `rejected` → `failed`.
+- [ ] Unit tests cover every mapping cell.
 
-### FR-5: `GET /crates/inventory` — unified unopened list
+### FR-5: `GET /crates/inventory` — unopened crates
 
-A new authenticated endpoint returning all of the player's unopened crates from both sources, in one paginated list, with contents masked.
+Player-initiated paginated list of unopened crates from both sources, contents masked.
 
-- **Path:** `GET /crates/inventory`
-- **Query:** `?cursor=...&limit=20`
-- **Response (200):**
+- **Auth:** required.
+- **Query:** `cursor` (ISO timestamp), `limit` (1–50, default 20), `source` (optional: `daily | drop | all`, default `all`).
+- **Response:**
 
 ```ts
 type CrateInventoryItem = {
-  id: string;                      // opaque — includes source prefix, e.g. "daily:42" or "drop:99"
+  crateId: string;
   source: 'daily' | 'challenge' | 'bonus';
+  state: 'unopened';
+  status: 'awaiting_open';
   createdAt: string;
-  rarityHint: 'common' | 'rare' | 'epic' | null;   // derived from tier (daily) or crate_type (drop); null acceptable in v1
+  rarityHint: 'common' | 'rare' | 'epic' | null;
 };
 type CrateInventoryResponse = { items: CrateInventoryItem[]; nextCursor: string | null };
 ```
 
-Inventory item rules:
-- **Daily:** include rows where `daily_crate_rewards.status='earned'` for the caller.
-- **Challenge/bonus:** include rows where `crate_drops.status='awaiting_open'` for the caller, mapping `trigger_type` to `source` (`challenge_completed`→`challenge`, `bonus_completed`→`bonus`).
-- Sort: union, ORDER BY `createdAt DESC`. Cursor uses the timestamp.
-- `rarityHint` v1 implementation: for daily, use the row's `tier` (e.g. tier 1 → common, tier 2 → rare, tier 3+ → epic — exact bucketing in code via a helper). For challenge/bonus, return `null` (frontend can color by `source`).
+Items from both source tables, sorted by `created_at DESC`. `rarityHint` is derived from `daily_crate_rewards.tier` for daily rows; `null` for drops (no tier concept yet).
 
 **Acceptance Criteria:**
-- [ ] Endpoint registered, authenticated, returns `CrateInventoryResponse`.
-- [ ] Response omits `crateType` / `contentsAmount` / `rewardHash` / `tier` / `dayLamports` — all hidden.
-- [ ] Items from both sources appear in the same paginated stream sorted by `createdAt DESC`.
-- [ ] Pagination cursor is stable across pages (no duplicates, no skips for inserts during pagination).
-- [ ] Returns 401 without auth.
+- [ ] Returns unopened daily AND drop rows mixed in `createdAt DESC`.
+- [ ] Multiple backlog daily crates (different `day_id`) all appear.
+- [ ] No `crateType`, `contentsAmount`, or other contents fields in the response.
+- [ ] `source=daily` filters to daily only; `source=drop` filters to drops only.
+- [ ] Pagination cursor walks pages without dupes/skips.
+- [ ] 401 without auth.
 
-### FR-6: Masking contents in existing list responses
+### FR-6: `GET /crates/history` — opened crates
 
-The existing per-source list endpoints must be updated so they no longer leak unopened contents:
+Player-initiated paginated list of post-open crates (in-flight + terminal), with contents revealed.
 
-- `GET /crates/daily/pending` — for rows with `status='earned'`, omit `contentsAmount`, `crateType`, `rewardHash`, `dayLamports`, `tier`. For non-`earned` rows (`grant_queued`, `awaiting_funds`, `payout_queued`, `pending`, `held`), keep the current full shape (contents are post-open; player has already seen them).
-- `GET /crates/mine` (challenge history) — for rows with `status='awaiting_open'`, omit `crateType` and `contentsAmount`. For other statuses (`pending`/`granted`/`failed`/`awaiting_funds`/`held`), keep current shape.
-
-**Acceptance Criteria:**
-- [ ] `GET /crates/daily/pending` returns earned-row items without contents fields.
-- [ ] `GET /crates/daily/pending` still returns full shape for post-claim statuses (regression test asserts `contentsAmount` is present for `grant_queued`).
-- [ ] `GET /crates/mine` returns awaiting-open items without `crateType` / `contentsAmount`.
-- [ ] OpenAPI schemas updated to reflect optional fields gated on status (use discriminated union or `nullable` where appropriate).
-
-### FR-7: Contracts module + error codes
-
-A new module `backend/src/contracts/crates.ts` exports the shared types:
+- **Auth:** required.
+- **Query:** `cursor` (ISO timestamp), `limit` (1–50, default 20), `source` (`daily | drop | all`, default `all`), `status` (optional: any public status except `awaiting_open`).
+- **Response:**
 
 ```ts
-export type CrateSource = 'daily' | 'challenge' | 'bonus';
-export type CrateDropStatus = 'awaiting_open' | 'pending' | 'awaiting_funds' | 'held' | 'granted' | 'failed';
-export type CrateInventoryItem = { /* per FR-5 */ };
-export type CrateOpenResponse = { /* per FR-3 */ };
-
-export const CRATE_DROPS_STATUS = {
-  AWAITING_OPEN: 'awaiting_open',
-  PENDING: 'pending',
-  AWAITING_FUNDS: 'awaiting_funds',
-  HELD: 'held',
-  GRANTED: 'granted',
-  FAILED: 'failed',
-} as const;
+type CrateHistoryItem = {
+  crateId: string;
+  source: 'daily' | 'challenge' | 'bonus';
+  state: 'opened';
+  status: 'pending' | 'awaiting_funds' | 'granted' | 'failed';
+  crateType: 'points' | 'sol';
+  contentsAmount: string;
+  createdAt: string;
+  openedAt: string;
+  grantedAt: string | null;
+};
+type CrateHistoryResponse = { items: CrateHistoryItem[]; nextCursor: string | null };
 ```
 
-`API_ERROR_CODES` is extended with:
-- `CRATE_NOT_FOUND` → 404 when the drop id doesn't exist (or belongs to a different user — see note).
-- `CRATE_NOT_OPENABLE` → 409 when the drop is in a non-replayable state. (Replays of non-`awaiting_open` return 200 with persisted state, not this code.)
-
-Wallet-mismatch decision: return `404 CRATE_NOT_FOUND` rather than 403, to avoid leaking existence of others' drops. This is consistent with public-route hygiene.
+The cursor key is `openedAt DESC` (or `created_at` fallback for legacy rows pre-spec-406 that lack `opened_at`).
 
 **Acceptance Criteria:**
-- [ ] `backend/src/contracts/crates.ts` exists and is imported by both routes.
-- [ ] `API_ERROR_CODES.CRATE_NOT_FOUND` and `CRATE_NOT_OPENABLE` added to the central catalog.
-- [ ] Wallet-mismatch returns 404, not 403 (matches the security note above — update FR-3 acceptance criterion accordingly).
+- [ ] Returns only rows with internal status NOT in `{ earned, awaiting_open }`.
+- [ ] Combines daily and drop sources by default.
+- [ ] Contents fields populated.
+- [ ] `source` and `status` filters work.
+- [ ] Pagination consistent across pages.
+- [ ] 401 without auth.
 
-### FR-8: OpenAPI contract
+### FR-7: `GET /crates/:crateId` — single crate detail
 
-Per backend CLAUDE.md, every new public route gets an OpenAPI path module and matching contract test.
+Lookup a specific crate by its `crateId`. Returns the full state object including current status and (for opened crates) contents.
+
+- **Auth:** required.
+- **Errors:** `400 INVALID_CRATE_ID` (parse failure), `404 CRATE_NOT_FOUND` (missing OR owned by another user), `401 AUTH_REQUIRED`.
+- **Response:**
+
+```ts
+type CrateDetail =
+  | {
+      crateId: string;
+      source: 'daily' | 'challenge' | 'bonus';
+      state: 'unopened';
+      status: 'awaiting_open';
+      createdAt: string;
+      rarityHint: 'common' | 'rare' | 'epic' | null;
+    }
+  | {
+      crateId: string;
+      source: 'daily' | 'challenge' | 'bonus';
+      state: 'opened';
+      status: 'pending' | 'awaiting_funds' | 'granted' | 'failed';
+      crateType: 'points' | 'sol';
+      contentsAmount: string;
+      createdAt: string;
+      openedAt: string;
+      grantedAt: string | null;
+    };
+```
 
 **Acceptance Criteria:**
-- [ ] OpenAPI path module exists for `POST /crates/drops/:dropId/claim`.
-- [ ] OpenAPI path module exists for `GET /crates/inventory`.
-- [ ] OpenAPI path module updated for `GET /crates/daily/pending` (masked shape).
-- [ ] OpenAPI path module updated for `GET /crates/mine` (masked shape for `awaiting_open`).
+- [ ] Returns unopened detail with masked contents for `awaiting_open` rows.
+- [ ] Returns opened detail with revealed contents for post-open rows.
+- [ ] Invalid `crateId` format → 400.
+- [ ] Unknown id OR cross-user lookup → 404 (no existence leak).
+- [ ] 401 without auth.
+
+### FR-8: `POST /crates/:crateId/open` — open a crate
+
+Single open endpoint. Internally dispatches on `parseCrateId(crateId).source`.
+
+- **Auth:** required.
+- **Errors:** `400 INVALID_CRATE_ID`, `404 CRATE_NOT_FOUND`, `409 CRATE_NOT_OPENABLE` (extra-safety; replay returns 200 with persisted state, not this code), `401`, `425 DAILY_CRATE_NOT_READY` (daily only; run not finished), `503 DAILY_CRATE_RUN_FAILED` (daily only).
+- **Response (200):**
+
+```ts
+type CrateOpenResponse = {
+  crateId: string;
+  source: 'daily' | 'challenge' | 'bonus';
+  state: 'opened';
+  status: 'pending' | 'awaiting_funds' | 'granted' | 'failed';
+  crateType: 'points' | 'sol';
+  contentsAmount: string;
+  openedAt: string;
+};
+```
+
+**Daily dispatch:** parses `dayId`, runs the existing daily-claim transactional sequence (lock row, gate, reserve, emit event). Replay on non-`earned` returns 200 with persisted state.
+
+**Drop dispatch:** parses `dropId`, runs the equivalent transactional sequence on `crate_drops` (lock row, points → `granted` + `POINTS_GRANT`; sol → gate, reserve, emit `crate.sol_payout` with `source='crate_drop'`). Replay on non-`awaiting_open` returns 200 with persisted state.
+
+**Acceptance Criteria:**
+- [ ] `crateId=daily:<dayId>` opens that daily row; same transitions as the old `/crates/daily/claim`.
+- [ ] `crateId=drop:<dropId>` opens that drop row.
+- [ ] Replay returns 200 with persisted state and no new event.
+- [ ] Wallet-mismatch returns 404.
+- [ ] Invalid `crateId` returns 400.
+- [ ] Future `dayId` returns `INVALID_DAY_ID` (existing 400 contract).
+
+### FR-9: Pool retry tail — challenge SOL `awaiting_funds`
+
+The existing daily-crate retry tail (`payPendingDailyCrateSolRewards`) is paired with a new `payPendingCrateDropSolRewards` that drains `crate_drops.status='awaiting_funds'` rows after each successful `reward.pool_fund`. Both run after the funding transaction commits, FIFO by `opened_at`, with opportunistic-no-FIFO guards.
+
+**Acceptance Criteria:**
+- [ ] Funding the pool drains both sources' `awaiting_funds` rows.
+- [ ] Independent error containment: a row failure in one source doesn't block the other.
+
+### FR-10: OpenAPI contract
+
+All four player endpoints have OpenAPI route modules. The three daily-specific public endpoints (`/crates/daily/today`, `/configs/:version`, `/rewards/:rewardId/verify`) remain documented in their existing module. Contract test mounts the new unified module.
+
+**Acceptance Criteria:**
+- [ ] OpenAPI auto-spec includes the four unified paths.
+- [ ] Old paths (`/crates/daily/claim`, `/crates/daily/pending`, `/crates/mine`, `/crates/drops/:dropId/claim`) are absent.
 - [ ] `backend/src/__tests__/openapi-contract.test.ts` passes.
 
 ---
 
 ## Success Criteria
 
-- All four crate sources (daily, challenge, completion-bonus) require a manual player click to deliver contents.
-- A player who opens DevTools cannot see crate contents before clicking "open".
-- `GET /crates/inventory` returns both daily and challenge/bonus unopened crates in one list.
+- The FE consumes one set of endpoints regardless of crate source.
+- A player with backlog (multiple unopened daily crates plus drops) sees all of them in `/crates/inventory`.
+- Network responses for inventory items never contain `crateType` or `contentsAmount` — those only appear in the open response, history, or `GET /crates/:crateId` for opened rows.
 - Reward pool is never decremented from an un-opened roll.
-- Existing legacy `crate_drops` rows in `'pending'` continue to drain via the existing payout handler.
-- `./scripts/verify` exit 0.
-
----
+- `./scripts/verify --ts` exit 0.
 
 ## Dependencies
 
-- Spec 307 payout gate (`evaluateGate`, `payout_attempts`).
-- Spec 402 daily-crate plumbing (gate + retry tail patterns to mirror).
-- Existing `crate-sol-payout.ts` legacy branch — unchanged but depended on by the new claim flow.
-- Existing `reward-pool-fund.ts` retry tail — to be extended.
+- Spec 307 payout gate.
+- Spec 402 daily-crate plumbing (compute, payout service).
+- Existing `crate-sol-payout.ts` legacy branch (unchanged).
+- Existing `reward-pool-fund.ts` (retry tail extended).
 
 ## Assumptions
 
-- The webapp team will replace its current auto-grant chest UX with an inventory page + per-crate open call. This is tracked as a separate frontend MR, out of scope here.
-- No production rows currently sit in `crate_drops.status='pending'` for points crates that depend on the row being treated as terminal "granted" (the spec preserves their semantics: they remain queryable; no new client code path treats them as un-opened).
-- `Math.random()`-based fairness for challenge crates is acceptable for v1. A future spec may introduce committed-blockhash fairness for these crates (out of scope here).
+- The webapp will migrate to the unified endpoints in a follow-on FE MR. The migration window is short and we accept the breakage; no compatibility shim is provided.
+- `Math.random()` fairness for challenge crates is acceptable for v1.
 
 ---
 
 ## Validation Plan
 
 | # | Acceptance Criterion | Validation Method | Evidence Required |
-|---|---------------------|-------------------|-------------------|
-| 1 | crate-drop handler inserts `awaiting_open`, no events emitted | Vitest in `backend/src/__tests__/crate-drop-handler.test.ts` | Assert `event_queue` count unchanged, `crate_drops.status='awaiting_open'` |
-| 2 | Pool not decremented at roll time | Same test as above | Assert `reward_pool.balance_lamports` unchanged |
-| 3 | First open succeeds, second open returns persisted state | New `crate-drops-claim.test.ts` | Two POST calls, assert single event in queue, identical response on second call |
-| 4 | Wallet mismatch returns 404 | New test | POST as user B for drop owned by user A |
-| 5 | SOL gate / pool / queue sequence matches daily semantics | New test | Insert awaiting_open SOL row, set pool=0, claim → `awaiting_funds`; fund pool → drained to `pending` |
-| 6 | Inventory returns both sources sorted by createdAt DESC | New `crates-inventory-route.test.ts` | Mix daily + drop rows, assert order |
-| 7 | Inventory masks all contents fields | Same test | Assert response body has no `crateType` / `contentsAmount` / `rewardHash` / `tier` |
-| 8 | Daily-pending masks contents for `earned` rows, retains for post-claim rows | Update `points-and-crates-routes.test.ts` | Two rows with different statuses, two assertions |
-| 9 | Existing legacy `crate_drops.status='pending'` still drains via crate-sol-payout | Regression test in `crate-sol-payout.test.ts` | Insert legacy 'pending' row, fire event, assert 'granted' |
-| 10 | Migration is additive — pre-existing rows unchanged | Vitest migration test | Pre-populate row in `pending`, run migration, SELECT row, assert all columns intact |
+|---|---|---|---|
+| 1 | crate-drop handler freezes without delivery | Vitest in `crate-drop-handler.test.ts` | `status='awaiting_open'`, 0 events, pool unchanged |
+| 2 | `crateId` encoding round-trips | Unit test on `parseCrateId`/`formatCrateId` | Cover daily, drop, invalid prefixes, invalid suffix |
+| 3 | Inventory returns multi-backlog daily + drops mixed | Integration test | 3 daily different dayIds + 2 drops; all 5 appear, sorted DESC |
+| 4 | Inventory masks contents | Same test | No `crateType` / `contentsAmount` keys |
+| 5 | History returns post-open rows with contents | Integration test | Mixed daily granted + drop pending; contents present |
+| 6 | Single crate detail (unopened) masks contents | Integration test | GET on `awaiting_open` daily and drop |
+| 7 | Single crate detail (opened) reveals contents | Integration test | GET on `granted` daily and `pending` drop |
+| 8 | Open daily by crateId works | Integration test | `daily:<dayId>` opens daily row; one event emitted |
+| 9 | Open drop by crateId works | Integration test | `drop:<id>` opens drop row; one event emitted |
+| 10 | Replay returns 200 with no new event | Integration test | Two open calls, single event in `event_queue` |
+| 11 | Wallet-mismatch returns 404 | Integration test | User B opens a crate of user A |
+| 12 | Invalid crateId returns 400 | Integration test | `foo:bar`, `daily:abc`, `drop:zzz` |
+| 13 | SOL gate / pool / queue parity for drops | Integration test | Held, awaiting_funds, queued paths |
+| 14 | Pool funding drains both sources' awaiting_funds | Integration test | Insert one of each, fund, both → pending |
+| 15 | OpenAPI spec has the four unified paths | Contract test | Spot-check paths absent and present |
 
 ---
 
@@ -345,43 +383,27 @@ Per backend CLAUDE.md, every new public route gets an OpenAPI path module and ma
 
 ### Implementation Checklist
 
-- [ ] Write migration `backend/migrations/0NN_crate_open.sql` (additive: new status values, `opened_at`, `hold_reason`, partial index).
-- [ ] Create `backend/src/contracts/crates.ts` with `CrateSource`, `CrateInventoryItem`, `CrateOpenResponse`, `CRATE_DROPS_STATUS`.
-- [ ] Add `CRATE_NOT_FOUND` and `CRATE_NOT_OPENABLE` to `backend/src/contracts/api-errors.ts`.
-- [ ] Refactor `backend/src/queue/handlers/crate-drop.ts`: roll + insert `awaiting_open`, no pool decrement, no event emit.
-- [ ] Update `backend/src/__tests__/crate-drop-handler.test.ts` for new semantics.
-- [ ] Add `backend/src/services/crate-drop-payout.ts` exporting `gateAndQueueCrateDropSolPayout` (sibling to daily's; targets `crate_drops` instead).
-- [ ] Add `backend/src/routes/crates-drops.ts` with `POST /crates/drops/:dropId/claim` and matching OpenAPI module.
-- [ ] Add `backend/src/routes/crates-inventory.ts` with `GET /crates/inventory` and matching OpenAPI module.
-- [ ] Mount both new route modules in the root app (wherever `crates-daily` is mounted).
-- [ ] Update `GET /crates/daily/pending` to mask `earned`-status rows (in `crates-daily.ts`).
-- [ ] Update `GET /crates/mine` to mask `awaiting_open`-status rows (in `points.ts`).
-- [ ] Extend `backend/src/queue/handlers/reward-pool-fund.ts` retry tail to also drain `crate_drops.status='awaiting_funds'`.
-- [ ] Add vitest coverage per Validation Plan (rows 3–10).
-- [ ] Update OpenAPI contract tests.
-- [ ] Run `cd backend && pnpm verify`.
-- [ ] [test] N/A for `e2e/local/**` — this is a backend-only contract change; webapp consumption is a separate MR.
-- [ ] [test] N/A for `e2e/visual/**` — no UI in this spec.
-- [ ] [test] N/A for `e2e/devnet/**` — no on-chain provider integration changes.
-
-### Testing Requirements
-
-The agent MUST complete ALL before outputting the completion signal:
-
-#### Code Quality
-- [ ] All existing tests pass
-- [ ] New tests added for new functionality (per Validation Plan)
-- [ ] No lint errors
-
-#### Functional Verification
-- [ ] All acceptance criteria verified
-- [ ] Edge cases handled: replay claim, wallet mismatch, SOL pool empty, SOL gate held, points crate, missing drop id
-- [ ] Error states handled: 401, 404, 409, 5xx
-
-#### Integration Verification
-- [ ] Devnet E2E: N/A (backend contract change, no chain provider integration)
-- [ ] API contracts documented in OpenAPI; contract test passes
-- [ ] Settlement flow not touched (no on-chain changes)
+- [x] Migration `036_crate_open.sql` (shipped previously).
+- [x] `crate-drop.ts` refactor (shipped previously; semantic preserved).
+- [x] `crate-drop-payout.ts` service (shipped previously).
+- [x] `reward-pool-fund.ts` retry tail extension (shipped previously).
+- [ ] `crateId` encoding helpers in `contracts/crates.ts`.
+- [ ] Unified public status mapping in `contracts/crates.ts`.
+- [ ] New `routes/crates.ts` with the four endpoints.
+- [ ] Delete `routes/crates-drops.ts`, `routes/crates-inventory.ts`.
+- [ ] Trim `routes/crates-daily.ts` to `today` + `configs/:version` + `rewards/:rewardId/verify`.
+- [ ] Remove `createCrateRoutes` from `routes/points.ts`.
+- [ ] Update `src/index.ts` mounts.
+- [ ] Add `INVALID_CRATE_ID` to `contracts/api-errors.ts`.
+- [ ] Delete `crates-drops-claim.test.ts`, `crates-inventory.test.ts`.
+- [ ] Add `crates-unified.test.ts` covering inventory/history/detail/open (rows 3–14).
+- [ ] Update `crates-daily-claim.test.ts` for the trimmed module (or rename).
+- [ ] Update `points-and-crates-routes.test.ts` removing `/crates/mine` cases.
+- [ ] Update `openapi-contract.test.ts` to mount the unified module.
+- [ ] `cd backend && pnpm verify`.
+- [ ] [test] N/A `e2e/local/**` — backend contract change only.
+- [ ] [test] N/A `e2e/visual/**` — no UI.
+- [ ] [test] N/A `e2e/devnet/**` — no chain integration changes.
 
 ### Iteration Instructions
 
@@ -389,22 +411,14 @@ If ANY check fails:
 1. Identify the specific issue
 2. Fix the code
 3. Re-run tests
-4. Re-verify all criteria
-5. Check again
+4. Re-verify
 
 **Only when ALL checks pass, output:** `<promise>DONE</promise>`
 
-### Post-Completion: Gap Analysis
-
-After the spec loop outputs `<promise>DONE</promise>`, run `/gap-analysis 406 --non-interactive` to:
-1. Audit every FR acceptance criterion against the codebase
-2. Write `docs/specs/406-unified-crate-claim/gap-analysis.md`
-3. Annotate FR checkboxes with HTML comment evidence
-
 ---
 
-## Future Work (not in this spec)
+## Future Work
 
-- **Verifiable fairness for challenge crates.** Replace `Math.random()` with a deterministic hash seeded by a committed Solana blockhash captured at challenge-completion time, mirroring the daily-crate model. Requires plumbing a blockhash into the `CRATE_DROP` event payload and a `/verify` endpoint per challenge crate.
-- **Table consolidation.** If operational pain from two tables emerges, design a unified `user_crates` table and a backfill migration with rollback story. Not justified by current evidence.
-- **Crate rarity tiers for challenge/bonus.** Today `crate_type` is `points`/`sol`. A future spec could add a `rarity` field (common/rare/epic) populated at roll time, surfaced in `rarityHint`.
+- **Verifiable challenge-crate fairness.** Replace `Math.random()` with deterministic hashing seeded by a committed blockhash at challenge-completion time, mirroring daily.
+- **Bulk open.** A future endpoint or batched open RPC for players returning with large backlogs.
+- **Table consolidation.** A single `user_crates` inventory table is conceivable but not currently justified.
