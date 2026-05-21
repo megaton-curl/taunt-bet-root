@@ -136,6 +136,13 @@ Track key architectural and product decisions as they're made.
 **Alternatives considered**: Continuing dev-phase shortcuts such as reset-first migrations, destructive cleanups without staged rollout, or undocumented operator actions.
 **Status**: ✅ Locked
 
+### Decision: Per-Game Chat Topics For Lifecycle Broadcasts
+**Date**: 2026-05-21
+**Decision**: Backend-emitted join + settle notifications are published to per-game chat topics (`system:flipyou`, `system:potshot`, `system:closecall`) via a dedicated `GAME_BROADCAST` event, in parallel with the legacy `system` ticker. Clients subscribe to the game(s) they care about and filter by `matchId` for round-detail pages.
+**Rationale**: FE state and on-chain state drift by several seconds during joins/settlement. A per-game topic gives subscribers a low-latency refresh signal without paying the global-broadcast fan-out cost incurred by a single shared `system` topic. The chat broadcaster's fan-out is `O(listeners-on-topic)`, so per-game scoping is both cheaper to publish and quieter to consume.
+**Alternatives considered**: One global `system` topic (current ticker — too noisy for game-page consumers); per-match `match:<matchId>` topics (rejected for now — too many SSE connections from lobby views; revisit with multi-topic multiplexing if needed).
+**Status**: ✅ Locked. See `docs/solutions/chat-per-game-broadcast.md`.
+
 ---
 
 ## Template for New Decisions
